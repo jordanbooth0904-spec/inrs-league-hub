@@ -786,7 +786,7 @@ V.odds=()=>{const c=S.calc;needSeasons();const B=book(),br=bankroll();
   const fav=[...d.rows].sort((a,b)=>b.pWin-a.pWin)[0],dark=d.rows.filter(x=>x.pWin*d.VIG<0.07).sort((a,b)=>b.pWin-a.pWin)[0];
   return'<section class="stack">'+top+'<div><div class="eyebrow">Sportsbook · Round '+esc(d.race.round)+" · "+fmtDate(d.race.date)+'</div><h1 class="track" style="font-size:clamp(28px,6vw,44px)">'+esc(trackOf(d.race.track).label)+"</h1>"+
     '<p class="small muted" style="margin:6px 0 0">Play money only. Tap a price to add it to your bet slip, then bet it as a single or combine picks into a parlay, including races from the other series (switch series at the top). Odds come from each driver\'s last 5 races, finishes here this season'+(d.pk?" and last season":"")+", and results on other "+esc(TTYPE_L[d.ty])+".</p>"+
-    (open?"":'<p class="small" style="color:var(--bad);margin:6px 0 0">Betting is closed. The green flag has dropped.</p>')+"</div>"+
+    (open?'<p class="small" style="margin:6px 0 0;color:var(--accent)">Betting closes '+esc(closeLabel(d.race.date))+" (8:30 PM Eastern).</p>":'<p class="small" style="color:var(--bad);margin:6px 0 0">Betting is closed for this race (closed at 8:30 PM Eastern).</p>')+"</div>"+
     '<div class="row"><span class="small muted">Sort by</span>'+mk("win","To win")+mk("top5","Top 5")+mk("top10","Top 10")+"</div>"+
     '<div class="tiles">'+tile(fav?drv(fav.id).name:"–","Favorite "+(fav?oddsFmt(fav.pWin,d.VIG):""),true)+(dark?tile(drv(dark.id).name,"Dark horse "+oddsFmt(dark.pWin,d.VIG),true):"")+tile(d.rows.length,"Drivers priced")+"</div>"+
     '<div class="panel" style="padding:6px 8px"><div class="list">'+L.map((x,i)=>'<div class="oddrow"><span class="orank">'+(i+1)+'</span><div class="oname">'+dlink(x.id)+'<div class="whys">'+why(x)+'</div></div><div class="prices">'+price(x,"win")+price(x,"top5")+price(x,"top10")+"</div></div>").join("")+"</div></div>"+
@@ -801,7 +801,9 @@ const decOdds=a=>{const n=parseFloat(String(a).replace("−","-"));return n>0?1+
 const amOdds=d=>d>=2?"+"+Math.round((d-1)*100):"−"+Math.round(100/(d-1));
 const bucks=v=>"Ⓑ"+(Math.round(v*100)/100).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:2});
 const legKey=l=>l.k+"|"+l.rid+"|"+l.did+"|"+l.m;
-const raceOpen=iso=>!iso||Date.now()<new Date(iso).getTime();
+const CLOSE_MS=30*60e3;/* races are stored at 8:00 PM Eastern; betting closes 30 minutes later */
+const raceOpen=iso=>!iso||Date.now()<new Date(iso).getTime()+CLOSE_MS;
+const closeLabel=iso=>{const d=new Date(new Date(iso).getTime()+CLOSE_MS);return d.toLocaleString(undefined,{weekday:"short",hour:"numeric",minute:"2-digit",timeZoneName:"short"});};
 function seasonRaces(k){if(k===MAINKEY)return S.M.races||[];const a=S.arch[k];return a?a.races||[]:null;}
 function legStatus(l){const R=seasonRaces(l.k);if(!R)return"pending";const r=R.find(x=>x.id===l.rid);if(!r||r.status!=="complete"||!(r.results||[]).length)return"pending";
   const x=r.results.find(y=>y.driverId===l.did);if(!x||!int(x.fin))return"void";return int(x.fin)<=MKT_N[l.m]?"won":"lost";}
