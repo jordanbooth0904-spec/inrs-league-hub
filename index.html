@@ -22,6 +22,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="INRS">
+<script data-goatcounter="https://jobo04.goatcounter.com/count" data-goatcounter-settings='{"no_onload":true}' async src="https://gc.zgo.at/count.js" onload="window.__gcReady&&window.__gcReady()"></script>
 <style>*,*::before,*::after{box-sizing:border-box}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.45 system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>INRS League Hub</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -899,13 +900,20 @@ document.addEventListener("change",e=>{const el=e.target,p=el.dataset&&el.datase
 function isTyping(){const a=document.activeElement;return!!(a&&a.closest&&a.closest("#main")&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&a.type!=="file");}
 function render(){if(isTyping()){S.pending=true;return;}draw();}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(S.pending&&!isTyping()){S.pending=false;draw();}},0));
+/* visitor counting (website only; GoatCounter, no cookies). Each tab + season counts as a page. */
+let gcLast=null;
+function gcTrack(){try{const g=window.goatcounter;if(!S.static||!g||typeof g.count!=="function")return;
+  const key="/"+S.view+(isMain()?"":"/"+S.sel);if(key===gcLast)return;gcLast=key;
+  const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="compare"?"Head to head":S.view])[1];
+  g.count({path:key,title:tab+(isMain()?"":" · "+S.sel)});}catch(e){}}
+window.__gcReady=()=>{gcLast=null;gcTrack();};
 function draw(){S.calc=compute();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
   document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
   document.getElementById("tabs").innerHTML=TABS.filter(t=>t[0]!=="admin"||(S.admin&&isMain())).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||(S.view==="career"&&t[0]==="records")||(S.view==="compare"&&t[0]==="drivers")?' aria-current="page"':"")+">"+t[1]+"</button>").join("");
   if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
   const sw=document.getElementById("switch");if(sw){const h=switcher();sw.hidden=!h;if(!isTyping()||!sw.contains(document.activeElement))sw.innerHTML=h;}
   const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"||S.selLoading?loading():(V[S.view]||V.home)();
-  document.getElementById("main").innerHTML=notice()+archBar()+body;
+  document.getElementById("main").innerHTML=notice()+archBar()+body;if(S.loaded&&!S.selLoading)gcTrack();
   const dc=safeUrl(st.discord),sp=safeUrl(st.sponsorUrl);
   document.getElementById("foot").innerHTML='<span class="presented">Presented by <b>'+esc(st.sponsorName||"40XLI")+"</b></span>"+(dc?'<a class="btn sm ghost" href="'+esc(dc)+'" target="_blank" rel="noopener">Discord</a>':"")+(sp?'<a class="btn sm ghost" href="'+esc(sp)+'" target="_blank" rel="noopener">'+esc(st.sponsorName||"Sponsor")+"</a>":"");}
 
