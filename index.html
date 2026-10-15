@@ -499,15 +499,18 @@ function buildTracks(){const T={};const add=(name,o)=>{const t=trackOf(name);(T[
     const wins={};t.races.forEach(r=>{if(r.winner&&!r.exhibition)wins[r.winner]=(wins[r.winner]||0)+1;});t.wins=Object.entries(wins).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
     t.onSchedule=t.races.some(r=>r.current);t.next=t.races.filter(r=>r.current&&!r.done).sort((a,b)=>(int(a.round)||0)-(int(b.round)||0))[0]||null;});
   return T;}
+function mostWins(t){if(!t.wins.length)return null;const top=t.wins[0][1],tied=t.wins.filter(w=>w[1]===top);
+  const who=tied.length===1?tied[0][0]:top===1?"Multiple drivers tied":tied.length===2?tied[0][0]+" & "+tied[1][0]:tied.length+" drivers tied";
+  return{who,n:top,tied:tied.length>1,detail:top===1&&tied.length>1?"1 win each":tied.length>1?top+" wins each":plural(top,"win")};}
 function pastWinnersLine(trackName){const T=buildTracks(),t=T[trackOf(trackName).key];if(!t)return"";
   const past=t.races.filter(r=>r.winner&&!r.exhibition).slice(0,4);if(!past.length)return"";
   return'<div class="pastw"><span class="muted">Past winners here:</span> '+past.map(r=>"<b>"+esc(r.winner)+'</b> <span class="muted">'+r.season+"</span>").join(" · ")+' <button class="btn sm ghost" data-act="track" data-arg="'+esc(t.key)+'">Track history</button></div>';}
 V.tracks=()=>{const T=buildTracks();if(S.trackSel&&T[S.trackSel])return trackDetail(T[S.trackSel]);
   const list=Object.values(T).sort((a,b)=>(b.onSchedule-a.onSchedule)||((a.next?int(a.next.round):999)-(b.next?int(b.next.round):999))||a.label.localeCompare(b.label));
   if(!list.length)return'<div class="lt">Tracks</div>'+empty("No track history yet","");
-  const card=t=>{const lw=t.races.find(r=>r.winner&&!r.exhibition),top=t.wins[0];
+  const card=t=>{const lw=t.races.find(r=>r.winner&&!r.exhibition),mw=mostWins(t);
     return'<button class="dcard tcard" data-act="track" data-arg="'+esc(t.key)+'"><span class="nm">'+esc(t.label)+'</span><span class="st">'+plural(t.races.filter(r=>r.winner).length,"race")+(t.next?" · Next: Rd "+esc(t.next.round):"")+"</span>"+
-      (lw?'<span class="small">Last winner: <b>'+esc(lw.winner)+'</b> <span class="muted">'+lw.season+"</span></span>":"")+(top&&top[1]>1?'<span class="small muted">Most wins: '+esc(top[0])+" ("+top[1]+")</span>":"")+"</button>";};
+      (lw?'<span class="small">Last winner: <b>'+esc(lw.winner)+'</b> <span class="muted">'+lw.season+"</span></span>":"")+(mw&&(mw.n>1||mw.tied)?'<span class="small muted">Most wins: '+esc(mw.who)+" ("+mw.detail+")</span>":"")+"</button>";};
   const on=list.filter(t=>t.onSchedule),off=list.filter(t=>!t.onSchedule);
   return'<section class="stack"><div><div class="lt">'+esc(settings().season)+' tracks</div><div class="dgrid">'+on.map(card).join("")+"</div></div>"+(off.length?'<div><div class="lt">Past tracks</div><div class="dgrid">'+off.map(card).join("")+"</div></div>":"")+
     '<p class="hint">History covers INRS Cup Series races on SimRacerHub since 2022.</p></section>';};
@@ -515,7 +518,7 @@ function trackDetail(t){const season=+settings().season;
   const cur=t.races.filter(r=>r.current&&r.done&&r.raceId);let top="";
   if(cur.length){top='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">'+season+" results here</div>"+cur.map(r=>{const race=S.races.find(x=>x.id===r.raceId);return race?'<div class="small muted" style="margin:6px 8px">'+esc(raceLabel(race))+" · "+fmtShort(race.date)+"</div>"+resultsTable(Object.assign({},race,{results:[...race.results].sort((a,b)=>a.fin-b.fin).slice(0,10)})):"";}).join("")+"</div>";}
   return'<section class="stack"><div><button class="btn sm ghost" data-act="nav" data-arg="tracks">← All tracks</button></div><div><div class="eyebrow">Track history</div><h1 class="track" style="font-size:clamp(28px,6vw,44px)">'+esc(t.label)+"</h1></div>"+
-    '<div class="tiles">'+tile(t.races.filter(r=>r.winner&&!r.exhibition).length,"INRS races")+tile(t.wins[0]?t.wins[0][0]:"–","Most wins"+(t.wins[0]?" ("+t.wins[0][1]+")":""),true)+tile(new Set(t.races.filter(r=>r.winner).map(r=>r.winner)).size,"Different winners")+(t.next?tile("Rd "+t.next.round,"Next visit · "+t.next.date):"")+"</div>"+
+    '<div class="tiles">'+tile(t.races.filter(r=>r.winner&&!r.exhibition).length,"INRS races")+(()=>{const mw=mostWins(t);return tile(mw?mw.who:"–","Most wins"+(mw?" ("+mw.detail+")":""),true);})()+tile(new Set(t.races.filter(r=>r.winner).map(r=>r.winner)).size,"Different winners")+(t.next?tile("Rd "+t.next.round,"Next visit · "+t.next.date):"")+"</div>"+
     '<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Every race here</div><div class="scroll"><table class="tbl"><thead><tr><th>Season</th><th class="n">Rd</th><th>Date</th><th>Event</th><th>Pole</th><th>Winner</th></tr></thead><tbody>'+
     t.races.map(r=>"<tr><td>"+r.season+(r.current&&!r.done?' <span class="pill">Upcoming</span>':"")+(r.exhibition?' <span class="pill">Exhibition</span>':"")+'</td><td class="n">'+esc(r.round||"")+"</td><td>"+esc(r.date||"")+'</td><td class="wrapcell muted">'+esc(r.event||"")+"</td><td>"+esc(r.pole||"–")+"</td><td><b>"+(r.raceId&&r.done?'<button class="dl" data-act="openrace" data-arg="'+esc(r.raceId)+'">'+esc(r.winner||"–")+"</button>":esc(r.winner||"–"))+"</b></td></tr>").join("")+"</tbody></table></div></div>"+
     (t.wins.length?'<div class="panel"><div class="lt">Winners at '+esc(t.label)+'</div><div class="list">'+t.wins.map(([n,w],i)=>'<div class="podrow">'+posBadge(i+1)+'<div class="name">'+esc(n)+'</div><span class="pts">'+w+"</span></div>").join("")+"</div></div>":"")+top+"</section>";}
