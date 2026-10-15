@@ -23,14 +23,22 @@ simracerhub.com, youtube.com, github.com. If the browser can't be reached, stop 
 5. `python3 tools/sync/apply.py /tmp/sync_main.json --teams /tmp/sync_teams.json --youtube /tmp/sync_yt.json`
    - A "Checksum mismatch" means the JSON was not saved exactly. Re-run step 2 once; if it fails again, stop and report.
    - Any other error: stop and report. Never hand-edit data.json to make it pass.
-6. If the summary shows no "results added", no "recap linked" and no "new race", run
+6. Do step 8b now. Then, if `git status` shows no change under `data/` and the summary shows no "results added", no "recap linked" and no "new race", run
    `git checkout data.json`, report "no new results", and stop.
 7. Commit and push:
-   `git add data.json && git commit -m "Sync results through round N" && git push`.
+   `git add data.json data && git commit -m "Sync results through round N" && git push`.
 8. Claude app database: read `tools/sync/out/db_docs.json`. For each entry, `ArtifactData get`
    (url above, its collection and doc_id) to learn its current `version` (missing doc = new).
    Then one or more `ArtifactData batch` calls (max 50 writes each) with
    `{op:"set", collection, doc_id, file_path, if_version}` (omit if_version for new docs).
+8b. Xfinity and Trucks (website only). For each of `xfinity` (season_id 28549) and `trucks` (season_id 28550):
+   `navigate` to `https://www.simracerhub.com/scoring/season_standings.php?season_id=<id>`, then run `javascript_tool` with
+   `window.__SEASON = {id: <id>, series: '<series>', year: 2026, file: 'inrs-<series>-2026-<YYYYMMDD>.json'};`
+   followed by the full text of `tools/sync/extract_season.js` (wrap it as `await (async () => { ... })()` and change the
+   final expression to `return`). It saves the file to Jordan's Downloads folder (C:\Users\booth\Downloads) and returns a
+   summary; `missing` must be empty (if not, run it once more). Copy the files in with `device_stage_files`, then
+   `python3 tools/sync/season.py <staged files>` and include `data/` in the step 7 commit (run 8b before step 7).
+   If this step fails, skip it and report it; the Cup update still goes out.
 9. After ~2 minutes, open the live site in the built-in browser and confirm the Home page shows
    the new result.
 10. Report: rounds added (track + winner), points leader and gap, recaps linked, anything that failed.
@@ -40,3 +48,7 @@ simracerhub.com, youtube.com, github.com. If the browser can't be reached, stop 
 - `extract_teams.js` – team standings.
 - `extract_youtube.js` – latest 40XLI Racing videos for recap matching.
 - `apply.py` – validates checksums and merges everything into `data.json`.
+- `extract_season.js` – full-season export (standings, teams, schedule, every race) for any SimRacerHub season.
+- `season.py` – turns season exports into `data/<series>-<year>.json` and rebuilds `data/seasons.json`
+  (the header's series/year switcher and per-series track history). Past seasons don't change, so only 2026
+  Xfinity and Trucks need re-exporting each week.

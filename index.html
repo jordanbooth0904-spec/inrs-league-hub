@@ -47,7 +47,16 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 @media (max-width:480px){.brandlogo{height:58px}}
 .mark{font:italic 900 28px/1 var(--display);letter-spacing:-.02em}
 .series{font:italic 800 13px/1 var(--display);color:var(--accent);letter-spacing:.1em;text-transform:uppercase}
-.season{margin-left:auto;font:600 12px var(--mono);color:var(--muted);border:1px solid var(--line-2);padding:3px 8px;border-radius:4px}
+.switch{margin-left:auto;display:flex;align-items:center;gap:6px}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:6px;overflow:hidden}
+.seg button{font:800 11px/1 var(--display);letter-spacing:.06em;text-transform:uppercase;padding:8px 9px;background:transparent;color:var(--muted);border:0;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button[aria-pressed=true]{background:var(--accent);color:#fff}
+.seg button:focus-visible,.yearsel:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.seg{flex:none}
+.switch .yearsel{width:auto;flex:none;font:600 16px/1.1 var(--mono);background:var(--panel);color:var(--fg);border:1px solid var(--line-2);border-radius:6px;padding:5px 6px;cursor:pointer}
+.archbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:8px 12px;border:1px solid var(--line-2);border-left:3px solid var(--accent);border-radius:6px;background:var(--panel);font-size:14px}
+.season{display:none;font:600 12px var(--mono);color:var(--muted);border:1px solid var(--line-2);padding:3px 8px;border-radius:4px}
 nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:0 -4px}
 nav.tabs::-webkit-scrollbar{display:none}
 .tab{font:600 15px var(--body);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);background:none;border:0;padding:10px 10px 9px;border-bottom:3px solid transparent;white-space:nowrap;cursor:pointer}
@@ -210,7 +219,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.45}
 
 <header class="top">
   <div class="wrap">
-    <div class="brandrow"><img class="brandlogo" src="logo.png" alt="INRS" width="68" height="56"><span class="mark" id="mark" hidden>INRS</span><span class="series" id="series">Cup Series</span><span class="season" id="season">2026</span></div>
+    <div class="brandrow"><img class="brandlogo" src="logo.png" alt="INRS" width="68" height="56"><span class="mark" id="mark" hidden>INRS</span><span class="series" id="series">Cup Series</span><span class="season" id="season">2026</span><div class="switch" id="switch" hidden></div></div>
     <nav class="tabs" id="tabs" aria-label="Sections"></nav>
   </div>
 </header>
@@ -225,7 +234,7 @@ const TABS=[["home","Home"],["standings","Standings"],["schedule","Schedule"],["
 const DEFAULT_POINTS=[40].concat(Array.from({length:35},(_,i)=>35-i));
 const DEF={name:"INRS Cup Series",season:"2026",discord:"",sponsorName:"40XLI Driver Academy",sponsorUrl:"",hubUrl:"",youtubeUrl:"",liveUrl:"",maxPerRace:66,points:{table:DEFAULT_POINTS,ledLap:1,mostLed:1},rules:[]};
 
-const S={history:[],static:false,stdView:"drivers",trackSel:null,cmp:null,view:"home",mode:"loading",admin:false,db:null,settingsRaw:null,drivers:[],races:[],penalties:[],official:null,
+const S={history:[],static:false,stdView:"drivers",trackSel:null,cmp:null,view:"home",mode:"loading",admin:false,db:null,settingsRaw:null,drivers:[],races:[],penalties:[],official:null,M:{drivers:[],races:[],penalties:[],official:null,history:[],settingsRaw:null},idx:null,sel:"cup-2026",arch:{},selLoading:false,
   ready:{s:false,d:false,r:false,p:false,o:false},loaded:false,driverSel:null,raceOpen:null,adminTab:"results",
   forms:{},confirm:null,pending:false,busy:false,calc:null};
 
@@ -238,6 +247,27 @@ const plural=(n,w)=>n+" "+w+(n===1?"":"s");
 function settings(){const r=S.settingsRaw||{};const p=Object.assign({},DEF.points,r.points||{});
   if(!Array.isArray(p.table)||!p.table.length)p.table=DEFAULT_POINTS;
   return Object.assign({},DEF,r,{points:p,rules:Array.isArray(r.rules)?r.rules:[]});}
+/* ---------- seasons ---------- */
+const MAINKEY="cup-2026",SERIES=[["cup","Cup"],["xfinity","Xfinity"],["trucks","Trucks"]];
+const isMain=()=>S.sel===MAINKEY;
+const selInfo=()=>(S.idx&&S.idx.seasons.find(x=>x.key===S.sel))||{key:MAINKEY,series:"cup",year:2026,main:true};
+function applySel(){const M=S.M,a=isMain()?null:S.arch[S.sel];
+  if(!a){S.drivers=M.drivers;S.races=M.races;S.penalties=M.penalties;S.official=M.official;S.history=M.history;S.settingsRaw=M.settingsRaw;return;}
+  const i=selInfo();S.drivers=a.drivers||[];S.races=a.races||[];S.penalties=a.penalties||[];S.official=a.official||null;
+  S.history=(((S.idx||{}).history||{})[i.series]||[]).filter(h=>+h[0]<+i.year);S.settingsRaw=Object.assign({},M.settingsRaw||{},a.settings||{});}
+function setHash(){try{history.replaceState(null,"","#"+S.view+(isMain()?"":"/"+S.sel));}catch(e){}}
+async function selectSeason(key){if(!S.idx)return;const i=S.idx.seasons.find(x=>x.key===key);if(!i)return;
+  S.sel=key;S.driverSel=null;S.trackSel=null;S.raceOpen=null;S.cmp=null;S.confirm=null;if(S.view==="admin"&&!isMain())S.view="home";setHash();
+  if(!i.main&&!S.arch[key]){S.selLoading=true;draw();
+    try{const r=await fetch(i.file,{cache:"no-store"});if(!r.ok)throw 0;S.arch[key]=await r.json();}catch(e){S.selLoading=false;S.sel=MAINKEY;applySel();setHash();draw();toast("Couldn't load that season. Try again.");return;}
+    if(S.sel!==key)return;S.selLoading=false;}
+  applySel();draw();}
+function switcher(){if(!S.idx)return"";const i=selInfo(),L=S.idx.seasons;
+  const years=L.filter(x=>x.series===i.series);
+  return'<div class="seg" role="group" aria-label="Series">'+SERIES.filter(([k])=>L.some(x=>x.series===k)).map(([k,l])=>'<button data-act="series" data-arg="'+k+'" aria-pressed="'+(i.series===k)+'">'+l+"</button>").join("")+"</div>"+
+    '<select class="yearsel" data-change="season" aria-label="Season">'+years.map(x=>'<option value="'+esc(x.key)+'"'+(x.key===S.sel?" selected":"")+">"+x.year+"</option>").join("")+"</select>";}
+function archBar(){if(isMain()||!S.idx)return"";const i=selInfo(),done=S.calc&&S.calc.races.length&&!S.calc.next;
+  return'<div class="archbar"><span>Viewing the <b>'+i.year+" "+esc(settings().name.replace(/^INRS\s*/,""))+"</b>"+(done?" archive":"")+'</span><button class="btn sm ghost" data-act="season" data-arg="'+MAINKEY+'" style="margin-left:auto">Back to 2026 Cup</button></div>';}
 function fmtDate(iso){if(!iso)return"Date TBA";const d=new Date(iso);if(isNaN(d))return"Date TBA";return d.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric",year:"numeric"});}
 function fmtShort(iso){if(!iso)return"TBA";const d=new Date(iso);if(isNaN(d))return"TBA";return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});}
 function fmtTime(iso,dateOnly){if(!iso||dateOnly)return"";const d=new Date(iso);if(isNaN(d))return"";return d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit",timeZoneName:"short"});}
@@ -514,7 +544,7 @@ V.tracks=()=>{const T=buildTracks();if(S.trackSel&&T[S.trackSel])return trackDet
       (lw?'<span class="small">Last winner: <b>'+esc(lw.winner)+'</b> <span class="muted">'+lw.season+"</span></span>":"")+(mw&&(mw.n>1||mw.tied)?'<span class="small muted">Most wins: '+esc(mw.who)+" ("+mw.detail+")</span>":"")+"</button>";};
   const on=list.filter(t=>t.onSchedule),off=list.filter(t=>!t.onSchedule);
   return'<section class="stack"><div><div class="lt">'+esc(settings().season)+' tracks</div><div class="dgrid">'+on.map(card).join("")+"</div></div>"+(off.length?'<div><div class="lt">Past tracks</div><div class="dgrid">'+off.map(card).join("")+"</div></div>":"")+
-    '<p class="hint">History covers INRS Cup Series races on SimRacerHub since 2022.</p></section>';};
+    '<p class="hint">History covers '+esc(settings().name)+' races on SimRacerHub'+(()=>{const y=(S.history||[]).map(h=>+h[0]).concat([+settings().season]).filter(Boolean);return y.length?" since "+Math.min(...y):"";})()+'.</p></section>';};
 function trackDetail(t){const season=+settings().season;
   const cur=t.races.filter(r=>r.current&&r.done&&r.raceId);let top="";
   if(cur.length){top='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">'+season+" results here</div>"+cur.map(r=>{const race=S.races.find(x=>x.id===r.raceId);return race?'<div class="small muted" style="margin:6px 8px">'+esc(raceLabel(race))+" · "+fmtShort(race.date)+"</div>"+resultsTable(Object.assign({},race,{results:[...race.results].sort((a,b)=>a.fin-b.fin).slice(0,10)})):"";}).join("")+"</div>";}
@@ -678,7 +708,9 @@ function loadResultsForm(id){const r=S.races.find(x=>x.id===id);if(!r){S.forms.r
   S.forms.results={raceId:id,recapUrl:r.recapUrl||"",note:"",rows:[...(r.results||[])].sort((a,b)=>a.fin-b.fin).map(x=>({driverId:x.driverId,newName:"",newNumber:"",newCust:"",fin:String(x.fin??""),start:x.start==null?"":String(x.start),led:String(x.lapsLed||0),comp:x.lapsComp==null?"":String(x.lapsComp),inc:String(x.inc||0),status:x.status||"Running",bonus:String(x.bonus||0),pts:typeof x.pts==="number"?String(x.pts):"",keep:{car:x.car,stage:x.stage,pen:x.pen,rating:x.rating}}))};}
 
 const ACT={
-  nav(v){S.view=v;S.driverSel=null;S.trackSel=null;S.confirm=null;try{history.replaceState(null,"","#"+v);}catch(e){}draw();window.scrollTo(0,0);},
+  series(k){if(!S.idx)return;const cur=selInfo(),L=S.idx.seasons.filter(x=>x.series===k);const t=L.find(x=>x.year===cur.year)||L[0];if(t)selectSeason(t.key);},
+  season(k){selectSeason(k);},
+  nav(v){S.view=v;S.driverSel=null;S.trackSel=null;S.confirm=null;setHash();draw();window.scrollTo(0,0);},
   driver(id){S.view="drivers";S.driverSel=id;draw();window.scrollTo(0,0);},
   race(id){S.raceOpen=S.raceOpen===id?null:id;draw();},
   openrace(id){S.view="schedule";S.driverSel=null;S.raceOpen=id;draw();const el=document.getElementById("race-"+id);if(el)el.scrollIntoView({block:"start"});},
@@ -741,6 +773,7 @@ const ACT={
     await write(()=>root().set(data),"Settings saved");}
 };
 const CHANGE={
+  season(el){selectSeason(el.value);},
   cmp(el){S.cmp=S.cmp||[];S.cmp[el.dataset.which==='a'?0:1]=el.value;draw();},
   pickrace(el){loadResultsForm(el.value);draw();},
   rerender(){draw();},
@@ -773,30 +806,36 @@ function render(){if(isTyping()){S.pending=true;return;}draw();}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(S.pending&&!isTyping()){S.pending=false;draw();}},0));
 function draw(){S.calc=compute();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
   document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
-  document.getElementById("tabs").innerHTML=TABS.filter(t=>t[0]!=="admin"||S.admin).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]?' aria-current="page"':"")+">"+t[1]+"</button>").join("");
+  document.getElementById("tabs").innerHTML=TABS.filter(t=>t[0]!=="admin"||(S.admin&&isMain())).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]?' aria-current="page"':"")+">"+t[1]+"</button>").join("");
   if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
-  const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"?loading():(V[S.view]||V.home)();
-  document.getElementById("main").innerHTML=notice()+body;
+  const sw=document.getElementById("switch");if(sw){const h=switcher();sw.hidden=!h;if(!isTyping()||!sw.contains(document.activeElement))sw.innerHTML=h;}
+  const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"||S.selLoading?loading():(V[S.view]||V.home)();
+  document.getElementById("main").innerHTML=notice()+archBar()+body;
   const dc=safeUrl(st.discord),sp=safeUrl(st.sponsorUrl);
   document.getElementById("foot").innerHTML='<span class="presented">Presented by <b>'+esc(st.sponsorName||"40XLI")+"</b></span>"+(dc?'<a class="btn sm ghost" href="'+esc(dc)+'" target="_blank" rel="noopener">Discord</a>':"")+(sp?'<a class="btn sm ghost" href="'+esc(sp)+'" target="_blank" rel="noopener">'+esc(st.sponsorName||"Sponsor")+"</a>":"");}
 
 function markReady(k){S.ready[k]=true;S.loaded=S.ready.s&&S.ready.d&&S.ready.r&&S.ready.p&&S.ready.o;render();}
 function onErr(e){if(e&&e.code==="revoked"){S.mode="nodb";}render();}
 async function loadStatic(){try{const r=await fetch("data.json",{cache:"no-store"});if(!r.ok)throw 0;const d=await r.json();
-  S.static=true;S.history=d.history||[];S.settingsRaw=d.settings||null;S.drivers=d.drivers||[];S.races=d.races||[];S.penalties=d.penalties||[];S.official=d.official||null;
+  S.static=true;Object.assign(S.M,{history:d.history||[],settingsRaw:d.settings||null,drivers:d.drivers||[],races:d.races||[],penalties:d.penalties||[],official:d.official||null});applySel();
   S.mode="live";S.admin=false;S.loaded=true;S.updated=d.updated||"";}catch(e){S.mode="offline";}draw();}
-async function boot(){const h=(location.hash||"").slice(1);if(TABS.some(t=>t[0]===h)||h==="compare")S.view=h;draw();
+async function loadIndex(){try{const r=await fetch("data/seasons.json",{cache:"no-store"});if(!r.ok)return;S.idx=await r.json();draw();}catch(e){}}
+window.addEventListener("hashchange",()=>{const hs=(location.hash||"").slice(1).split("/"),v=hs[0],k=hs[1]||MAINKEY;
+  if((TABS.some(t=>t[0]===v)||v==="compare")&&v!==S.view){S.view=v;S.driverSel=null;S.trackSel=null;}
+  if(k!==S.sel)selectSeason(k);else draw();});
+async function boot(){const hs=(location.hash||"").slice(1).split("/"),h=hs[0];if(TABS.some(t=>t[0]===h)||h==="compare")S.view=h;draw();
+  loadIndex().then(()=>{if(hs[1]&&hs[1]!==MAINKEY)selectSeason(hs[1]);});
   const c=window.claude;if(!c||typeof c.use!=="function"){await loadStatic();return;}
   const [db,user]=await Promise.all([c.use("db"),c.use("user")]);
   try{S.admin=user?await user.canEdit():false;}catch(e){S.admin=false;}
   if(!db){S.mode="nodb";draw();return;}
   S.db=db;S.mode="live";const r=root();
-  r.onSnapshot(s=>{S.settingsRaw=s.exists?s.data():null;markReady("s");},onErr);
-  r.collection("drivers").onSnapshot(q=>{S.drivers=q.docs.map(d=>Object.assign({id:d.id},d.data()));markReady("d");},onErr);
-  r.collection("races").onSnapshot(q=>{S.races=q.docs.map(d=>Object.assign({id:d.id},d.data()));markReady("r");},onErr);
-  r.collection("penalties").onSnapshot(q=>{S.penalties=q.docs.map(d=>Object.assign({id:d.id},d.data()));markReady("p");},onErr);
-  r.collection("official").doc("standings").onSnapshot(s=>{S.official=s.exists?s.data():null;markReady("o");},onErr);
-  r.collection("history").doc("all").onSnapshot(s=>{const v=s.exists?s.data():null;S.history=v&&Array.isArray(v.rows)?v.rows:[];render();},()=>{});
+  r.onSnapshot(s=>{S.M.settingsRaw=s.exists?s.data():null;applySel();markReady("s");},onErr);
+  r.collection("drivers").onSnapshot(q=>{S.M.drivers=q.docs.map(d=>Object.assign({id:d.id},d.data()));applySel();markReady("d");},onErr);
+  r.collection("races").onSnapshot(q=>{S.M.races=q.docs.map(d=>Object.assign({id:d.id},d.data()));applySel();markReady("r");},onErr);
+  r.collection("penalties").onSnapshot(q=>{S.M.penalties=q.docs.map(d=>Object.assign({id:d.id},d.data()));applySel();markReady("p");},onErr);
+  r.collection("official").doc("standings").onSnapshot(s=>{S.M.official=s.exists?s.data():null;applySel();markReady("o");},onErr);
+  r.collection("history").doc("all").onSnapshot(s=>{const v=s.exists?s.data():null;S.M.history=v&&Array.isArray(v.rows)?v.rows:[];applySel();render();},()=>{});
   draw();}
 setInterval(()=>{if(S.view==="home"&&S.loaded)render();},60000);
 boot();
