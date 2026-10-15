@@ -1,0 +1,4 @@
+{
+  "databaseURL": "PASTE the Realtime Database URL here, like https://inrs-league-hub-default-rtdb.firebaseio.com",
+  "secret": "PASTE the database secret here"
+}
