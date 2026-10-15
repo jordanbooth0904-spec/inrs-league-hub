@@ -37,6 +37,7 @@ def convert(e):
     races, drivers, pens = [], {}, []
     upper = {}
     chase_next = None
+    chase_starts = sum(1 for x in e['sched'] if not x[0] and x[3] == 'Chase Start')
     for rd, date, ev, track, laps, sid in e['sched']:
         if not rd:
             if track == 'Chase Start':
@@ -119,11 +120,37 @@ def convert(e):
     as_of = last if all(r['status'] == 'complete' for r in races) else e['exported'][:10]
     official = {'rows': rows, 'teams': teams, 'asOf': as_of, 'afterRound': max(done) if done else 0,
                 'chaseCutoff': 0, 'source': 'SimRacerHub'}
+    # 2026 format: one Chase start, top N reset to ~2,000+ pts, straight points after that (no eliminations).
+    # N is where the reset shows in the standings (the points more than halve from one driver to the next).
+    if year >= 2026 and chase_starts == 1 and any(r.get('note') for r in races if r['status'] == 'complete'):
+        pts = [o['pts'] or 0 for o in rows]
+        cut = next((i + 1 for i in range(min(len(pts) - 1, 30)) if pts[i] > 1000 and pts[i + 1] * 2 < pts[i]), 0)
+        official['chaseCutoff'] = cut
     title = 'INRS %s Series' % LABEL[series]
-    settings = {'name': title, 'season': str(year), 'hubUrl': 'https://www.simracerhub.com/scoring/season_standings.php?season_id=%s' % e['seasonId']}
+    settings = {'name': title, 'season': str(year), 'hubUrl': 'https://www.simracerhub.com/scoring/season_standings.php?season_id=%s' % e['seasonId'],
+                'maxPerRace': max([x['pts'] for r in races for x in r['results']] or [66])}
     return {'series': series, 'year': year, 'seasonId': e['seasonId'], 'updated': e['exported'][:10], 'settings': settings,
             'drivers': sorted(drivers.values(), key=lambda x: x['id']), 'races': races,
             'penalties': pens, 'official': official}
+
+
+def lines(s):
+    """One row per driver for the career and records pages:
+    [id, name, number, pos, pts, starts, wins, t5, t10, poles, led, inc, finSum, finN, team]"""
+    fin = {}
+    for r in s['races']:
+        for x in r['results']:
+            a = fin.setdefault(x['driverId'], [0, 0])
+            a[0] += x['fin']
+            a[1] += 1
+    D = {d['id']: d for d in s['drivers']}
+    out = []
+    for o in s['official']['rows']:
+        d = D[o['driverId']]
+        f = fin.get(o['driverId'], [0, 0])
+        out.append([o['driverId'], d['name'], d.get('number', ''), o['pos'], o['pts'], o['starts'] or 0, o['wins'] or 0, o['t5'] or 0,
+                    o['t10'] or 0, o['poles'] or 0, o['led'] or 0, o['inc'] or 0, f[0], f[1], o.get('team') or ''])
+    return out
 
 
 def history(season):
@@ -167,7 +194,9 @@ def main():
         if done == len(s['races']) and s['official']['rows']:
             champ = next(d['name'] for d in s['drivers'] if d['id'] == s['official']['rows'][0]['driverId'])
         seasons.append({'key': '%s-%s' % (s['series'], s['year']), 'series': s['series'], 'year': s['year'],
-                        'file': 'data/' + os.path.basename(fn), 'champion': champ})
+                        'file': 'data/' + os.path.basename(fn), 'champion': champ,
+                        'championId': s['official']['rows'][0]['driverId'] if champ else None, 'done': done == len(s['races']),
+                        'races': done, 'lines': lines(s)})
         hist[s['series']] += history(s)
     seasons.sort(key=lambda x: (SERIES_ORDER.index(x['series']), -x['year']))
     for k in hist:
