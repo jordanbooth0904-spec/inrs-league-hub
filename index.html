@@ -32,7 +32,9 @@
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45;margin:0}
 .wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
-.brandrow{display:flex;align-items:baseline;gap:10px;padding-block:12px 4px;flex-wrap:wrap}
+.brandrow{display:flex;align-items:center;gap:12px;padding-block:10px 4px;flex-wrap:wrap}
+.brandlogo{height:76px;width:auto;display:block}
+@media (max-width:480px){.brandlogo{height:58px}}
 .mark{font:italic 900 28px/1 var(--display);letter-spacing:-.02em}
 .series{font:italic 800 13px/1 var(--display);color:var(--accent);letter-spacing:.1em;text-transform:uppercase}
 .season{margin-left:auto;font:600 12px var(--mono);color:var(--muted);border:1px solid var(--line-2);padding:3px 8px;border-radius:4px}
@@ -179,7 +181,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.45}
 
 <header class="top">
   <div class="wrap">
-    <div class="brandrow"><span class="mark" id="mark">INRS</span><span class="series" id="series">Cup Series</span><span class="season" id="season">2026</span></div>
+    <div class="brandrow"><img class="brandlogo" src="logo.png" alt="INRS" width="68" height="56"><span class="mark" id="mark" hidden>INRS</span><span class="series" id="series">Cup Series</span><span class="season" id="season">2026</span></div>
     <nav class="tabs" id="tabs" aria-label="Sections"></nav>
   </div>
 </header>
