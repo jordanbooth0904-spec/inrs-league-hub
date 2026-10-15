@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Standings, schedule, results, driver stats and race recaps for the INRS Cup Series on iRacing. Presented by 40XLI Driver Academy.">
+<meta name="theme-color" content="#09090A">
+<style>*,*::before,*::after{box-sizing:border-box}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.45 system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>INRS League Hub</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@1,800;1,900&family=Barlow+Semi+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: broadcast timing-tower feel. Sticky brand bar + tab rail, one column on phones, two-column grids on wide screens. Single dark look by choice: black and white with 40XLI purple as an accent only. */
+:root{
+  --bg:#09090A; --panel:#121214; --panel-2:#1A1A1D; --line:#242428; --line-2:#34343A;
+  --fg:#F5F5F6; --muted:#9B9BA3; --accent:#B455F7; --accent-soft:#251733; --ink:#0B0B0C;
+  --gold:#F2C14E; --silver:#CFC8DC; --bronze:#D58B5A; --ok:#4ADE80; --bad:#F87171;
+  --display:"Inter","Arial Black",system-ui,sans-serif;
+  --body:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45;margin:0}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.brandrow{display:flex;align-items:baseline;gap:10px;padding-block:12px 4px;flex-wrap:wrap}
+.mark{font:italic 900 28px/1 var(--display);letter-spacing:-.02em}
+.series{font:italic 800 13px/1 var(--display);color:var(--accent);letter-spacing:.1em;text-transform:uppercase}
+.season{margin-left:auto;font:600 12px var(--mono);color:var(--muted);border:1px solid var(--line-2);padding:3px 8px;border-radius:4px}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:0 -4px}
+nav.tabs::-webkit-scrollbar{display:none}
+.tab{font:600 15px var(--body);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);background:none;border:0;padding:10px 10px 9px;border-bottom:3px solid transparent;white-space:nowrap;cursor:pointer}
+.tab:hover{color:var(--fg)}
+.tab[aria-current="page"]{color:var(--fg);border-bottom-color:var(--accent)}
+main{padding-block:20px 40px;display:grid;gap:24px}
+main>*{min-width:0}
+h1,h2,h3{margin:0;text-wrap:balance}
+.lt{display:inline-flex;align-items:center;background:transparent;padding-left:0 !important;border-bottom:3px solid var(--accent);padding:6px 14px 5px;font:italic 900 15px/1.2 var(--display);text-transform:uppercase;letter-spacing:.03em;margin-bottom:12px}
+.sechead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.grid2{display:grid;gap:20px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:820px){.grid2{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}}
+.stack{display:grid;gap:20px;min-width:0}
+.hero{position:relative;overflow:hidden;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 20px 20px}
+.hero::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent);pointer-events:none}
+.hero > *{position:relative;z-index:1}
+.eyebrow{font:700 13px var(--body);color:var(--accent);text-transform:uppercase;letter-spacing:.14em}
+.track{font:italic 900 clamp(32px,8vw,56px)/1 var(--display);letter-spacing:-.02em;text-transform:uppercase;margin-top:6px}
+.rule{height:4px;width:72px;background:var(--accent);margin:14px 0 12px}
+.rname{font-size:18px;font-weight:600}
+.meta{display:flex;flex-wrap:wrap;gap:6px 16px;font:500 14px var(--mono);color:var(--muted);margin-top:6px}
+.count{margin-top:14px;font:italic 800 18px var(--display);text-transform:uppercase}
+.count b{color:var(--accent)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl th{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--line-2);white-space:nowrap}
+.tbl td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .n{text-align:right;font-family:var(--mono);font-size:14px}
+.tbl th.n{font-family:var(--body);font-size:12px}
+.tbl .wrapcell{white-space:normal;min-width:180px}
+.pos{display:inline-grid;place-items:center;min-width:30px;height:28px;padding:0 4px;box-sizing:border-box;font:italic 900 15px var(--display);background:var(--panel-2);border:1px solid var(--line-2);border-radius:4px}
+.p1{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+.p2{background:var(--silver);color:var(--ink);border-color:var(--silver)}
+.p3{background:var(--bronze);color:var(--ink);border-color:var(--bronze)}
+.carno{font:italic 900 1em var(--display);color:var(--muted);margin-right:2px}
+.dl{background:none;border:0;padding:0;color:var(--fg);font:600 16px var(--body);cursor:pointer;text-align:left}
+.dl:hover{color:var(--accent)}
+.pts{font:italic 900 18px var(--display)}
+.chips{display:flex;gap:3px}
+.fchip{display:inline-grid;place-items:center;min-width:24px;height:22px;font:700 11px var(--mono);border-radius:3px;background:var(--panel-2);color:var(--muted)}
+.fchip.w{background:var(--gold);color:var(--ink)}
+.fchip.t5{background:var(--line-2);color:var(--fg)}
+.fchip.dnf{color:var(--bad)}
+.pill{display:inline-block;font:700 11px var(--body);text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:999px;border:1px solid var(--line-2);color:var(--muted)}
+.pill.final{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.pill.next{color:var(--ink);background:var(--accent);border-color:var(--accent)}
+.btn{font:700 14px var(--body);text-transform:uppercase;letter-spacing:.06em;padding:9px 14px;border-radius:6px;border:1px solid var(--line-2);background:var(--panel-2);color:var(--fg);cursor:pointer;text-decoration:none;display:inline-flex;gap:6px;align-items:center;justify-content:center;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+.btn.ghost{background:none}
+.btn.danger{color:var(--bad)}
+.btn.warn{background:var(--bad);color:var(--ink);border-color:var(--bad)}
+.btn.sm{padding:6px 10px;font-size:12px}
+.btn[disabled]{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tile{background:var(--panel);padding:12px 14px;min-width:0}
+.tile b{display:block;font:italic 900 24px/1.15 var(--display);overflow-wrap:anywhere}
+.tile b.sm{font-size:17px;line-height:1.3}
+.tile span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.podium{display:grid;gap:8px}
+.podrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;background:var(--panel-2);border-radius:8px}
+.podrow .name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.podrow .sub{font:500 12px var(--mono);color:var(--muted)}
+.list{display:grid;gap:10px}
+.race{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.race.isnext{border-color:var(--accent)}
+.racehead{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px}
+.rnd{text-align:center}
+.rnd small{display:block;font:600 10px var(--body);letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.rnd b{font:italic 900 26px/1 var(--display)}
+.racetitle{font:italic 900 18px/1.15 var(--display);text-transform:uppercase;overflow-wrap:anywhere}
+.racesub{font:500 13px var(--mono);color:var(--muted);margin-top:2px}
+.raceside{display:grid;gap:6px;justify-items:end}
+.racebody{border-top:1px solid var(--line);padding:6px 8px 10px;background:var(--bg)}
+.raceactions{display:flex;gap:8px;flex-wrap:wrap;padding:0 14px 12px}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.dcard{display:grid;gap:4px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;color:var(--fg);cursor:pointer;font:inherit;min-width:0}
+.dcard:hover{border-color:var(--accent)}
+.dcard .big{font:italic 900 42px/1 var(--display);color:var(--fg)}
+.dcard .nm{font-weight:700;font-size:17px;overflow-wrap:anywhere}
+.dcard .st{font:500 12px var(--mono);color:var(--muted)}
+.dhero{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.dhero .big{font:italic 900 72px/0.9 var(--display);color:var(--accent)}
+.dhero h1{font:italic 900 clamp(28px,6vw,42px)/1 var(--display);text-transform:uppercase}
+.recap{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.play{width:44px;height:44px;border-radius:50%;background:var(--accent);display:grid;place-items:center}
+.play::before{content:"";border-left:14px solid var(--ink);border-top:9px solid transparent;border-bottom:9px solid transparent;margin-left:4px}
+details.rulesec{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+details.rulesec summary{cursor:pointer;padding:14px 16px;font:italic 900 17px var(--display);text-transform:uppercase;list-style:none;display:flex;justify-content:space-between;gap:12px}
+details.rulesec summary::-webkit-details-marker{display:none}
+details.rulesec summary::after{content:"+";color:var(--accent)}
+details.rulesec[open] summary::after{content:"\2212"}
+.rulebody{padding:0 16px 16px;white-space:pre-wrap;max-width:68ch;color:var(--fg)}
+.empty{padding:28px 18px;text-align:center;border:1px dashed var(--line-2);border-radius:10px;color:var(--muted)}
+.empty b{display:block;color:var(--fg);font:italic 900 18px var(--display);text-transform:uppercase;margin-bottom:4px}
+.notice{padding:14px 16px;border-radius:10px;background:var(--panel-2);border:1px solid var(--line-2)}
+.links{display:flex;gap:10px;flex-wrap:wrap}
+footer{border-top:1px solid var(--line);padding-block:20px 28px;color:var(--muted);font-size:14px}
+footer .presented{font:italic 900 13px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+footer .presented b{color:var(--accent)}
+/* Admin */
+.subtabs{display:flex;gap:6px;flex-wrap:wrap}
+.subtabs .btn[aria-current="page"]{background:var(--fg);color:var(--ink);border-color:var(--fg)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.fgrid .wide{grid-column:1/-1}
+label.f{display:grid;gap:4px;font:600 12px var(--body);color:var(--muted);text-transform:uppercase;letter-spacing:.07em;min-width:0}
+input,select,textarea{font:16px var(--body);background:var(--bg);color:var(--fg);border:1px solid var(--line-2);border-radius:6px;padding:8px 10px;width:100%;box-sizing:border-box;min-width:0}
+textarea{min-height:110px;resize:vertical;line-height:1.45}
+.ed td{padding:4px}
+.ed input{padding:6px 6px;font-family:var(--mono);font-size:14px;width:64px}
+.ed input.wide{width:120px;font-family:var(--body)}
+.ed select{min-width:190px;padding:6px}
+.newdrv{display:flex;gap:4px;margin-top:4px}
+.newdrv input{width:120px}
+.newdrv input.no{width:56px}
+.hint{font-size:14px;color:var(--muted)}
+.okline{font-size:14px;color:var(--ok)}
+.adminrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.adminrow:last-child{border-bottom:0}
+.adminrow .t{min-width:0;overflow-wrap:anywhere}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:50;background:var(--panel-2);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:8px;font-weight:600;max-width:calc(100% - 32px);box-sizing:border-box;text-align:center}
+.toast.err{border-color:var(--bad)}
+.skel{height:120px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+@media (prefers-reduced-motion:no-preference){.tab,.btn,.dcard{transition:color .15s,border-color .15s,background .15s}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <div class="brandrow"><span class="mark" id="mark">INRS</span><span class="series" id="series">Cup Series</span><span class="season" id="season">2026</span></div>
+    <nav class="tabs" id="tabs" aria-label="Sections"></nav>
+  </div>
+</header>
+<main class="wrap" id="main"><div class="skel"></div></main>
+<footer><div class="wrap row" id="foot"></div></footer>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(function(){
+"use strict";
+const TABS=[["home","Home"],["standings","Standings"],["schedule","Schedule"],["drivers","Drivers"],["recaps","Recaps"],["penalties","Penalties"],["rules","Rules"],["admin","Admin"]];
+const DEFAULT_POINTS=[40].concat(Array.from({length:35},(_,i)=>35-i));
+const DEF={name:"INRS Cup Series",season:"2026",discord:"",sponsorName:"40XLI Driver Academy",sponsorUrl:"",hubUrl:"",youtubeUrl:"",points:{table:DEFAULT_POINTS,ledLap:1,mostLed:1},rules:[]};
+
+const S={view:"home",mode:"loading",admin:false,db:null,settingsRaw:null,drivers:[],races:[],penalties:[],official:null,
+  ready:{s:false,d:false,r:false,p:false,o:false},loaded:false,driverSel:null,raceOpen:null,adminTab:"results",
+  forms:{},confirm:null,pending:false,busy:false,calc:null};
+
+/* ---------- helpers ---------- */
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num=(v,d)=>{const n=parseFloat(v);return isFinite(n)?n:(d===undefined?0:d)};
+const int=v=>{const n=parseInt(v,10);return isFinite(n)?n:null};
+const safeUrl=u=>/^https?:\/\/\S+$/i.test(String(u||"").trim())?String(u).trim():"";
+const plural=(n,w)=>n+" "+w+(n===1?"":"s");
+function settings(){const r=S.settingsRaw||{};const p=Object.assign({},DEF.points,r.points||{});
+  if(!Array.isArray(p.table)||!p.table.length)p.table=DEFAULT_POINTS;
+  return Object.assign({},DEF,r,{points:p,rules:Array.isArray(r.rules)?r.rules:[]});}
+function fmtDate(iso){if(!iso)return"Date TBA";const d=new Date(iso);if(isNaN(d))return"Date TBA";return d.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric",year:"numeric"});}
+function fmtShort(iso){if(!iso)return"TBA";const d=new Date(iso);if(isNaN(d))return"TBA";return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});}
+function fmtTime(iso,dateOnly){if(!iso||dateOnly)return"";const d=new Date(iso);if(isNaN(d))return"";return d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit",timeZoneName:"short"});}
+function toLocalInput(iso){if(!iso)return"";const d=new Date(iso);if(isNaN(d))return"";const p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes());}
+function countdown(iso,dateOnly){if(!iso)return"";const ms=new Date(iso)-Date.now();if(isNaN(ms))return"";
+  if(dateOnly){const day=x=>{const d=new Date(x);d.setHours(0,0,0,0);return d};const dd=Math.round((day(iso)-day(Date.now()))/864e5);
+    if(dd<0)return"";if(dd===0)return"<b>Race day</b> · tonight";if(dd===1)return"Green flag <b>tomorrow</b>";return"Green flag in <b>"+dd+" days</b>";}
+  if(ms<=0)return ms>-4*3600e3?"<b>Race day</b> · green flag has dropped":"";
+  const d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5),m=Math.floor(ms%36e5/6e4);
+  return"Green flag in <b>"+(d?d+"d ":"")+h+"h"+(d?"":" "+m+"m")+"</b>";}
+const drv=id=>S.drivers.find(d=>d.id===id);
+const carno=d=>d&&d.number!==undefined&&d.number!==null&&String(d.number)!==""?'<span class="carno">#'+esc(d.number)+"</span> ":"";
+function dlink(id){const d=drv(id);if(!d)return'<span class="muted">Removed driver</span>';
+  return'<button class="dl" data-act="driver" data-arg="'+esc(id)+'">'+carno(d)+esc(d.name)+"</button>";}
+function dlabel(d){return(d.number!==undefined&&String(d.number)!==""?"#"+d.number+" ":"")+d.name;}
+const posCls=p=>p===1?"p1":p===2?"p2":p===3?"p3":"";
+const posBadge=p=>'<span class="pos '+posCls(p)+'">'+(p==null?"–":esc(p))+"</span>";
+function sortedRaces(){return[...S.races].sort((a,b)=>(num(a.round,999)-num(b.round,999))||String(a.date||"").localeCompare(String(b.date||"")));}
+const raceLabel=r=>"Round "+(r.round!=null&&r.round!==""?r.round:"?")+" · "+(r.track||"Track TBA");
+function isDnf(s){return s&&!/^running$/i.test(String(s).trim());}
+const root=()=>S.db.doc("league/main");
+
+/* ---------- stats ---------- */
+function compute(){
+  const st=settings(),P=st.points,races=sortedRaces();
+  const done=races.filter(r=>r.status==="complete"&&Array.isArray(r.results)&&r.results.length&&!r.exhibition);
+  const D={};S.drivers.forEach(d=>{D[d.id]={driver:d,starts:0,wins:0,top5:0,top10:0,poles:0,led:0,comp:0,inc:0,dnf:0,finSum:0,startSum:0,startN:0,best:null,racePts:0,penPts:0,total:0,log:[],racesLed:0}});
+  const ptsFor=(row,maxLed)=>{if(typeof row.pts==="number"&&isFinite(row.pts))return row.pts;const f=int(row.fin);let p=f?num(P.table[f-1],0):0;const led=int(row.lapsLed)||0;
+    if(led>0)p+=num(P.ledLap,0);if(maxLed>0&&led===maxLed)p+=num(P.mostLed,0);return p+num(row.bonus,0);};
+  done.forEach(r=>{const maxLed=Math.max(0,...r.results.map(x=>int(x.lapsLed)||0));
+    r.results.forEach(x=>{const s=D[x.driverId];if(!s)return;const f=int(x.fin),pts=ptsFor(x,maxLed),led=int(x.lapsLed)||0,inc=int(x.inc)||0,start=int(x.start);
+      s.starts++;if(f===1)s.wins++;if(f&&f<=5)s.top5++;if(f&&f<=10)s.top10++;if(start===1)s.poles++;
+      s.led+=led;if(led>0)s.racesLed++;s.comp+=int(x.lapsComp)||0;s.inc+=inc;if(isDnf(x.status))s.dnf++;
+      if(f){s.finSum+=f;if(s.best===null||f<s.best)s.best=f;}if(start){s.startSum+=start;s.startN++;}
+      s.racePts+=pts;s.log.push({race:r,fin:f,start,led,inc,status:x.status||"Running",pts,comp:int(x.lapsComp)});});});
+  S.penalties.forEach(p=>{const s=D[p.driverId];if(s&&!p.included)s.penPts+=num(p.points,0);});
+  Object.values(D).forEach(s=>{s.total=s.racePts-s.penPts;s.avgFin=s.starts?s.finSum/s.starts:null;s.avgStart=s.startN?s.startSum/s.startN:null;});
+  const off=S.official&&Array.isArray(S.official.rows)&&S.official.rows.length?S.official:null;
+  if(off)off.rows.forEach(o=>{const s=D[o.driverId];if(s){s.off=o;s.total=num(o.pts,0);s.starts=num(o.starts,s.starts);s.wins=num(o.wins,s.wins);s.top5=num(o.t5,s.top5);s.top10=num(o.t10,s.top10);s.poles=num(o.poles,s.poles);s.led=num(o.led,s.led);s.inc=num(o.inc,s.inc);}});
+  const standings=Object.values(D).filter(s=>s.starts>0||s.off||s.driver.active!==false)
+    .sort(off?((a,b)=>((a.off?a.off.pos:9999)-(b.off?b.off.pos:9999))||String(a.driver.name).localeCompare(String(b.driver.name)))
+      :((a,b)=>(b.total-a.total)||(b.wins-a.wins)||((a.best||99)-(b.best||99))||(b.starts-a.starts)||String(a.driver.name).localeCompare(String(b.driver.name))));
+  const rank={};let shown=0;standings.forEach(s=>{if(off){if(s.off)rank[s.driver.id]=s.off.pos;}else if(s.starts>0){shown++;rank[s.driver.id]=shown;}});
+  const next=races.find(r=>r.status!=="complete")||null;
+  const ran=Object.values(D).filter(s=>s.starts>0);
+  const by=(f,cmp)=>ran.length?[...ran].sort(cmp||((a,b)=>f(b)-f(a)))[0]:null;
+  const winners=new Set();done.forEach(r=>{const w=r.results.find(x=>int(x.fin)===1);if(w)winners.add(w.driverId);});
+  const minStarts=Math.max(1,Math.ceil(done.length/2));
+  const clean=ran.filter(s=>s.starts>=minStarts).sort((a,b)=>(a.inc/a.starts)-(b.inc/b.starts))[0]||null;
+  const totalInc=done.reduce((t,r)=>t+r.results.reduce((u,x)=>u+(int(x.inc)||0),0),0),totalStarts=done.reduce((t,r)=>t+r.results.length,0);
+  const league={run:races.filter(r=>r.status==="complete"&&(r.results||[]).length).length,total:races.length,avgDrv:totalStarts?totalInc/totalStarts:0,winners:winners.size,
+    mostWins:by(s=>s.wins),mostLed:by(s=>s.led),clean,avgInc:done.length?totalInc/done.length:0};
+  return{st,races,done,D,standings,rank,next,league,ptsFor,off};
+}
+
+/* ---------- views ---------- */
+const V={};
+function empty(t,s){return'<div class="empty"><b>'+esc(t)+"</b>"+esc(s||"")+"</div>";}
+function loading(){return'<div class="skel"></div><div class="skel" style="height:220px"></div>';}
+function notice(){
+  if(S.mode==="nodb")return'<div class="notice">Sign in to Claude to see the standings, results and recaps for this league.</div>';
+  if(S.mode==="offline")return'<div class="notice">League data could not be loaded. Refresh the page to try again.</div>';
+  return"";}
+
+V.home=()=>{const c=S.calc;let h="";
+  if(c.next){const r=c.next;
+    h+='<section class="hero"><div class="eyebrow">Next up · Round '+esc(r.round!=null&&r.round!==""?r.round:"?")+'</div><h1 class="track">'+esc(r.track||"Track TBA")+'</h1><div class="rule"></div>'+
+      (r.name?'<div class="rname">'+esc(r.name)+"</div>":"")+'<div class="meta"><span>'+fmtDate(r.date)+"</span>"+(fmtTime(r.date,r.dateOnly)?"<span>"+fmtTime(r.date,r.dateOnly)+"</span>":"")+(r.laps?"<span>"+esc(r.laps)+" laps</span>":"")+"</div>"+
+      (r.note?'<div class="small" style="margin-top:6px;color:var(--accent)">'+esc(r.note)+"</div>":"")+
+      (countdown(r.date,r.dateOnly)?'<div class="count">'+countdown(r.date,r.dateOnly)+"</div>":"")+"</section>";}
+  else if(!c.races.length){h+='<section class="hero"><div class="eyebrow">'+esc(c.st.season)+' season</div><h1 class="track">Schedule coming soon</h1><div class="rule"></div><div class="muted">Race dates will show here as soon as they are posted.</div></section>';}
+  else{const ch=c.standings[0];h+='<section class="hero"><div class="eyebrow">'+esc(c.st.season)+' season complete</div><h1 class="track">'+(ch?esc(ch.driver.name):"Season complete")+'</h1><div class="rule"></div><div class="muted">'+(ch?"Champion with "+ch.total+" points and "+plural(ch.wins,"win"):"")+"</div></section>";}
+
+  const last=c.done[c.done.length-1];let left="";
+  if(last){const top=[...last.results].sort((a,b)=>a.fin-b.fin).slice(0,3);
+    left+='<div class="panel"><div class="sechead"><div class="lt">Latest result</div><span class="muted small">'+esc(raceLabel(last))+" · "+fmtShort(last.date)+'</span></div><div class="podium">'+
+      top.map(x=>{const d=drv(x.driverId);return'<div class="podrow">'+posBadge(x.fin)+'<div class="name">'+dlink(x.driverId)+'<div class="sub">'+(int(x.lapsLed)?esc(x.lapsLed)+" led · ":"")+esc(int(x.inc)||0)+"x</div></div>"+'<span class="pts">'+c.ptsFor(x,Math.max(0,...last.results.map(y=>int(y.lapsLed)||0)))+"</span></div>";}).join("")+
+      '</div><div class="row" style="margin-top:12px"><button class="btn sm" data-act="openrace" data-arg="'+esc(last.id)+'">Full results</button>'+(safeUrl(last.recapUrl)?'<a class="btn sm primary" href="'+esc(safeUrl(last.recapUrl))+'" target="_blank" rel="noopener">Watch recap</a>':"")+"</div></div>";}
+  else left+='<div class="panel"><div class="lt">Latest result</div>'+empty("No results yet","Results appear here after the first race is posted.")+"</div>";
+
+  const L=c.league;
+  left+='<div class="panel"><div class="lt">League stats</div><div class="tiles">'+
+    tile(L.run+(L.total?" / "+L.total:""),"Races run")+tile(L.winners,"Different winners")+
+    tile(L.mostWins&&L.mostWins.wins?L.mostWins.driver.name:"–","Most wins"+(L.mostWins&&L.mostWins.wins?" ("+L.mostWins.wins+")":""),true)+
+    tile(L.mostLed&&L.mostLed.led?L.mostLed.driver.name:"–","Most laps led"+(L.mostLed&&L.mostLed.led?" ("+L.mostLed.led+")":""),true)+
+    tile(L.clean?L.clean.driver.name:"–","Cleanest"+(L.clean?" ("+(L.clean.inc/L.clean.starts).toFixed(1)+"x/race)":""),true)+
+    tile(L.avgDrv?L.avgDrv.toFixed(1)+"x":"–","Avg incidents per driver")+"</div></div>";
+
+  const top5=c.standings.filter(s=>c.off?s.off:s.starts>0).slice(0,5);const lead=top5[0]?top5[0].total:0;
+  let right='<div class="panel"><div class="sechead"><div class="lt">Standings</div><button class="btn sm ghost" data-act="nav" data-arg="standings">All drivers</button></div>'+
+    (top5.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">Pts</th><th class="n">Gap</th></tr></thead><tbody>'+
+      top5.map((s,i)=>"<tr><td>"+posBadge(c.off?s.off.pos:i+1)+"</td><td>"+dlink(s.driver.id)+'</td><td class="n"><span class="pts">'+fmtN(s.total)+'</span></td><td class="n muted">'+(i?"−"+fmtN(lead-s.total):"Leader")+"</td></tr>").join("")+"</tbody></table></div>"+
+      (c.off?'<p class="hint" style="margin:8px 0 0">Official SimRacerHub points after Round '+esc(c.off.afterRound)+".</p>":"")
+    :empty("Standings open after race 1",""))+"</div>";
+  const withRecap=c.done.filter(r=>safeUrl(r.recapUrl));const lr=withRecap[withRecap.length-1];
+  right+='<div class="panel"><div class="lt">Latest recap</div>'+(lr?recapRow(lr):empty("No recaps yet","Race recaps will be linked here."))+"</div>";
+  right+=linksPanel();
+  return h+'<div class="grid2"><div class="stack">'+left+'</div><div class="stack">'+right+"</div></div>";};
+
+function hubBtn(label){const u=safeUrl(settings().hubUrl);return u?'<a class="btn sm" href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(label||"Official standings on SimRacerHub")+" ↗</a>":"";}
+function hubBar(label){const b=hubBtn(label);return b?'<div class="row" style="margin-bottom:12px">'+b+"</div>":"";}
+function tile(v,l,small){return'<div class="tile"><b'+(small?' class="sm"':"")+">"+esc(v)+"</b><span>"+esc(l)+"</span></div>";}
+function linksPanel(){const st=settings(),dc=safeUrl(st.discord),sp=safeUrl(st.sponsorUrl),hb=safeUrl(st.hubUrl),yt=safeUrl(st.youtubeUrl);if(!dc&&!sp&&!hb&&!yt)return"";
+  return'<div class="panel"><div class="lt">Links</div><div class="links">'+(yt?'<a class="btn" href="'+esc(yt)+'" target="_blank" rel="noopener">Recaps on YouTube</a>':"")+(hb?'<a class="btn" href="'+esc(hb)+'" target="_blank" rel="noopener">SimRacerHub standings</a>':"")+(dc?'<a class="btn primary" href="'+esc(dc)+'" target="_blank" rel="noopener">Join the Discord</a>':"")+(sp?'<a class="btn" href="'+esc(sp)+'" target="_blank" rel="noopener">'+esc(st.sponsorName||"Sponsor")+"</a>":"")+"</div></div>";}
+function recapRow(r){const c=S.calc,w=(r.results||[]).find(x=>int(x.fin)===1);
+  return'<div class="recap"><a class="play" href="'+esc(safeUrl(r.recapUrl))+'" target="_blank" rel="noopener" aria-label="Watch recap"></a><div style="min-width:0"><div class="racetitle">'+esc(r.track||"Race")+'</div><div class="racesub">Round '+esc(r.round??"?")+" · "+fmtShort(r.date)+(w&&drv(w.driverId)?" · Won by "+esc(drv(w.driverId).name):"")+'</div></div><a class="btn sm" href="'+esc(safeUrl(r.recapUrl))+'" target="_blank" rel="noopener">Watch</a></div>';}
+
+const fmtN=v=>{const n=Number(v);return isFinite(n)?n.toLocaleString("en-US"):esc(v)};
+const last5=s=>'<div class="chips">'+s.log.slice(-5).map(l=>'<span class="fchip '+(l.fin===1?"w":l.fin&&l.fin<=5?"t5":"")+(isDnf(l.status)?" dnf":"")+'" title="'+esc(raceLabel(l.race))+'">'+esc(l.fin??"–")+"</span>").join("")+"</div>";
+function officialStandings(c){const o=c.off,cut=num(o.chaseCutoff,0);
+  const rows=c.standings.filter(s=>s.off);
+  return'<section><div class="sechead"><div class="lt">Championship standings</div><span class="hint">Official SimRacerHub points after Round '+esc(o.afterRound)+(o.asOf?" · updated "+esc(fmtShort(o.asOf+"T12:00:00")):"")+"</span></div>"+hubBar()+
+    '<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">Pts</th><th class="n">Gap</th><th class="n">Starts</th><th class="n">Wins</th><th class="n">T5</th><th class="n">T10</th><th class="n">Poles</th><th class="n">Led</th><th class="n">Stage pts</th><th class="n">Pen</th><th class="n">Inc/race</th><th class="n">Rating</th><th>Last 5</th><th>Team</th></tr></thead><tbody>'+
+    rows.map(s=>{const r=s.off;return(cut&&r.pos===cut+1?'<tr><td colspan="16" style="padding:4px 8px;border-bottom:2px solid var(--accent);font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)">Chase cutoff · top '+cut+"</td></tr>":"")+
+      "<tr><td>"+posBadge(r.pos)+"</td><td>"+dlink(s.driver.id)+'</td><td class="n"><span class="pts">'+fmtN(r.pts)+'</span></td><td class="n muted">'+(r.behLead?fmtN(r.behLead):"–")+'</td><td class="n">'+fmtN(r.starts)+'</td><td class="n">'+fmtN(r.wins)+'</td><td class="n">'+fmtN(r.t5)+'</td><td class="n">'+fmtN(r.t10)+'</td><td class="n">'+fmtN(r.poles)+'</td><td class="n">'+fmtN(r.led)+'</td><td class="n">'+fmtN(r.stgPts)+'</td><td class="n'+(r.penPts?"":" muted")+'">'+(r.penPts?fmtN(r.penPts):"0")+'</td><td class="n">'+(r.incPerRace!=null?Number(r.incPerRace).toFixed(2):"–")+'</td><td class="n">'+(r.rating!=null?Number(r.rating).toFixed(1):"–")+"</td><td>"+last5(s)+'</td><td class="muted small">'+esc(r.team||"")+"</td></tr>";}).join("")+
+    '</tbody></table></div></div><p class="hint">Points include stage points, bonuses, penalties, drop races and the Chase reset, exactly as SimRacerHub scores them.</p></section>';}
+V.standings=()=>{const c=S.calc;if(c.off)return officialStandings(c);const rows=c.standings.filter(s=>s.starts>0);
+  if(!rows.length)return'<div class="lt">Championship standings</div>'+hubBar()+empty("No races run yet","Standings appear after the first results are posted.");
+  const lead=rows[0].total;
+  return'<section><div class="lt">Championship standings</div>'+hubBar()+'<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">Pts</th><th class="n">Gap</th><th class="n">Starts</th><th class="n">Wins</th><th class="n">T5</th><th class="n">T10</th><th class="n">Led</th><th class="n">Avg fin</th><th class="n">Inc</th><th>Last 5</th></tr></thead><tbody>'+
+    rows.map((s,i)=>"<tr><td>"+posBadge(i+1)+"</td><td>"+dlink(s.driver.id)+(s.penPts?' <span class="muted small" title="Penalty points">(−'+s.penPts+")</span>":"")+'</td><td class="n"><span class="pts">'+s.total+'</span></td><td class="n muted">'+(i?"−"+(lead-s.total):"–")+'</td><td class="n">'+s.starts+'</td><td class="n">'+s.wins+'</td><td class="n">'+s.top5+'</td><td class="n">'+s.top10+'</td><td class="n">'+s.led+'</td><td class="n">'+(s.avgFin?s.avgFin.toFixed(1):"–")+'</td><td class="n">'+s.inc+'x</td><td><div class="chips">'+
+      s.log.slice(-5).map(l=>'<span class="fchip '+(l.fin===1?"w":l.fin&&l.fin<=5?"t5":"")+(isDnf(l.status)?" dnf":"")+'" title="'+esc(raceLabel(l.race))+'">'+esc(l.fin??"–")+"</span>").join("")+"</div></td></tr>").join("")+
+    '</tbody></table></div></div><p class="hint">'+pointsSummary()+"</p></section>";};
+
+function pointsSummary(){const P=settings().points,t=P.table;let lastI=t.length-1;while(lastI>0&&!num(t[lastI],0))lastI--;
+  return"Points: 1st "+num(t[0],0)+(t[1]!==undefined?", 2nd "+num(t[1],0):"")+(t[2]!==undefined?", 3rd "+num(t[2],0):"")+(lastI>2?" … down to "+num(t[lastI],0)+" for "+(lastI+1)+"th":"")+
+    (num(P.ledLap,0)?". +"+num(P.ledLap,0)+" for leading a lap":"")+(num(P.mostLed,0)?", +"+num(P.mostLed,0)+" for most laps led":"")+". Penalty points come off the total.";}
+
+function resultsTable(r){const maxLed=Math.max(0,...r.results.map(x=>int(x.lapsLed)||0));const hasStage=r.results.some(x=>num(x.stage,0)),hasRating=r.results.some(x=>x.rating!=null);
+  const pen=S.penalties.filter(p=>p.raceId===r.id);
+  return'<div class="scroll"><table class="tbl"><thead><tr><th>Fin</th><th>Driver</th><th class="n">Start</th><th class="n">Led</th><th class="n">Laps</th><th class="n">Inc</th><th>Status</th>'+(hasStage?'<th class="n">Stage</th>':"")+(hasRating?'<th class="n">Rating</th>':"")+'<th class="n">Pts</th></tr></thead><tbody>'+
+    [...r.results].sort((a,b)=>a.fin-b.fin).map(x=>"<tr><td>"+posBadge(int(x.fin))+"</td><td>"+(x.car&&drv(x.driverId)&&String(drv(x.driverId).number)!==String(x.car)?'<span class="carno">#'+esc(x.car)+"</span> "+'<button class="dl" data-act="driver" data-arg="'+esc(x.driverId)+'">'+esc(drv(x.driverId).name)+"</button>":dlink(x.driverId))+'</td><td class="n">'+esc(x.start??"–")+'</td><td class="n">'+esc(int(x.lapsLed)||0)+'</td><td class="n">'+esc(x.lapsComp??"–")+'</td><td class="n">'+esc(int(x.inc)||0)+'x</td><td class="'+(isDnf(x.status)?"muted":"")+'">'+esc(x.status||"Running")+"</td>"+
+      (hasStage?'<td class="n">'+(num(x.stage,0)||"")+"</td>":"")+(hasRating?'<td class="n">'+(x.rating!=null?Number(x.rating).toFixed(1):"–")+"</td>":"")+'<td class="n"><b>'+(r.exhibition?"–":S.calc.ptsFor(x,maxLed))+"</b>"+(num(x.pen,0)?' <span class="small" style="color:var(--bad)">('+num(x.pen,0)+")</span>":"")+"</td></tr>").join("")+"</tbody></table></div>"+
+    (pen.length?'<p class="hint" style="margin:8px">Penalties: '+pen.map(p=>esc((drv(p.driverId)||{name:"Driver"}).name)+" −"+num(p.points,0)+" ("+esc(p.infraction)+")").join("; ")+"</p>":"");}
+
+V.schedule=()=>{const c=S.calc;if(!c.races.length)return'<div class="lt">'+esc(c.st.season)+" schedule</div>"+hubBar("League page on SimRacerHub")+empty("No races scheduled yet","The league admin adds races from the Admin tab.");
+  return'<section><div class="lt">'+esc(c.st.season)+' schedule</div>'+hubBar("League page on SimRacerHub")+'<div class="list">'+c.races.map(r=>{
+    const done=r.status==="complete"&&(r.results||[]).length,isNext=c.next&&c.next.id===r.id,open=S.raceOpen===r.id;
+    const w=done?r.results.find(x=>int(x.fin)===1):null,rec=safeUrl(r.recapUrl);
+    return'<article class="race'+(isNext?" isnext":"")+'" id="race-'+esc(r.id)+'"><div class="racehead"><div class="rnd"><small>Rnd</small><b>'+esc(r.round??"?")+'</b></div><div style="min-width:0"><div class="racetitle">'+esc(r.track||"Track TBA")+'</div><div class="racesub">'+fmtDate(r.date)+(fmtTime(r.date,r.dateOnly)?" · "+fmtTime(r.date,r.dateOnly):"")+(r.laps?" · "+esc(r.laps)+" laps":"")+"</div>"+(r.name?'<div class="small muted">'+esc(r.name)+"</div>":"")+(r.note?'<div class="small" style="color:var(--accent)">'+esc(r.note)+"</div>":"")+
+      (w?'<div class="small" style="margin-top:4px">Winner: '+dlink(w.driverId)+"</div>":"")+'</div><div class="raceside">'+(r.exhibition?'<span class="pill">Exhibition</span>':"")+(done?'<span class="pill final">Final</span>':isNext?'<span class="pill next">Next</span>':'<span class="pill">Upcoming</span>')+"</div></div>"+
+      ((done||rec)?'<div class="raceactions">'+(done?'<button class="btn sm" data-act="race" data-arg="'+esc(r.id)+'" aria-expanded="'+open+'">'+(open?"Hide results":"Results")+"</button>":"")+(rec?'<a class="btn sm primary" href="'+esc(rec)+'" target="_blank" rel="noopener">Watch recap</a>':"")+"</div>":"")+
+      (open&&done?'<div class="racebody">'+resultsTable(r)+"</div>":"")+"</article>";}).join("")+"</div></section>";};
+
+V.drivers=()=>{const c=S.calc;if(S.driverSel&&c.D[S.driverSel])return driverDetail(c.D[S.driverSel]);
+  if(!S.drivers.length)return'<div class="lt">Drivers</div>'+empty("No drivers yet","Drivers are added by the admin or from an uploaded results file.");
+  return'<section><div class="lt">Drivers</div><div class="dgrid">'+c.standings.concat(Object.values(c.D).filter(s=>!c.standings.includes(s))).map(s=>{const rk=c.rank[s.driver.id];
+    return'<button class="dcard" data-act="driver" data-arg="'+esc(s.driver.id)+'"><span class="big">'+(s.driver.number!==undefined&&String(s.driver.number)!==""?"#"+esc(s.driver.number):"—")+'</span><span class="nm">'+esc(s.driver.name)+'</span><span class="st">'+(rk?"P"+rk+" · "+fmtN(s.total)+" pts · "+plural(s.off?num(s.off.wins,0):s.wins,"win"):"No starts yet")+"</span></button>";}).join("")+"</div></section>";};
+
+function driverDetail(s){const c=S.calc,d=s.driver,rk=c.rank[d.id],pens=S.penalties.filter(p=>p.driverId===d.id);
+  let h='<section class="stack"><div><button class="btn sm ghost" data-act="nav" data-arg="drivers">← All drivers</button></div><div class="dhero"><span class="big">'+(d.number!==undefined&&String(d.number)!==""?"#"+esc(d.number):"—")+'</span><div><h1>'+esc(d.name)+'</h1><div class="muted">'+(rk?"P"+rk+" in points":"No starts yet")+(d.team?" · "+esc(d.team):"")+(d.custId?" · iRacing ID "+esc(d.custId):"")+"</div></div></div>";
+  const o=s.off;
+  h+='<div class="tiles">'+tile(fmtN(s.total),"Points")+tile(s.starts,"Starts")+tile(s.wins,"Wins")+tile(s.top5,"Top 5s")+tile(s.top10,"Top 10s")+(o?tile(o.podiums,"Podiums"):"")+tile(s.poles,"Poles")+tile(s.led,"Laps led")+(o?tile(o.stgPts,"Stage pts")+tile(o.stgWins,"Stage wins"):"")+tile(s.avgFin?s.avgFin.toFixed(1):"–","Avg finish")+tile(s.avgStart?s.avgStart.toFixed(1):"–","Avg start")+tile(s.best??"–","Best finish")+tile(s.inc+"x","Incidents")+tile(s.starts?(s.inc/s.starts).toFixed(1)+"x":"–","Inc per race")+tile(s.dnf,"DNFs")+(o&&o.rating!=null?tile(Number(o.rating).toFixed(1),"Avg rating"):"")+
+    (o?(num(o.penPts,0)?tile(fmtN(o.penPts),"Penalty pts"):""):(s.penPts?tile("−"+s.penPts,"Penalty pts"):""))+"</div>";
+  h+='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Race log</div>'+(s.log.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Race</th><th class="n">Start</th><th>Fin</th><th class="n">Led</th><th class="n">Inc</th><th>Status</th><th class="n">Pts</th></tr></thead><tbody>'+
+    s.log.map(l=>'<tr><td><button class="dl" data-act="openrace" data-arg="'+esc(l.race.id)+'">'+esc(raceLabel(l.race))+'</button></td><td class="n">'+esc(l.start??"–")+"</td><td>"+posBadge(l.fin)+'</td><td class="n">'+l.led+'</td><td class="n">'+l.inc+"x</td><td>"+esc(l.status)+'</td><td class="n"><b>'+l.pts+"</b></td></tr>").join("")+"</tbody></table></div>":empty("No races yet",""))+"</div>";
+  if(pens.length)h+='<div class="panel"><div class="lt">Penalties</div>'+penTable(pens)+"</div>";
+  return h+"</section>";}
+
+V.recaps=()=>{const rs=S.calc.races.filter(r=>safeUrl(r.recapUrl)).reverse(),yt=safeUrl(settings().youtubeUrl);
+  return'<section><div class="lt">Race recaps</div>'+(yt?'<div class="row" style="margin-bottom:12px"><a class="btn sm" href="'+esc(yt)+'" target="_blank" rel="noopener">40XLI Racing on YouTube ↗</a></div>':"")+(rs.length?'<div class="list">'+rs.map(recapRow).join("")+"</div>":empty("No recaps yet","Recaps are posted here after each race."))+"</section>";};
+
+function penTable(list){const rr=id=>S.races.find(r=>r.id===id);
+  return'<div class="scroll"><table class="tbl"><thead><tr><th>Race</th><th>Driver</th><th>Infraction</th><th>Decision</th><th class="n">Pts</th></tr></thead><tbody>'+
+    list.map(p=>{const r=rr(p.raceId);return"<tr><td>"+(r?esc("Rd "+(r.round??"?")+" · "+(r.track||"")):'<span class="muted">—</span>')+"</td><td>"+dlink(p.driverId)+'</td><td class="wrapcell">'+esc(p.infraction)+'</td><td class="wrapcell">'+esc(p.decision||"")+'</td><td class="n">'+(num(p.points,0)?"−"+num(p.points,0):"0")+"</td></tr>";}).join("")+"</tbody></table></div>";}
+function penSorted(){const rd=id=>{const r=S.races.find(x=>x.id===id);return r?num(r.round,0):0};return[...S.penalties].sort((a,b)=>rd(b.raceId)-rd(a.raceId)||String(b.created||"").localeCompare(String(a.created||"")));}
+V.penalties=()=>'<section><div class="lt">Penalties &amp; incidents</div>'+(S.penalties.length?'<div class="panel" style="padding:6px 8px">'+penTable(penSorted())+"</div>":empty("Clean sheet so far","No steward decisions have been posted."))+"</section>";
+
+V.rules=()=>{const rules=settings().rules;
+  return'<section class="stack"><div><div class="lt">Rulebook</div>'+(rules.length?'<div class="list">'+rules.map((r,i)=>'<details class="rulesec"'+(i===0?" open":"")+"><summary>"+esc(r.title||"Section "+(i+1))+'</summary><div class="rulebody">'+esc(r.body||"")+"</div></details>").join("")+"</div>":empty("Rulebook coming soon","The league rules will be posted here."))+
+    '</div><div class="panel"><div class="lt">How points work</div><p style="margin:0">'+pointsSummary()+"</p></div></section>";};
+
+/* ---------- admin ---------- */
+const blankDriver=()=>({id:"",name:"",number:"",custId:"",team:""});
+function blankRace(){const m=Math.max(0,...S.races.map(r=>num(r.round,0)));return{id:"",round:String(m+1),name:"",track:"",date:"",laps:""};}
+const blankPen=()=>({id:"",raceId:"",driverId:"",infraction:"",decision:"",points:"0"});
+function initForms(){const F=S.forms,st=settings();
+  if(!F.settings)F.settings={name:st.name,season:st.season,discord:st.discord,sponsorName:st.sponsorName,sponsorUrl:st.sponsorUrl,hubUrl:st.hubUrl,youtubeUrl:st.youtubeUrl,pointsText:st.points.table.join(", "),ledLap:String(st.points.ledLap),mostLed:String(st.points.mostLed)};
+  if(!F.driver)F.driver=blankDriver();if(!F.race)F.race=blankRace();if(!F.pen)F.pen=blankPen();
+  if(!F.rules)F.rules=st.rules.map(r=>({title:r.title||"",body:r.body||""}));}
+const inp=(path,val,attrs)=>'<input data-f="'+path+'" id="f-'+path.replace(/\./g,"-")+'" value="'+esc(val)+'" '+(attrs||"")+">";
+const field=(label,html,cls)=>'<label class="f'+(cls?" "+cls:"")+'">'+esc(label)+html+"</label>";
+function delBtn(key,act,id,label){return S.confirm===key?'<button class="btn sm warn" data-act="'+act+'" data-arg="'+esc(id)+'">Tap again to delete</button>':'<button class="btn sm danger" data-act="askdel" data-arg="'+esc(key)+'">'+(label||"Delete")+"</button>";}
+function driverOptions(sel,withNew){return'<option value="">Pick driver…</option>'+[...S.drivers].sort((a,b)=>String(a.name).localeCompare(String(b.name))).map(d=>'<option value="'+esc(d.id)+'"'+(d.id===sel?" selected":"")+">"+esc(dlabel(d))+"</option>").join("")+(withNew?'<option value="__new"'+(sel==="__new"?" selected":"")+">+ New driver…</option>":"");}
+function raceOptions(sel,placeholder){return'<option value="">'+esc(placeholder||"Pick race…")+"</option>"+sortedRaces().map(r=>'<option value="'+esc(r.id)+'"'+(r.id===sel?" selected":"")+">"+esc(raceLabel(r))+(r.status==="complete"?" (final)":"")+"</option>").join("");}
+
+V.admin=()=>{if(!S.admin)return empty("Admins only","Only the league admin can change league data.");initForms();
+  const tabs=[["results","Results"],["schedule","Schedule"],["drivers","Drivers"],["penalties","Penalties"],["rules","Rules"],["settings","Settings"]];
+  return'<section class="stack"><div class="sechead"><div class="lt">Admin</div><span class="hint">Only you can see this tab.</span></div><div class="subtabs">'+tabs.map(t=>'<button class="btn sm" data-act="atab" data-arg="'+t[0]+'"'+(S.adminTab===t[0]?' aria-current="page"':"")+">"+t[1]+"</button>").join("")+"</div>"+(A[S.adminTab]||A.results)()+"</section>";};
+const A={};
+A.results=()=>{const f=S.forms.results;
+  let h='<div class="panel stack"><div class="fgrid">'+field("Race",'<select id="f-resrace" data-change="pickrace">'+raceOptions(f?f.raceId:"","Pick a race to enter results…")+"</select>","wide")+"</div>";
+  if(!S.races.length)h+='<p class="hint">Add races on the Schedule tab first.</p>';
+  if(f){h+='<div class="row"><label class="btn primary" for="csvfile">Upload iRacing results CSV</label><input type="file" id="csvfile" accept=".csv,text/csv" data-change="csv" hidden><span class="hint">From the race\'s results page on iRacing, export the results as CSV.</span></div>'+(f.note?'<div class="'+(f.noteErr?"hint":"okline")+'">'+esc(f.note)+"</div>":"");
+    h+='<div class="scroll"><table class="tbl ed"><thead><tr><th>Fin</th><th>Driver</th><th>Start</th><th>Led</th><th>Laps</th><th>Inc</th><th>Status</th><th>Bonus</th><th title="Official points. Leave blank to calculate.">Pts</th><th></th></tr></thead><tbody>'+
+      (f.rows.length?f.rows.map((r,i)=>"<tr><td>"+inp("results.rows."+i+".fin",r.fin,'inputmode="numeric" style="width:48px"')+'</td><td><select id="f-rd-'+i+'" data-f="results.rows.'+i+'.driverId" data-change="rerender">'+driverOptions(r.driverId,true)+"</select>"+
+        (r.driverId==="__new"?'<div class="newdrv">'+inp("results.rows."+i+".newNumber",r.newNumber,'class="no" placeholder="#"')+inp("results.rows."+i+".newName",r.newName,'class="wide" placeholder="Driver name"')+"</div>":"")+"</td><td>"+
+        inp("results.rows."+i+".start",r.start,'inputmode="numeric" style="width:52px"')+"</td><td>"+inp("results.rows."+i+".led",r.led,'inputmode="numeric" style="width:52px"')+"</td><td>"+inp("results.rows."+i+".comp",r.comp,'inputmode="numeric" style="width:60px"')+"</td><td>"+inp("results.rows."+i+".inc",r.inc,'inputmode="numeric" style="width:48px"')+"</td><td>"+inp("results.rows."+i+".status",r.status,'class="wide"')+"</td><td>"+inp("results.rows."+i+".bonus",r.bonus,'inputmode="decimal" style="width:52px" title="Extra points, e.g. stage points"')+"</td><td>"+inp("results.rows."+i+".pts",r.pts,'inputmode="decimal" style="width:56px" placeholder="auto"')+'</td><td><button class="btn sm danger" data-act="delrow" data-arg="'+i+'" aria-label="Remove row">✕</button></td></tr>').join("")
+      :'<tr><td colspan="10" class="muted" style="padding:14px">No finishers yet. Upload the CSV or add rows by hand.</td></tr>')+"</tbody></table></div>";
+    h+='<div class="row"><button class="btn" data-act="addrow">Add driver row</button><button class="btn ghost" data-act="sortrows">Sort by finish</button></div>';
+    h+='<div class="fgrid">'+field("Recap video (YouTube link)",inp("results.recapUrl",f.recapUrl,'placeholder="https://youtu.be/…" inputmode="url"'),"wide")+'</div><p class="hint">Status is "Running" for cars that finished; anything else counts as a DNF. Bonus adds extra points to that driver for this race. Saving with no rows keeps the race as upcoming.</p><div class="row"><button class="btn primary" data-act="saveresults"'+(S.busy?" disabled":"")+">Save results</button></div>";}
+  return h+"</div>";};
+A.schedule=()=>{const f=S.forms.race;
+  return'<div class="panel stack"><div class="lt">'+(f.id?"Edit race":"Add a race")+'</div><div class="fgrid">'+field("Round",inp("race.round",f.round,'inputmode="numeric"'))+field("Track",inp("race.track",f.track,'placeholder="Las Vegas Motor Speedway"'))+field("Race name (optional)",inp("race.name",f.name,'placeholder="INRS 300"'))+field("Date & time",inp("race.date",f.date,'type="datetime-local"'))+field("Laps",inp("race.laps",f.laps,'inputmode="numeric"'))+
+    '</div><div class="row"><button class="btn primary" data-act="saverace"'+(S.busy?" disabled":"")+">"+(f.id?"Save race":"Add race")+"</button>"+(f.id?'<button class="btn ghost" data-act="cancelrace">Cancel</button>':"")+'</div></div><div class="panel" style="padding:4px 0">'+
+    (S.races.length?sortedRaces().map(r=>'<div class="adminrow"><div class="t"><b>'+esc(raceLabel(r))+'</b><div class="small muted">'+fmtDate(r.date)+(r.date?" · "+fmtTime(r.date):"")+(r.status==="complete"?" · Final":"")+'</div></div><div class="row"><button class="btn sm" data-act="resfor" data-arg="'+esc(r.id)+'">Results</button><button class="btn sm" data-act="editrace" data-arg="'+esc(r.id)+'">Edit</button>'+delBtn("race:"+r.id,"delrace",r.id)+"</div></div>").join(""):'<div class="adminrow muted">No races yet.</div>')+"</div>";};
+A.drivers=()=>{const f=S.forms.driver;
+  return'<div class="panel stack"><div class="lt">'+(f.id?"Edit driver":"Add a driver")+'</div><div class="fgrid">'+field("Name",inp("driver.name",f.name))+field("Car number",inp("driver.number",f.number,'inputmode="numeric"'))+field("iRacing customer ID",inp("driver.custId",f.custId,'inputmode="numeric" placeholder="Matches CSV uploads"'))+field("Team (optional)",inp("driver.team",f.team))+
+    '</div><div class="row"><button class="btn primary" data-act="savedriver"'+(S.busy?" disabled":"")+">"+(f.id?"Save driver":"Add driver")+"</button>"+(f.id?'<button class="btn ghost" data-act="canceldriver">Cancel</button>':"")+'</div></div><div class="panel" style="padding:4px 0">'+
+    (S.drivers.length?[...S.drivers].sort((a,b)=>num(a.number,999)-num(b.number,999)).map(d=>'<div class="adminrow"><div class="t"><b>'+carno(d)+esc(d.name)+'</b><div class="small muted">'+(d.custId?"iRacing ID "+esc(d.custId):"No iRacing ID")+(d.team?" · "+esc(d.team):"")+'</div></div><div class="row"><button class="btn sm" data-act="editdriver" data-arg="'+esc(d.id)+'">Edit</button>'+delBtn("driver:"+d.id,"deldriver",d.id)+"</div></div>").join(""):'<div class="adminrow muted">No drivers yet. They are also added automatically when you upload a results CSV.</div>')+"</div>";};
+A.penalties=()=>{const f=S.forms.pen;
+  return'<div class="panel stack"><div class="lt">'+(f.id?"Edit penalty":"Log a penalty")+'</div><div class="fgrid">'+field("Race",'<select id="f-penrace" data-f="pen.raceId">'+raceOptions(f.raceId)+"</select>")+field("Driver",'<select id="f-pendrv" data-f="pen.driverId">'+driverOptions(f.driverId,false)+"</select>")+field("Points deducted",inp("pen.points",f.points,'inputmode="numeric"'))+
+    field("Infraction",inp("pen.infraction",f.infraction,'placeholder="Avoidable contact, turn 3, lap 112"'),"wide")+field("Decision",inp("pen.decision",f.decision,'placeholder="Warning / pit-lane start next race / -10 pts"'),"wide")+
+    '</div><div class="row"><button class="btn primary" data-act="savepen"'+(S.busy?" disabled":"")+">"+(f.id?"Save penalty":"Log penalty")+"</button>"+(f.id?'<button class="btn ghost" data-act="cancelpen">Cancel</button>':"")+'</div></div><div class="panel" style="padding:4px 0">'+
+    (S.penalties.length?penSorted().map(p=>{const r=S.races.find(x=>x.id===p.raceId),d=drv(p.driverId);return'<div class="adminrow"><div class="t"><b>'+(d?carno(d)+esc(d.name):"Removed driver")+'</b> <span class="muted small">'+(r?esc(raceLabel(r)):"")+'</span><div class="small">'+esc(p.infraction)+(num(p.points,0)?" · −"+num(p.points,0)+" pts":"")+'</div></div><div class="row"><button class="btn sm" data-act="editpen" data-arg="'+esc(p.id)+'">Edit</button>'+delBtn("pen:"+p.id,"delpen",p.id)+"</div></div>";}).join(""):'<div class="adminrow muted">No penalties logged.</div>')+"</div>";};
+A.rules=()=>{const R=S.forms.rules;
+  return'<div class="panel stack"><div class="lt">Rulebook sections</div>'+(R.length?R.map((r,i)=>'<div class="stack" style="gap:8px;padding-bottom:14px;border-bottom:1px solid var(--line)"><div class="row" style="flex-wrap:nowrap">'+inp("rules."+i+".title",r.title,'placeholder="Section title, e.g. Racing etiquette"')+'<button class="btn sm ghost" data-act="moverule" data-arg="'+i+'" aria-label="Move up"'+(i?"":" disabled")+'>↑</button><button class="btn sm danger" data-act="delrule" data-arg="'+i+'" aria-label="Remove section">✕</button></div><textarea id="f-rules-'+i+'-body" data-f="rules.'+i+'.body" placeholder="Rule text. Line breaks are kept.">'+esc(r.body)+"</textarea></div>").join(""):'<p class="hint">No sections yet.</p>')+
+    '<div class="row"><button class="btn" data-act="addrule">Add section</button><button class="btn primary" data-act="saverules"'+(S.busy?" disabled":"")+'>Save rulebook</button></div><p class="hint">The points system is set on the Settings tab and shown on the Rules page automatically.</p></div>';};
+A.settings=()=>{const f=S.forms.settings;
+  return'<div class="panel stack"><div class="lt">League settings</div><div class="fgrid">'+field("League name",inp("settings.name",f.name))+field("Season",inp("settings.season",f.season))+field("Discord invite link",inp("settings.discord",f.discord,'placeholder="https://discord.gg/…" inputmode="url"'),"wide")+field("Sponsor name",inp("settings.sponsorName",f.sponsorName))+field("Sponsor link",inp("settings.sponsorUrl",f.sponsorUrl,'placeholder="https://…" inputmode="url"'))+field("YouTube channel (recaps)",inp("settings.youtubeUrl",f.youtubeUrl,'placeholder="https://www.youtube.com/@…" inputmode="url"'),"wide")+field("SimRacerHub league link",inp("settings.hubUrl",f.hubUrl,'placeholder="https://www.simracerhub.com/…" inputmode="url"'),"wide")+
+    field("Points by finishing position (1st, 2nd, 3rd …)",'<textarea id="f-settings-pointsText" data-f="settings.pointsText" style="min-height:70px;font-family:var(--mono);font-size:14px">'+esc(f.pointsText)+"</textarea>","wide")+field("Bonus for leading a lap",inp("settings.ledLap",f.ledLap,'inputmode="numeric"'))+field("Bonus for most laps led",inp("settings.mostLed",f.mostLed,'inputmode="numeric"'))+
+    '</div><div class="row"><button class="btn primary" data-act="savesettings"'+(S.busy?" disabled":"")+'>Save settings</button><button class="btn ghost" data-act="defpoints">Use default points</button></div><p class="hint">Changing points recalculates every race and the standings straight away.</p></div>';};
+
+/* ---------- CSV import ---------- */
+function parseCSV(text){const rows=[];let row=[],cell="",q=false;text=text.replace(/^﻿/,"");
+  for(let i=0;i<text.length;i++){const ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){cell+='"';i++;}else q=false;}else cell+=ch;}
+    else if(ch==='"')q=true;else if(ch===","){row.push(cell);cell="";}
+    else if(ch==="\n"||ch==="\r"){if(ch==="\r"&&text[i+1]==="\n")i++;row.push(cell);rows.push(row);row=[];cell="";}
+    else cell+=ch;}
+  if(cell!==""||row.length){row.push(cell);rows.push(row);}return rows.map(r=>r.map(c=>c.trim()));}
+function importIracing(text){const rows=parseCSV(text);
+  const hi=rows.findIndex(r=>r.some(c=>/^fin\s*pos$/i.test(c))&&r.some(c=>/^name$/i.test(c)));
+  if(hi<0)throw new Error("This file doesn't look like an iRacing results export. Look for the Fin Pos and Name columns.");
+  const H=rows[hi].map(c=>c.toLowerCase().replace(/[^a-z#]/g,""));const col=(...n)=>{for(const x of n){const i=H.indexOf(x);if(i>=0)return i;}return-1;};
+  const ix={fin:col("finpos"),name:col("name"),cust:col("custid"),start:col("startpos"),car:col("car#","carnumber","carno"),out:col("out"),led:col("lapsled"),comp:col("lapscomp","lapscompleted"),inc:col("inc","incidents")};
+  const body=[];for(let i=hi+1;i<rows.length;i++){const r=rows[i];if(!r.length||r.every(c=>!c))break;if(!/^\d+$/.test(r[ix.fin]||""))continue;body.push(r);}
+  if(!body.length)throw new Error("No finishing rows were found in this file.");
+  const g=(r,k)=>ix[k]>=0?(r[ix[k]]||""):"";
+  const finBase=Math.min(...body.map(r=>int(g(r,"fin"))))===0?1:0;
+  const starts=body.map(r=>int(g(r,"start"))).filter(x=>x!==null);const startBase=starts.length&&Math.min(...starts)===0?1:0;
+  let fresh=0;
+  const out=body.map(r=>{const cust=g(r,"cust"),name=g(r,"name"),car=g(r,"car").replace(/^#/,"");
+    let d=cust?S.drivers.find(x=>String(x.custId||"")===cust):null;if(!d)d=S.drivers.find(x=>String(x.name||"").toLowerCase()===name.toLowerCase());
+    if(!d)fresh++;const st=int(g(r,"start")),o=g(r,"out");
+    return{driverId:d?d.id:"__new",newName:d?"":name,newNumber:d?"":car,newCust:d?"":cust,fin:String(int(g(r,"fin"))+finBase),start:st===null?"":String(st+startBase),led:String(int(g(r,"led"))||0),comp:g(r,"comp"),inc:String(int(g(r,"inc"))||0),status:!o||/running/i.test(o)?"Running":o,bonus:"0"};});
+  return{rows:out,fresh};}
+
+/* ---------- actions ---------- */
+function toast(msg,err){const t=document.getElementById("toast");t.textContent=msg;t.className="toast"+(err?" err":"");t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{t.hidden=true;},err?5000:2600);}
+async function write(fn,ok){S.busy=true;draw();try{await fn();toast(ok);return true;}catch(e){const c=e&&e.code;
+    toast(c==="invalid_argument"?"Only the league admin can change this.":c==="quota_exceeded"?"The league database is full. Delete old entries and try again.":"Couldn't save. Check your connection and try again.",true);return false;}
+  finally{S.busy=false;draw();}}
+function loadResultsForm(id){const r=S.races.find(x=>x.id===id);if(!r){S.forms.results=null;return;}
+  S.forms.results={raceId:id,recapUrl:r.recapUrl||"",note:"",rows:[...(r.results||[])].sort((a,b)=>a.fin-b.fin).map(x=>({driverId:x.driverId,newName:"",newNumber:"",newCust:"",fin:String(x.fin??""),start:x.start==null?"":String(x.start),led:String(x.lapsLed||0),comp:x.lapsComp==null?"":String(x.lapsComp),inc:String(x.inc||0),status:x.status||"Running",bonus:String(x.bonus||0),pts:typeof x.pts==="number"?String(x.pts):"",keep:{car:x.car,stage:x.stage,pen:x.pen,rating:x.rating}}))};}
+
+const ACT={
+  nav(v){S.view=v;S.driverSel=null;S.confirm=null;try{history.replaceState(null,"","#"+v);}catch(e){}draw();window.scrollTo(0,0);},
+  driver(id){S.view="drivers";S.driverSel=id;draw();window.scrollTo(0,0);},
+  race(id){S.raceOpen=S.raceOpen===id?null:id;draw();},
+  openrace(id){S.view="schedule";S.driverSel=null;S.raceOpen=id;draw();const el=document.getElementById("race-"+id);if(el)el.scrollIntoView({block:"start"});},
+  atab(t){S.adminTab=t;S.confirm=null;draw();},
+  askdel(k){S.confirm=k;draw();},
+  addrow(){const f=S.forms.results;if(!f)return;const n=f.rows.reduce((m,r)=>Math.max(m,int(r.fin)||0),0);f.rows.push({driverId:"",newName:"",newNumber:"",newCust:"",fin:String(n+1),start:"",led:"0",comp:"",inc:"0",status:"Running",bonus:"0"});draw();},
+  delrow(i){S.forms.results.rows.splice(+i,1);draw();},
+  sortrows(){S.forms.results.rows.sort((a,b)=>(int(a.fin)||999)-(int(b.fin)||999));draw();},
+  async saveresults(){const f=S.forms.results;if(!f)return;const rows=f.rows,seen=new Set(),fins=new Set();
+    for(let i=0;i<rows.length;i++){const r=rows[i];
+      if(!r.driverId)return toast("Row "+(i+1)+": pick a driver.",true);
+      if(r.driverId==="__new"&&!String(r.newName||"").trim())return toast("Row "+(i+1)+": type the new driver's name.",true);
+      if(r.driverId!=="__new"){if(seen.has(r.driverId))return toast(dlabel(drv(r.driverId)||{name:"A driver"})+" is in the results twice.",true);seen.add(r.driverId);}
+      const fin=int(r.fin);if(!fin||fin<1)return toast("Row "+(i+1)+": add a finishing position.",true);
+      if(fins.has(fin))return toast("Two drivers are listed in P"+fin+".",true);fins.add(fin);}
+    const url=String(f.recapUrl||"").trim();if(url&&!safeUrl(url))return toast("The recap link should start with https://",true);
+    const ok=await write(async()=>{const dcol=root().collection("drivers");
+      for(const r of rows){if(r.driverId==="__new"){const ref=dcol.doc();await ref.set({name:r.newName.trim(),number:String(r.newNumber||"").trim(),custId:String(r.newCust||"").trim(),team:"",active:true});r.driverId=ref.id;r.newName="";}}
+      const results=rows.map(r=>Object.assign({driverId:r.driverId,fin:int(r.fin),start:int(r.start),lapsLed:int(r.led)||0,lapsComp:int(r.comp),inc:int(r.inc)||0,status:String(r.status||"").trim()||"Running",bonus:num(r.bonus,0)},r.keep||{},String(r.pts??"").trim()!==""&&isFinite(Number(r.pts))?{pts:Number(r.pts)}:{})).map(o=>{Object.keys(o).forEach(k=>{if(o[k]===undefined)delete o[k];});return o;}).sort((a,b)=>a.fin-b.fin);
+      await root().collection("races").doc(f.raceId).update({results,status:results.length?"complete":"scheduled",recapUrl:url});},"Results saved");
+    if(ok)f.note="";},
+  async saverace(){const f=S.forms.race;if(!f.track.trim())return toast("Add the track name.",true);
+    const data={round:int(f.round),name:f.name.trim(),track:f.track.trim(),date:f.date?new Date(f.date).toISOString():"",laps:int(f.laps)};
+    const col=root().collection("races");
+    const ok=await write(()=>f.id?col.doc(f.id).update(data):col.doc().set(Object.assign(data,{status:"scheduled",results:[],recapUrl:""})),f.id?"Race updated":"Race added");
+    if(ok){S.forms.race=null;S.forms.race=blankRace();draw();}},
+  editrace(id){const r=S.races.find(x=>x.id===id);if(!r)return;S.forms.race={id,round:r.round==null?"":String(r.round),name:r.name||"",track:r.track||"",date:toLocalInput(r.date),laps:r.laps==null?"":String(r.laps)};draw();window.scrollTo(0,0);},
+  cancelrace(){S.forms.race=blankRace();draw();},
+  async delrace(id){S.confirm=null;if(S.forms.results&&S.forms.results.raceId===id)S.forms.results=null;await write(()=>root().collection("races").doc(id).delete(),"Race deleted");},
+  resfor(id){S.adminTab="results";loadResultsForm(id);draw();window.scrollTo(0,0);},
+  async savedriver(){const f=S.forms.driver;if(!f.name.trim())return toast("Add the driver's name.",true);
+    const data={name:f.name.trim(),number:String(f.number).trim(),custId:String(f.custId).trim(),team:f.team.trim()};const col=root().collection("drivers");
+    const ok=await write(()=>f.id?col.doc(f.id).update(data):col.doc().set(Object.assign(data,{active:true})),f.id?"Driver updated":"Driver added");if(ok){S.forms.driver=blankDriver();draw();}},
+  editdriver(id){const d=drv(id);if(!d)return;S.forms.driver={id,name:d.name||"",number:d.number==null?"":String(d.number),custId:d.custId||"",team:d.team||""};draw();window.scrollTo(0,0);},
+  canceldriver(){S.forms.driver=blankDriver();draw();},
+  async deldriver(id){S.confirm=null;await write(()=>root().collection("drivers").doc(id).delete(),"Driver deleted");},
+  async savepen(){const f=S.forms.pen;if(!f.driverId)return toast("Pick the driver.",true);if(!f.infraction.trim())return toast("Describe the infraction.",true);
+    const data={raceId:f.raceId,driverId:f.driverId,infraction:f.infraction.trim(),decision:f.decision.trim(),points:Math.abs(num(f.points,0))};const col=root().collection("penalties");
+    const ok=await write(()=>f.id?col.doc(f.id).update(data):col.doc().set(Object.assign(data,{created:new Date().toISOString()})),f.id?"Penalty updated":"Penalty logged");if(ok){S.forms.pen=blankPen();draw();}},
+  editpen(id){const p=S.penalties.find(x=>x.id===id);if(!p)return;S.forms.pen={id,raceId:p.raceId||"",driverId:p.driverId||"",infraction:p.infraction||"",decision:p.decision||"",points:String(p.points||0)};draw();window.scrollTo(0,0);},
+  cancelpen(){S.forms.pen=blankPen();draw();},
+  async delpen(id){S.confirm=null;await write(()=>root().collection("penalties").doc(id).delete(),"Penalty deleted");},
+  addrule(){S.forms.rules.push({title:"",body:""});draw();},
+  delrule(i){S.forms.rules.splice(+i,1);draw();},
+  moverule(i){i=+i;if(!i)return;const R=S.forms.rules;[R[i-1],R[i]]=[R[i],R[i-1]];draw();},
+  async saverules(){const rules=S.forms.rules.map(r=>({title:r.title.trim(),body:r.body.trim()})).filter(r=>r.title||r.body);
+    const ok=await write(()=>root().set(Object.assign({},settings(),{rules})),"Rulebook saved");if(ok){S.forms.rules=rules.map(r=>Object.assign({},r));draw();}},
+  defpoints(){S.forms.settings.pointsText=DEFAULT_POINTS.join(", ");S.forms.settings.ledLap="1";S.forms.settings.mostLed="1";draw();},
+  async savesettings(){const f=S.forms.settings;
+    for(const k of["discord","sponsorUrl","hubUrl","youtubeUrl"])if(String(f[k]||"").trim()&&!safeUrl(f[k]))return toast("Links should start with https://",true);
+    const table=String(f.pointsText).split(/[\s,;]+/).filter(Boolean).map(Number);if(!table.length||table.some(n=>!isFinite(n)))return toast("Points should be a list of numbers, like 40, 35, 34.",true);
+    const data=Object.assign({},settings(),{name:f.name.trim()||DEF.name,season:f.season.trim(),discord:String(f.discord).trim(),sponsorName:f.sponsorName.trim(),sponsorUrl:String(f.sponsorUrl).trim(),hubUrl:String(f.hubUrl||"").trim(),youtubeUrl:String(f.youtubeUrl||"").trim(),points:{table,ledLap:num(f.ledLap,0),mostLed:num(f.mostLed,0)}});
+    await write(()=>root().set(data),"Settings saved");}
+};
+const CHANGE={
+  pickrace(el){loadResultsForm(el.value);draw();},
+  rerender(){draw();},
+  async csv(el){const file=el.files&&el.files[0];const f=S.forms.results;if(!file||!f)return;
+    try{const res=importIracing(await file.text());f.rows=res.rows;f.noteErr=false;f.note="Loaded "+plural(res.rows.length,"driver")+" from "+file.name+"."+(res.fresh?" "+plural(res.fresh,"new driver")+" will be added when you save.":"")+" Check the rows, then save.";}
+    catch(e){f.noteErr=true;f.note=e.message||"Couldn't read that file.";toast(f.note,true);}
+    el.value="";draw();}
+};
+function setPath(obj,path,val){const k=path.split(".");let o=obj;for(let i=0;i<k.length-1;i++){o=o[k[i]];if(o==null)return;}o[k[k.length-1]]=val;}
+document.addEventListener("click",e=>{const el=e.target.closest("[data-act]");if(!el||el.disabled)return;const fn=ACT[el.dataset.act];if(!fn)return;e.preventDefault();
+  if(el.dataset.act!=="askdel"&&S.confirm&&!/^del/.test(el.dataset.act))S.confirm=null;fn(el.dataset.arg,el);});
+document.addEventListener("input",e=>{const p=e.target.dataset&&e.target.dataset.f;if(p)setPath(S.forms,p,e.target.value);});
+document.addEventListener("change",e=>{const el=e.target,p=el.dataset&&el.dataset.f;if(p)setPath(S.forms,p,el.value);const c=el.dataset&&el.dataset.change;if(c&&CHANGE[c])CHANGE[c](el);});
+
+/* ---------- render ---------- */
+function isTyping(){const a=document.activeElement;return!!(a&&a.closest&&a.closest("#main")&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&a.type!=="file");}
+function render(){if(isTyping()){S.pending=true;return;}draw();}
+document.addEventListener("focusout",()=>setTimeout(()=>{if(S.pending&&!isTyping()){S.pending=false;draw();}},0));
+function draw(){S.calc=compute();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
+  document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
+  document.getElementById("tabs").innerHTML=TABS.filter(t=>t[0]!=="admin"||S.admin).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]?' aria-current="page"':"")+">"+t[1]+"</button>").join("");
+  if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
+  const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"?loading():(V[S.view]||V.home)();
+  document.getElementById("main").innerHTML=notice()+body;
+  const dc=safeUrl(st.discord),sp=safeUrl(st.sponsorUrl);
+  document.getElementById("foot").innerHTML='<span class="presented">Presented by <b>'+esc(st.sponsorName||"40XLI")+"</b></span>"+(dc?'<a class="btn sm ghost" href="'+esc(dc)+'" target="_blank" rel="noopener">Discord</a>':"")+(sp?'<a class="btn sm ghost" href="'+esc(sp)+'" target="_blank" rel="noopener">'+esc(st.sponsorName||"Sponsor")+"</a>":"");}
+
+function markReady(k){S.ready[k]=true;S.loaded=S.ready.s&&S.ready.d&&S.ready.r&&S.ready.p&&S.ready.o;render();}
+function onErr(e){if(e&&e.code==="revoked"){S.mode="nodb";}render();}
+async function loadStatic(){try{const r=await fetch("data.json",{cache:"no-store"});if(!r.ok)throw 0;const d=await r.json();
+  S.settingsRaw=d.settings||null;S.drivers=d.drivers||[];S.races=d.races||[];S.penalties=d.penalties||[];S.official=d.official||null;
+  S.mode="live";S.admin=false;S.loaded=true;S.updated=d.updated||"";}catch(e){S.mode="offline";}draw();}
+async function boot(){const h=(location.hash||"").slice(1);if(TABS.some(t=>t[0]===h))S.view=h;draw();
+  const c=window.claude;if(!c||typeof c.use!=="function"){await loadStatic();return;}
+  const [db,user]=await Promise.all([c.use("db"),c.use("user")]);
+  try{S.admin=user?await user.canEdit():false;}catch(e){S.admin=false;}
+  if(!db){S.mode="nodb";draw();return;}
+  S.db=db;S.mode="live";const r=root();
+  r.onSnapshot(s=>{S.settingsRaw=s.exists?s.data():null;markReady("s");},onErr);
+  r.collection("drivers").onSnapshot(q=>{S.drivers=q.docs.map(d=>Object.assign({id:d.id},d.data()));markReady("d");},onErr);
+  r.collection("races").onSnapshot(q=>{S.races=q.docs.map(d=>Object.assign({id:d.id},d.data()));markReady("r");},onErr);
+  r.collection("penalties").onSnapshot(q=>{S.penalties=q.docs.map(d=>Object.assign({id:d.id},d.data()));markReady("p");},onErr);
+  r.collection("official").doc("standings").onSnapshot(s=>{S.official=s.exists?s.data():null;markReady("o");},onErr);
+  draw();}
+setInterval(()=>{if(S.view==="home"&&S.loaded)render();},60000);
+boot();
+})();
+</script>
+
+</body>
+</html>
