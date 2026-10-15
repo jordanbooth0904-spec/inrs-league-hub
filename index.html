@@ -184,6 +184,9 @@ footer .presented b{color:var(--accent)}
 *{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
 ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px;border:2px solid var(--bg)}::-webkit-scrollbar-thumb:hover{background:var(--accent)}
 ::selection{background:var(--accent);color:#fff}
+.scen{padding:10px 4px;border-top:1px solid var(--line)}.scen:first-child{border-top:0}
+.scen-h{display:flex;align-items:center;gap:10px}.scen-h .name{flex:1;min-width:0}.scen p{margin:6px 0 0 38px;font-size:15px;color:var(--muted)}.scen p b{color:var(--fg)}
+.mv{font:700 12px var(--mono);color:var(--muted);white-space:nowrap}.mv.up{color:var(--ok)}.mv.dn{color:var(--bad)}.mv.new{color:var(--accent);text-transform:uppercase;font-size:10px;letter-spacing:.08em}
 .lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px}
 .champ .dl{color:var(--gold)}
 .combo{position:relative;min-width:0}
@@ -379,6 +382,7 @@ V.home=()=>{const c=S.calc;let h="";
       (c.off?'<p class="hint" style="margin:8px 0 0">Official SimRacerHub points after Round '+esc(c.off.afterRound)+".</p>":"")
     :empty("Standings open after race 1",""))+"</div>";
   if(chaseData())right=chasePanel(false);
+  right+=powerPanel();
   const withRecap=c.done.filter(r=>safeUrl(r.recapUrl));const lr=withRecap[withRecap.length-1];
   right+='<div class="panel"><div class="lt">Latest recap</div>'+(lr?recapEmbed(lr):empty("No recaps yet","Race recaps will be linked here."))+"</div>";
   right+=linksPanel();
@@ -642,12 +646,59 @@ function chasePanel(full){const d=chaseData();if(!d)return"";
   const head='<div class="sechead"><div class="lt">The Chase</div><span class="hint">'+(d.remaining?plural(d.remaining,"race")+" left · up to "+fmtN(d.pool)+" pts still available":"Final")+"</span></div>";
   if(!full){return'<div class="panel">'+head+'<div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">Pts</th><th class="n">Behind</th></tr></thead><tbody>'+
     d.rows.slice(0,8).map(r=>"<tr><td>"+posBadge(r.s.off.pos)+"</td><td>"+dlink(r.s.driver.id)+'</td><td class="n"><span class="pts">'+fmtN(r.pts)+'</span></td><td class="n muted">'+(r.beh?"−"+fmtN(r.beh):(d.clinched?"Champion":"Leader"))+"</td></tr>").join("")+
-    '</tbody></table></div><div class="row" style="margin-top:10px"><button class="btn sm ghost" data-act="stdview" data-arg="chase">Full Chase picture</button></div></div>';}
+    '</tbody></table></div>'+(()=>{const sc=chaseScenarios(d)[0];return sc?'<p class="small muted" style="margin:10px 0 0"><b style="color:var(--fg)">'+esc(sc.r.s.driver.name)+":</b> "+sc.text+"</p>":"";})()+'<div class="row" style="margin-top:10px"><button class="btn sm ghost" data-act="stdview" data-arg="chase">Full Chase picture · What it takes</button></div></div>';}
   return'<section class="stack"><div class="panel">'+head+'<p class="small muted" style="margin:0 0 10px">The top '+d.cut+' drivers were reset for the Chase'+(d.start?" at Round "+esc(d.start.round):"")+'. A driver stays in the title race while the gap to the leader is no more than the points still available ('+d.max+' max per race: 55 for the win, 10 for winning the stage and 1 for fastest lap).</p>'+
     '<div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">Pts</th><th class="n">Behind</th><th class="n">Needs per race</th><th>Chase finishes</th><th class="n">Chase avg</th><th>Status</th></tr></thead><tbody>'+
     d.rows.map(r=>"<tr><td>"+posBadge(r.s.off.pos)+"</td><td>"+dlink(r.s.driver.id)+'</td><td class="n"><span class="pts">'+fmtN(r.pts)+'</span></td><td class="n muted">'+(r.beh?"−"+fmtN(r.beh):"–")+'</td><td class="n">'+(r.beh&&d.remaining?"+"+r.perRace.toFixed(1):"–")+'</td><td><div class="chips">'+
       r.fins.map((f,i)=>'<span class="fchip '+(f===1?"w":f&&f<=5?"t5":"")+'" title="'+esc(raceLabel(d.chaseRaces[i]))+'">'+(f??"–")+"</span>").join("")+'</div></td><td class="n">'+(r.avg?r.avg.toFixed(1):"–")+"</td><td>"+status(r)+"</td></tr>").join("")+
-    '</tbody></table></div><p class="hint" style="margin:10px 0 0">"Needs per race" is how many more points per race than the leader a driver must score to catch up.</p></div></section>';}
+    '</tbody></table></div><p class="hint" style="margin:10px 0 0">"Needs per race" is how many more points per race than the leader a driver must score to catch up.</p></div>'+scenarioPanel(d)+"</section>";}
+
+/* ---------- Chase: what it takes ---------- */
+const ordinal=n=>{const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
+const trackShort=r=>r?trackOf(r.track).label:"the next race";
+function finishEx(d,other){const T=settings().points.table,win=num(T[0],0);if(d<=0)return"";
+  if(d<=win){let p=T.findIndex(v=>num(v,0)<=win-d)+1;if(p<1)p=T.length+1;return" — e.g. a win with "+esc(other)+" "+ordinal(p)+" or worse";}
+  return" — that takes a win plus stage points with "+esc(other)+" near the back";}
+function chaseScenarios(d){if(!d||d.clinched||!d.remaining)return[];const M=d.max,R=d.remaining,up=sortedRaces().filter(r=>!r.exhibition&&!(r.status==="complete"&&(r.results||[]).length));
+  const next=up[0],nt="<b>"+esc(trackShort(next))+"</b>",L=d.rows[0],P2=d.rows[1],Ln=L.s.driver.name,out=[];
+  if(P2){const lead=L.pts-P2.pts,need=(R-1)*M-lead+1,P2n=P2.s.driver.name;let t;
+    if(R===1)t="Wins the title at "+nt+" unless "+esc(P2n)+" outscores "+esc(Ln)+" by more than "+lead+" (a tie goes to the tiebreaker).";
+    else if(need<=0)t="Clinches at "+nt+" unless "+esc(P2n)+" outscores "+esc(Ln)+" there by "+(1-need)+" or more.";
+    else if(need<=M)t="Clinches at "+nt+" by outscoring "+esc(P2n)+" by "+need+" or more"+finishEx(need,P2n)+".";
+    else{const k=Math.floor((R*M-lead)/(2*M))+1;t=k<R?"Can't clinch at "+nt+". Earliest possible clinch: <b>"+esc(trackShort(up[k-1]))+"</b>.":"Can't clinch before the finale at <b>"+esc(trackShort(up[R-1]))+"</b>.";}
+    out.push({r:L,head:"Leader",text:t+" Leads "+esc(P2n)+" by "+lead+"."});}
+  d.rows.slice(1).filter(r=>r.alive).forEach(r=>{const beh=r.beh;let t;
+    if(R===1)t="Needs to outscore "+esc(Ln)+" by more than "+beh+" at "+nt+finishEx(beh+1,Ln)+".";
+    else{const must=beh-(R-1)*M;t="Needs "+beh+" more points than "+esc(Ln)+" over the last "+R+" races ("+(beh/R).toFixed(1)+" a race). ";
+      t+=must>0?"Must outscore "+esc(Ln)+" by at least "+must+" at "+nt+" to stay alive"+finishEx(must,Ln)+".":"Is eliminated at "+nt+" if "+esc(Ln)+" outscores them by more than "+(-must)+".";}
+    out.push({r,head:beh?"−"+beh:"Tied",text:t});});
+  return out;}
+function scenarioPanel(d){const sc=chaseScenarios(d);if(!sc.length)return"";const out=d.rows.filter(r=>!r.alive).length;
+  return'<div class="panel"><div class="sechead"><div class="lt">What it takes</div><span class="hint">'+plural(d.remaining,"race")+" left · "+d.max+" pts max per race</span></div><div class=\"list\">"+
+    sc.map(x=>'<div class="scen"><div class="scen-h">'+posBadge(x.r.s.off.pos)+'<div class="name">'+dlink(x.r.s.driver.id)+'</div><span class="pts">'+fmtN(x.r.pts)+'</span></div><p>'+x.text+"</p></div>").join("")+"</div>"+
+    (out?'<p class="hint" style="margin:10px 0 0">'+plural(out,"driver")+" can no longer catch the leader.</p>":"")+
+    '<p class="hint" style="margin:6px 0 0">Points swings include stage and bonus points. Finishing examples use race points only (win '+num(settings().points.table[0],0)+"). Scenarios compare each driver with the leader.</p></div>";}
+
+/* ---------- power rankings ---------- */
+const PW=[1,0.9,0.8,0.7,0.6];
+function powerAt(done,n){const win=done.slice(Math.max(0,n-5),n).reverse(),S2={};
+  win.forEach((r,i)=>{const maxLed=Math.max(0,...r.results.map(x=>int(x.lapsLed)||0));r.results.forEach(x=>{const f=int(x.fin);if(!f)return;
+    const s=S2[x.driverId]=S2[x.driverId]||{id:x.driverId,score:0,fins:Array(win.length).fill(null),finSum:0,n:0,wins:0};
+    s.score+=PW[i]*S.calc.ptsFor(x,maxLed);s.fins[i]=f;s.finSum+=f;s.n++;if(f===1)s.wins++;});});
+  const L=Object.values(S2).filter(s=>drv(s.id)).sort((a,b)=>b.score-a.score||a.finSum/a.n-b.finSum/b.n);L.forEach((s,i)=>s.rank=i+1);return{list:L,races:win};}
+function powerData(){const done=S.calc.done.filter(r=>!r.exhibition&&(r.results||[]).length);if(done.length<2)return null;
+  const cur=powerAt(done,done.length),prev=powerAt(done,done.length-1),pr={};prev.list.forEach(s=>pr[s.id]=s.rank);
+  cur.list.forEach(s=>{s.prev=pr[s.id]||null;s.move=s.prev?s.prev-s.rank:null;});return cur;}
+const moveTag=s=>s.move===null?'<span class="mv new">New</span>':s.move>0?'<span class="mv up">▲'+s.move+"</span>":s.move<0?'<span class="mv dn">▼'+(-s.move)+"</span>":'<span class="mv">–</span>';
+function powerView(){const p=powerData();if(!p)return empty("Power rankings start after two races","");
+  const fch=s=>'<div class="chips">'+[...s.fins].reverse().map((f,i)=>'<span class="fchip '+(f===1?"w":f&&f<=5?"t5":"")+'" title="'+esc(raceLabel(p.races[p.races.length-1-i]))+'">'+(f??"–")+"</span>").join("")+"</div>";
+  return'<section><div class="lt">Power rankings</div><p class="hint" style="margin:0 0 10px">Form over the last '+plural(p.races.length,"race")+" (through "+esc(raceLabel(p.races[0]))+"). Points scored in each race, with the most recent counting most (×1.0 down to ×0.6). Arrows compare with last week.</p>"+
+    '<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th>Rank</th><th></th><th>Driver</th><th>Last '+p.races.length+' (oldest → newest)</th><th class="n">Score</th><th class="n">Avg fin</th><th class="n">Pts pos</th></tr></thead><tbody>'+
+    p.list.slice(0,20).map(s=>"<tr><td>"+posBadge(s.rank)+"</td><td>"+moveTag(s)+"</td><td>"+dlink(s.id)+"</td><td>"+fch(s)+'</td><td class="n"><span class="pts">'+Math.round(s.score)+'</span></td><td class="n">'+(s.finSum/s.n).toFixed(1)+'</td><td class="n muted">'+(S.calc.rank[s.id]?"P"+S.calc.rank[s.id]:"–")+"</td></tr>").join("")+
+    "</tbody></table></div></div></section>";}
+function powerPanel(){const p=powerData();if(!p)return"";
+  return'<div class="panel"><div class="sechead"><div class="lt">Power rankings</div><button class="btn sm ghost" data-act="stdview" data-arg="power">Top 20</button></div><div class="list">'+
+    p.list.slice(0,5).map(s=>'<div class="podrow">'+posBadge(s.rank)+'<div class="name">'+dlink(s.id)+"</div>"+moveTag(s)+"</div>").join("")+'</div><p class="hint" style="margin:8px 0 0">Form over the last '+plural(p.races.length,"race")+".</p></div>";}
 
 /* ---------- teams ---------- */
 function teamsView(){const o=S.calc.off,T=(o&&o.teams)||[];if(!T.length)return empty("No team standings yet","");
@@ -690,11 +741,11 @@ V.compare=()=>{const c=S.calc,all=c.standings.filter(s=>s.starts>0||s.off);if(al
     (common.length?'<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Races together</div><div class="scroll"><table class="tbl"><thead><tr><th>Race</th><th class="n">'+esc(A.driver.name)+'</th><th class="n">'+esc(B.driver.name)+"</th></tr></thead><tbody>"+
       common.slice().reverse().map(z=>'<tr><td><button class="dl" data-act="openrace" data-arg="'+esc(z.r.id)+'">'+esc(raceLabel(z.r))+'</button></td><td class="n'+(z.fa<z.fb?" win":"")+'">P'+z.fa+'</td><td class="n'+(z.fb<z.fa?" win":"")+'">P'+z.fb+"</td></tr>").join("")+"</tbody></table></div></div>":"")+"</section>";};
 
-V.standings=()=>{const hasChase=!!chaseData(),hasTeams=!!(S.calc.off&&(S.calc.off.teams||[]).length);
-  if(!hasChase&&!hasTeams)return stdDrivers();if((S.stdView==="chase"&&!hasChase)||(S.stdView==="teams"&&!hasTeams))S.stdView="drivers";
+V.standings=()=>{const hasChase=!!chaseData(),hasTeams=!!(S.calc.off&&(S.calc.off.teams||[]).length),hasPower=!!powerData();
+  if(!hasChase&&!hasTeams&&!hasPower)return stdDrivers();if((S.stdView==="chase"&&!hasChase)||(S.stdView==="teams"&&!hasTeams)||(S.stdView==="power"&&!hasPower))S.stdView="drivers";
   const b=(k,l)=>'<button class="btn sm" data-act="stdview" data-arg="'+k+'"'+(S.stdView===k?' aria-current="page"':"")+">"+l+"</button>";
-  const seg='<div class="subtabs" style="margin-bottom:14px" role="group" aria-label="Standings view">'+b("drivers","Drivers")+(hasChase?b("chase","The Chase"):"")+(hasTeams?b("teams","Teams"):"")+"</div>";
-  return seg+(S.stdView==="chase"?chasePanel(true):S.stdView==="teams"?'<section><div class="lt">Team standings</div>'+hubBar()+teamsView()+"</section>":stdDrivers());};
+  const seg='<div class="subtabs" style="margin-bottom:14px" role="group" aria-label="Standings view">'+b("drivers","Drivers")+(hasChase?b("chase","The Chase"):"")+(hasPower?b("power","Power rankings"):"")+(hasTeams?b("teams","Teams"):"")+"</div>";
+  return seg+(S.stdView==="chase"?chasePanel(true):S.stdView==="power"?powerView():S.stdView==="teams"?'<section><div class="lt">Team standings</div>'+hubBar()+teamsView()+"</section>":stdDrivers());};
 /* ---------- admin ---------- */
 const blankDriver=()=>({id:"",name:"",number:"",custId:"",team:""});
 function blankRace(){const m=Math.max(0,...S.races.map(r=>num(r.round,0)));return{id:"",round:String(m+1),name:"",track:"",date:"",laps:""};}
