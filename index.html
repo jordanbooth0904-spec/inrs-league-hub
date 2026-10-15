@@ -170,6 +170,7 @@ footer .presented b{color:var(--accent)}
 .chart .cl{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:6px}.legend i{display:inline-block;width:12px;height:3px;margin-right:6px;vertical-align:middle;border-radius:2px}
 .h2hpick{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
+.cmpin{font-weight:600}
 .h2hpick .vs{font:italic 900 20px var(--display);color:var(--accent)}
 .h2hbig{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
 .h2hbig b{display:block;font:italic 900 40px/1 var(--display)}.h2hbig span{font-size:13px;color:var(--muted)}.h2hbig .mid{font:600 12px var(--mono);color:var(--muted)}
@@ -570,14 +571,15 @@ const seriesFor=(s,color)=>({name:s.driver.name,color,pts:s.log.map(l=>({raceId:
 /* ---------- head to head ---------- */
 V.compare=()=>{const c=S.calc,all=c.standings.filter(s=>s.starts>0||s.off);if(all.length<2)return empty("Not enough drivers yet","");
   let [a,b]=S.cmp||[];if(!c.D[a])a=all[0].driver.id;if(!c.D[b]||b===a)b=(all.find(s=>s.driver.id!==a)||all[1]).driver.id;S.cmp=[a,b];
-  const A=c.D[a],B=c.D[b];const sel=(id,which)=>'<select id="cmp-'+which+'" data-change="cmp" data-which="'+which+'">'+all.map(s=>'<option value="'+esc(s.driver.id)+'"'+(s.driver.id===id?" selected":"")+">"+esc(dlabel(s.driver))+"</option>").join("")+"</select>";
+  const A=c.D[a],B=c.D[b];const sel=(id,which)=>'<input id="cmp-'+which+'" class="cmpin" type="search" list="cmp-list" data-cmp="'+which+'" value="'+esc(dlabel(c.D[id].driver))+'" placeholder="Search name or car #" autocomplete="off" spellcheck="false" aria-label="'+(which==="a"?"First":"Second")+' driver">';
+  S.cmpAll=all.map(s=>s.driver);
   const o=s=>s.off||{};const rows=[["Points",s=>num(s.total,0),"hi",fmtN],["Position",s=>c.rank[s.driver.id]??null,"lo",v=>v==null?"–":"P"+v],["Starts",s=>s.starts,"hi"],["Wins",s=>s.wins,"hi"],["Top 5s",s=>s.top5,"hi"],["Top 10s",s=>s.top10,"hi"],["Poles",s=>s.poles,"hi"],["Laps led",s=>s.led,"hi",fmtN],
     ["Avg finish",s=>s.avgFin,"lo",v=>v?v.toFixed(1):"–"],["Avg start",s=>s.avgStart,"lo",v=>v?v.toFixed(1):"–"],["Inc per race",s=>s.starts?s.inc/s.starts:null,"lo",v=>v!=null?v.toFixed(2):"–"],["Stage pts",s=>o(s).stgPts??null,"hi"],["Avg rating",s=>o(s).rating!=null?Number(o(s).rating):null,"hi",v=>v!=null?v.toFixed(1):"–"],["DNFs",s=>s.dnf,"lo"]];
   const cmp=(va,vb,dir)=>va==null||vb==null||va===vb?[0,0]:(dir==="hi"?va>vb:va<vb)?[1,0]:[0,1];
   const common=sortedRaces().filter(r=>!r.exhibition&&r.status==="complete").map(r=>{const x=(r.results||[]).find(q=>q.driverId===a),y=(r.results||[]).find(q=>q.driverId===b);return x&&y?{r,fa:int(x.fin),fb:int(y.fin)}:null;}).filter(Boolean);
   const aw=common.filter(z=>z.fa<z.fb).length,bw=common.length-aw;
   return'<section class="stack"><div class="sechead"><div class="lt">Head to head</div><button class="btn sm ghost" data-act="nav" data-arg="drivers">← Drivers</button></div>'+
-    '<div class="h2hpick">'+sel(a,"a")+'<span class="vs">VS</span>'+sel(b,"b")+"</div>"+
+    '<div class="h2hpick">'+sel(a,"a")+'<span class="vs">VS</span>'+sel(b,"b")+"</div>"+'<datalist id="cmp-list">'+all.map(s=>'<option value="'+esc(dlabel(s.driver))+'"></option>').join("")+"</datalist>"+'<p class="hint" style="margin:-8px 0 0">Type a name or car number, then pick from the list.</p>'+
     '<div class="h2hbig"><div><b>'+aw+"</b><span>"+esc(A.driver.name)+' finished ahead</span></div><div class="mid">'+plural(common.length,"race")+' together</div><div><b>'+bw+"</b><span>"+esc(B.driver.name)+" finished ahead</span></div></div>"+
     '<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl h2h"><thead><tr><th class="n">'+esc(A.driver.name)+'</th><th style="text-align:center">Stat</th><th>'+esc(B.driver.name)+"</th></tr></thead><tbody>"+
     rows.map(([l,f,dir,fmt])=>{const va=f(A),vb=f(B),[wa,wb]=cmp(va,vb,dir),F=fmt||(v=>v==null?"–":fmtN(v));return'<tr><td class="n'+(wa?" win":"")+'">'+F(va)+'</td><td class="muted small" style="text-align:center">'+l+'</td><td class="'+(wb?"win":"")+'" style="font-family:var(--mono);font-size:14px">'+F(vb)+"</td></tr>";}).join("")+
@@ -751,6 +753,17 @@ function setPath(obj,path,val){const k=path.split(".");let o=obj;for(let i=0;i<k
 document.addEventListener("click",e=>{const el=e.target.closest("[data-act]");if(!el||el.disabled)return;const fn=ACT[el.dataset.act];if(!fn)return;e.preventDefault();
   if(el.dataset.act!=="askdel"&&S.confirm&&!/^del/.test(el.dataset.act))S.confirm=null;fn(el.dataset.arg,el);});
 document.addEventListener("input",e=>{const p=e.target.dataset&&e.target.dataset.f;if(p)setPath(S.forms,p,e.target.value);});
+function findDriver(q){const v=String(q||"").trim().toLowerCase();if(!v)return null;const L=S.cmpAll||S.drivers;
+  const ex=L.find(d=>dlabel(d).toLowerCase()===v);if(ex)return ex;
+  const n=v.replace(/^#/,"");if(/^\d+$/.test(n)){const m=L.filter(d=>String(d.number)===n);if(m.length===1)return m[0];}
+  const m=L.filter(d=>String(d.name).toLowerCase().includes(v.replace(/^#\d+\s*/,"")));return m.length===1?m[0]:null;}
+function pickCmp(el,final){const d=findDriver(el.value);const i=el.dataset.cmp==="a"?0:1;
+  if(d&&S.cmp&&S.cmp[1-i]===d.id){toast(d.name+" is already on the other side. Pick a different driver.",true);draw();return;}
+  if(d){const changed=!S.cmp||S.cmp[i]!==d.id;S.cmp=S.cmp||[];S.cmp[i]=d.id;if(changed||final)draw();return;}
+  if(final){toast("No single driver matches \""+el.value+"\". Try more of the name or the full car number.",true);draw();}}
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset&&el.dataset.cmp){const v=el.value.trim().toLowerCase();if((S.cmpAll||[]).some(d=>dlabel(d).toLowerCase()===v))pickCmp(el,false);}});
+document.addEventListener("change",e=>{const el=e.target;if(el.dataset&&el.dataset.cmp)pickCmp(el,true);});
+document.addEventListener("focusin",e=>{const el=e.target;if(el.dataset&&el.dataset.cmp){try{el.select();}catch(_){}}});
 document.addEventListener("input",e=>{if(e.target.id!=="dsearch")return;SORT.q=e.target.value;const pos=e.target.selectionStart;draw();const el=document.getElementById("dsearch");if(el){el.focus();try{el.setSelectionRange(pos,pos);}catch(_){}}});
 document.addEventListener("change",e=>{const el=e.target,p=el.dataset&&el.dataset.f;if(p)setPath(S.forms,p,el.value);const c=el.dataset&&el.dataset.change;if(c&&CHANGE[c])CHANGE[c](el);});
 
