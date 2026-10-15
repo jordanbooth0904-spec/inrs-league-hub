@@ -670,7 +670,8 @@ function chaseScenarios(d){if(!d||d.clinched||!d.remaining)return[];const M=d.ma
   d.rows.slice(1).filter(r=>r.alive).forEach(r=>{const beh=r.beh;let t;
     if(R===1)t="Needs to outscore "+esc(Ln)+" by more than "+beh+" at "+nt+finishEx(beh+1,Ln)+".";
     else{const must=beh-(R-1)*M;t="Needs "+beh+" more points than "+esc(Ln)+" over the last "+R+" races ("+(beh/R).toFixed(1)+" a race). ";
-      t+=must>0?"Must outscore "+esc(Ln)+" by at least "+must+" at "+nt+" to stay alive"+finishEx(must,Ln)+".":"Is eliminated at "+nt+" if "+esc(Ln)+" outscores them by more than "+(-must)+".";}
+      t+=must>0?"Must outscore "+esc(Ln)+" by at least "+must+" at "+nt+" to stay alive"+finishEx(must,Ln)+".":(-must)<M?"Is eliminated at "+nt+" if "+esc(Ln)+" outscores them "+(must===0?"at all":"by more than "+(-must))+".":(()=>{const k=Math.floor((R*M-beh)/(2*M))+1;
+        return k<R?"Can't be eliminated at "+nt+". The earliest they could be knocked out is <b>"+esc(trackShort(up[k-1]))+"</b>.":"Can't be eliminated before the finale at <b>"+esc(trackShort(up[R-1]))+"</b>.";})();}
     out.push({r,head:beh?"−"+beh:"Tied",text:t});});
   return out;}
 function scenarioPanel(d){const sc=chaseScenarios(d);if(!sc.length)return"";const out=d.rows.filter(r=>!r.alive).length;
