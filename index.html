@@ -222,7 +222,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.45}
 "use strict";
 const TABS=[["home","Home"],["standings","Standings"],["schedule","Schedule"],["tracks","Tracks"],["drivers","Drivers"],["recaps","Recaps"],["penalties","Penalties"],["rules","Rules"],["admin","Admin"]];
 const DEFAULT_POINTS=[40].concat(Array.from({length:35},(_,i)=>35-i));
-const DEF={name:"INRS Cup Series",season:"2026",discord:"",sponsorName:"40XLI Driver Academy",sponsorUrl:"",hubUrl:"",youtubeUrl:"",liveUrl:"",maxPerRace:76,points:{table:DEFAULT_POINTS,ledLap:1,mostLed:1},rules:[]};
+const DEF={name:"INRS Cup Series",season:"2026",discord:"",sponsorName:"40XLI Driver Academy",sponsorUrl:"",hubUrl:"",youtubeUrl:"",liveUrl:"",maxPerRace:66,points:{table:DEFAULT_POINTS,ledLap:1,mostLed:1},rules:[]};
 
 const S={history:[],static:false,stdView:"drivers",trackSel:null,cmp:null,view:"home",mode:"loading",admin:false,db:null,settingsRaw:null,drivers:[],races:[],penalties:[],official:null,
   ready:{s:false,d:false,r:false,p:false,o:false},loaded:false,driverSel:null,raceOpen:null,adminTab:"results",
@@ -529,7 +529,7 @@ function chaseData(){const c=S.calc,o=c.off;if(!o)return null;const cut=num(o.ch
   const start=sortedRaces().find(r=>/chase/i.test(r.note||""));const startRound=start?num(start.round,0):0;
   const remaining=sortedRaces().filter(r=>!r.exhibition&&!(r.status==="complete"&&(r.results||[]).length)&&num(r.round,0)>=startRound).length;
   const chaseRaces=sortedRaces().filter(r=>!r.exhibition&&r.status==="complete"&&(r.results||[]).length&&num(r.round,0)>=startRound);
-  const max=num(settings().maxPerRace,76),lead=num(rows[0].off.pts,0),pool=remaining*max;
+  const max=num(settings().maxPerRace,66),lead=num(rows[0].off.pts,0),pool=remaining*max;
   const out=rows.map(s=>{const pts=num(s.off.pts,0),beh=lead-pts,fins=chaseRaces.map(r=>{const x=r.results.find(y=>y.driverId===s.driver.id);return x?int(x.fin):null;});
     const ok=fins.filter(f=>f);return{s,pts,beh,alive:beh===0||beh<=pool,fins,avg:ok.length?ok.reduce((a,b)=>a+b,0)/ok.length:null,perRace:remaining?beh/remaining:null};});
   const second=out[1];const clinched=second&&remaining>=0&&(lead-second.pts)>pool;
@@ -540,7 +540,7 @@ function chasePanel(full){const d=chaseData();if(!d)return"";
   if(!full){return'<div class="panel">'+head+'<div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">Pts</th><th class="n">Behind</th></tr></thead><tbody>'+
     d.rows.slice(0,8).map(r=>"<tr><td>"+posBadge(r.s.off.pos)+"</td><td>"+dlink(r.s.driver.id)+'</td><td class="n"><span class="pts">'+fmtN(r.pts)+'</span></td><td class="n muted">'+(r.beh?"−"+fmtN(r.beh):(d.clinched?"Champion":"Leader"))+"</td></tr>").join("")+
     '</tbody></table></div><div class="row" style="margin-top:10px"><button class="btn sm ghost" data-act="stdview" data-arg="chase">Full Chase picture</button></div></div>';}
-  return'<section class="stack"><div class="panel">'+head+'<p class="small muted" style="margin:0 0 10px">The top '+d.cut+' drivers were reset for the Chase'+(d.start?" at Round "+esc(d.start.round):"")+'. A driver stays in the title race while the gap to the leader is no more than the points still available ('+d.max+' max per race: win, stage points and fastest-lap bonus).</p>'+
+  return'<section class="stack"><div class="panel">'+head+'<p class="small muted" style="margin:0 0 10px">The top '+d.cut+' drivers were reset for the Chase'+(d.start?" at Round "+esc(d.start.round):"")+'. A driver stays in the title race while the gap to the leader is no more than the points still available ('+d.max+' max per race: 55 for the win, 10 for winning the stage and 1 for fastest lap).</p>'+
     '<div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">Pts</th><th class="n">Behind</th><th class="n">Needs per race</th><th>Chase finishes</th><th class="n">Chase avg</th><th>Status</th></tr></thead><tbody>'+
     d.rows.map(r=>"<tr><td>"+posBadge(r.s.off.pos)+"</td><td>"+dlink(r.s.driver.id)+'</td><td class="n"><span class="pts">'+fmtN(r.pts)+'</span></td><td class="n muted">'+(r.beh?"−"+fmtN(r.beh):"–")+'</td><td class="n">'+(r.beh&&d.remaining?"+"+r.perRace.toFixed(1):"–")+'</td><td><div class="chips">'+
       r.fins.map((f,i)=>'<span class="fchip '+(f===1?"w":f&&f<=5?"t5":"")+'" title="'+esc(raceLabel(d.chaseRaces[i]))+'">'+(f??"–")+"</span>").join("")+'</div></td><td class="n">'+(r.avg?r.avg.toFixed(1):"–")+"</td><td>"+status(r)+"</td></tr>").join("")+
