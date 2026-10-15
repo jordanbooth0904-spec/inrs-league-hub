@@ -187,6 +187,12 @@ footer .presented b{color:var(--accent)}
 .scen{padding:10px 4px;border-top:1px solid var(--line)}.scen:first-child{border-top:0}
 .scen-h{display:flex;align-items:center;gap:10px}.scen-h .name{flex:1;min-width:0}.scen p{margin:6px 0 0 38px;font-size:15px;color:var(--muted)}.scen p b{color:var(--fg)}
 .mv{font:700 12px var(--mono);color:var(--muted);white-space:nowrap}.mv.up{color:var(--ok)}.mv.dn{color:var(--bad)}.mv.new{color:var(--accent);text-transform:uppercase;font-size:10px;letter-spacing:.08em}
+.oddrow{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 6px;border-top:1px solid var(--line)}.oddrow:first-child{border-top:0}
+.orank{font:700 13px var(--mono);color:var(--muted);text-align:center}
+.oname .dl{font-weight:700;font-size:17px}
+.whys{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px}.why{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--muted)}.why b{color:var(--fg);font-weight:600;margin-right:2px}
+.oval{display:grid;justify-items:center;min-width:84px;padding:8px 10px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2)}
+.oval b{font:italic 900 20px var(--display);color:var(--accent)}.oval span{font:500 11px var(--mono);color:var(--muted)}
 .lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px}
 .champ .dl{color:var(--gold)}
 .combo{position:relative;min-width:0}
@@ -248,7 +254,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.45}
 <script>
 (function(){
 "use strict";
-const TABS=[["home","Home"],["standings","Standings"],["schedule","Schedule"],["tracks","Tracks"],["drivers","Drivers"],["records","Records"],["recaps","Recaps"],["penalties","Penalties"],["rules","Rules"],["admin","Admin"]];
+const TABS=[["home","Home"],["standings","Standings"],["schedule","Schedule"],["tracks","Tracks"],["drivers","Drivers"],["records","Records"],["odds","Odds"],["recaps","Recaps"],["penalties","Penalties"],["rules","Rules"],["admin","Admin"]];
 const DEFAULT_POINTS=[40].concat(Array.from({length:35},(_,i)=>35-i));
 const DEF={name:"INRS Cup Series",season:"2026",discord:"",sponsorName:"40XLI Driver Academy",sponsorUrl:"",hubUrl:"",youtubeUrl:"",liveUrl:"",maxPerRace:66,points:{table:DEFAULT_POINTS,ledLap:1,mostLed:1},rules:[]};
 
@@ -532,7 +538,7 @@ function isRaceDay(r){if(!r||!r.date)return false;const a=new Date(r.date),b=new
 function liveBtn(r){const tw=safeUrl(settings().liveUrl);return tw&&isRaceDay(r)?'<a class="btn live" href="'+esc(tw)+'" target="_blank" rel="noopener"><span class="dot"></span>Watch live on YouTube</a>':"";}
 
 /* ---------- tracks ---------- */
-const TRACKS=[[/Daytona/i,"daytona","Daytona"],[/Charlotte.*Roval/i,"charlotte-roval","Charlotte Roval"],[/Charlotte/i,"charlotte","Charlotte"],[/Gateway|World Wide Technology/i,"gateway","Gateway"],
+const TRACKS=[[/Raceway Park/i,"irp","Lucas Oil Raceway (IRP)"],[/Milwaukee/i,"milwaukee","Milwaukee Mile"],[/Rockingham/i,"rockingham","Rockingham"],[/Lime Rock/i,"lime-rock","Lime Rock"],[/Portland/i,"portland","Portland"],[/Gilles Villeneuve/i,"montreal","Montreal"],[/Daytona/i,"daytona","Daytona"],[/Charlotte.*Roval/i,"charlotte-roval","Charlotte Roval"],[/Charlotte/i,"charlotte","Charlotte"],[/Gateway|World Wide Technology/i,"gateway","Gateway"],
  [/Sonoma/i,"sonoma","Sonoma"],[/Nashville/i,"nashville","Nashville"],[/Road America/i,"road-america","Road America"],[/Atlanta/i,"atlanta","Atlanta"],[/New Hampshire/i,"new-hampshire","New Hampshire"],
  [/Pocono/i,"pocono","Pocono"],[/Indianapolis.*Road/i,"indy-road","Indianapolis Road Course"],[/Indianapolis/i,"indianapolis","Indianapolis"],[/Michigan/i,"michigan","Michigan"],[/Richmond/i,"richmond","Richmond"],
  [/Watkins Glen/i,"watkins-glen","Watkins Glen"],[/Darlington/i,"darlington","Darlington"],[/Kansas/i,"kansas","Kansas"],[/Bristol.*Dirt/i,"bristol-dirt","Bristol Dirt"],[/Bristol/i,"bristol","Bristol"],
@@ -701,6 +707,65 @@ function powerPanel(){const p=powerData();if(!p)return"";
   return'<div class="panel"><div class="sechead"><div class="lt">Power rankings</div><button class="btn sm ghost" data-act="stdview" data-arg="power">Top 20</button></div><div class="list">'+
     p.list.slice(0,5).map(s=>'<div class="podrow">'+posBadge(s.rank)+'<div class="name">'+dlink(s.id)+"</div>"+moveTag(s)+"</div>").join("")+'</div><p class="hint" style="margin:8px 0 0">Form over the last '+plural(p.races.length,"race")+".</p></div>";}
 
+/* ---------- odds (for fun) ---------- */
+const TTYPE={superspeedway:["daytona","talladega","atlanta"],
+  intermediate:["charlotte","texas","kansas","las-vegas","homestead","chicagoland","michigan","pocono","nashville","darlington","auto-club","indianapolis","rockingham"],
+  short:["martinsville","bristol","north-wilkesboro","richmond","phoenix","new-hampshire","dover","iowa","gateway","milwaukee","irp","la-coliseum"],
+  road:["charlotte-roval","indy-road","cota","sonoma","watkins-glen","road-america","chicago-street","san-diego","lime-rock","portland","montreal"],dirt:["bristol-dirt"]};
+const TTYPE_L={superspeedway:"superspeedways",intermediate:"intermediates",short:"short tracks",road:"road courses",dirt:"dirt"};
+function typeOf(name){const k=trackOf(name).key;for(const t in TTYPE)if(TTYPE[t].includes(k))return t;return/street|road|grand prix|circuit|roval/i.test(name)?"road":"intermediate";}
+const LADDER=[100,110,120,130,140,150,160,175,200,225,250,275,300,350,400,450,500,550,600,650,700,800,900,1000,1100,1200,1400,1500,1600,1800,2000,2200,2500,2800,3000,3500,4000,4500,5000,6000,7000,8000,10000,12500,15000,20000,25000];
+function american(p){if(p>=0.5){const v=Math.round(p/(1-p)*100/5)*5;return"−"+Math.max(105,v);}
+  const raw=(1-p)/p*100;let best=LADDER[LADDER.length-1];for(const v of LADDER){if(v>=raw*0.97){best=v;break;}}return"+"+best;}
+function rng(seed){let s=seed>>>0||1;return()=>{s^=s<<13;s>>>=0;s^=s>>17;s^=s<<5;s>>>=0;return s/4294967296;};}
+function prevSeasonKey(){const i=selInfo();const p=S.idx&&S.idx.seasons.find(x=>x.series===i.series&&+x.year===+i.year-1);return p?p.key:null;}
+function oddsData(){const c=S.calc,r=c.next;if(!r)return null;const tk=trackOf(r.track).key,ty=typeOf(r.track);
+  const done=c.done.filter(x=>!x.exhibition&&(x.results||[]).length);if(done.length<3)return null;
+  const pk=prevSeasonKey(),prev=pk&&S.arch[pk]?S.arch[pk].races.filter(x=>x.status==="complete"&&(x.results||[]).length):[];
+  const recent=done.slice(-6),field=new Set();recent.forEach(x=>x.results.forEach(y=>field.add(y.driverId)));
+  const fin=(races,id)=>races.map(x=>{const y=x.results.find(z=>z.driverId===id);return y?{f:int(y.fin),race:x}:null;}).filter(v=>v&&v.f);
+  const mean=a=>a.length?a.reduce((s,v)=>s+v.f,0)/a.length:null;
+  const rows=[...field].filter(id=>drv(id)&&fin(recent,id).length>=2).map(id=>{
+    const form=fin(done.slice(-5),id),trk=fin(done.filter(x=>trackOf(x.track).key===tk),id),typ=fin(done.filter(x=>typeOf(x.track)===ty),id),
+      ptrk=fin(prev.filter(x=>trackOf(x.track).key===tk),id),ptyp=fin(prev.filter(x=>typeOf(x.track)===ty),id),all=fin(done,id);
+    const parts=[[form,1.3],[trk,1.0],[typ,0.9],[ptrk,0.6],[ptyp,0.35],[all,1.0]];let num_=0,den=0;
+    parts.forEach(([a,w])=>{if(!a.length)return;const ww=w*a.length/(a.length+1.5);num_+=ww*mean(a);den+=ww;});
+    const winsRecent=form.filter(v=>v.f===1).length+trk.filter(v=>v.f===1).length+0.5*typ.filter(v=>v.f===1).length;
+    const E=Math.max(1,num_/den-0.6*winsRecent);
+    return{id,E,form,trk,typ,ptrk,ptyp,all};});
+  if(rows.length<2)return null;
+  const tau=3.4*(ty==="superspeedway"?1.9:ty==="road"?1.15:1);rows.forEach(x=>x.w=Math.exp(-(x.E-1)/tau));
+  // simulate finishing orders (Plackett-Luce) for win / top 5 / top 10
+  const N=4000,rnd=rng(String(r.id||r.round).split("").reduce((a,ch)=>a*31+ch.charCodeAt(0),7)),cnt=rows.map(()=>[0,0,0]);
+  for(let n=0;n<N;n++){const left=rows.map((x,i)=>i);let tot=rows.reduce((s,x)=>s+x.w,0);
+    for(let pos=1;pos<=10&&left.length;pos++){let u=rnd()*tot,j=0;for(;j<left.length-1;j++){u-=rows[left[j]].w;if(u<=0)break;}
+      const i=left.splice(j,1)[0];tot-=rows[i].w;if(pos===1)cnt[i][0]++;if(pos<=5)cnt[i][1]++;cnt[i][2]++;}}
+  const VIG=1.22;rows.forEach((x,i)=>{x.pWin=cnt[i][0]/N;x.p5=cnt[i][1]/N;x.p10=cnt[i][2]/N;});
+  rows.sort((a,b)=>b.pWin-a.pWin||a.E-b.E);
+  return{race:r,tk,ty,rows,VIG,prevLoaded:!pk||!!S.arch[pk],pk};}
+const oddsFmt=(p,vig)=>american(Math.min(0.92,Math.max(0.0035,p*vig)));
+V.odds=()=>{const c=S.calc;if(!c.next)return'<div class="lt">Odds</div>'+empty("No upcoming race","Odds open when the next race is on the schedule.");
+  S.oddsFail=S.oddsFail||{};const pk=prevSeasonKey();if(pk&&!S.arch[pk]&&!S.oddsFail[pk]){if(!S.oddsFetching){S.oddsFetching=true;const i=S.idx.seasons.find(x=>x.key===pk);
+      fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[pk]=j;}).catch(()=>{}).finally(()=>{S.oddsFetching=false;if(!S.arch[pk])S.oddsFail[pk]=true;draw();});}return loading();}
+  const d=oddsData();if(!d)return'<div class="lt">Odds</div>'+empty("Not enough races yet","Odds need at least three results this season.");
+  const m=S.oddsMkt||"win",col={win:"pWin",top5:"p5",top10:"p10"}[m],vig={win:d.VIG,top5:1.12,top10:1.08}[m];
+  const L=[...d.rows].sort((a,b)=>b[col]-a[col]||a.E-b.E);
+  const mk=(k,l)=>'<button class="btn sm" data-act="oddsmkt" data-arg="'+k+'"'+(m===k?' aria-current="page"':"")+">"+l+"</button>";
+  const chip=f=>'<span class="fchip '+(f===1?"w":f<=5?"t5":"")+'">'+f+"</span>";
+  const why=x=>{const out=[];const avg=a=>(a.reduce((s,v)=>s+v.f,0)/a.length).toFixed(1);
+    if(x.trk.length)out.push('<span class="why"><b>Here this year</b> '+x.trk.map(v=>chip(v.f)).join("")+"</span>");
+    if(x.ptrk.length)out.push('<span class="why"><b>Here last year</b> '+x.ptrk.map(v=>chip(v.f)).join("")+"</span>");
+    if(x.typ.length)out.push('<span class="why"><b>'+esc(TTYPE_L[d.ty].replace(/^./,ch=>ch.toUpperCase()))+"</b> avg "+avg(x.typ)+" <span class=\"muted\">("+x.typ.length+")</span></span>");
+    out.push('<span class="why"><b>Last 5</b> '+x.form.map(v=>chip(v.f)).join("")+"</span>");return out.join("");};
+  const fav=L[0],dark=[...d.rows].filter(x=>x.pWin*d.VIG<0.07).sort((a,b)=>b.pWin-a.pWin)[0];
+  let h='<section class="stack"><div><div class="eyebrow">Round '+esc(d.race.round)+" · "+fmtDate(d.race.date)+'</div><h1 class="track" style="font-size:clamp(28px,6vw,44px)">'+esc(trackOf(d.race.track).label)+' odds</h1>'+
+    '<p class="small muted" style="margin:6px 0 0">Just for fun, no real wagers. Built from each driver\'s last 5 races, finishes at '+esc(trackOf(d.race.track).label)+" this season"+(d.pk?" and last season":"")+", and results on other "+esc(TTYPE_L[d.ty])+".</p></div>"+
+    '<div class="row">'+mk("win","To win")+mk("top5","Top 5")+mk("top10","Top 10")+"</div>"+
+    '<div class="tiles">'+tile(fav?drv(fav.id).name:"–","Favorite "+(fav?oddsFmt(fav[col],vig):""),true)+(dark&&m==="win"?tile(drv(dark.id).name,"Dark horse "+oddsFmt(dark.pWin,d.VIG),true):"")+tile(d.rows.length,"Drivers priced")+"</div>"+
+    '<div class="panel" style="padding:6px 8px"><div class="list">'+L.map((x,i)=>'<div class="oddrow"><span class="orank">'+(i+1)+'</span><div class="oname">'+dlink(x.id)+'<div class="whys">'+why(x)+'</div></div><div class="oval"><b>'+oddsFmt(x[col],vig)+"</b><span>"+(x[col]*100<1?"<1":Math.round(x[col]*100))+"%</span></div></div>").join("")+"</div></div>"+
+    '<p class="hint">Odds come from a simulation of the race run thousands of times, with a sportsbook-style margin built in, so the percentages add up to more than 100%. Prices update after each race. Entertainment only.</p></section>';
+  return h;};
+
 /* ---------- teams ---------- */
 function teamsView(){const o=S.calc.off,T=(o&&o.teams)||[];if(!T.length)return empty("No team standings yet","");
   const lead=num(T[0].pts,0),roster=team=>S.calc.standings.filter(s=>s.off&&s.off.team===team).sort((a,b)=>a.off.pos-b.off.pos);
@@ -832,6 +897,7 @@ function loadResultsForm(id){const r=S.races.find(x=>x.id===id);if(!r){S.forms.r
   S.forms.results={raceId:id,recapUrl:r.recapUrl||"",note:"",rows:[...(r.results||[])].sort((a,b)=>a.fin-b.fin).map(x=>({driverId:x.driverId,newName:"",newNumber:"",newCust:"",fin:String(x.fin??""),start:x.start==null?"":String(x.start),led:String(x.lapsLed||0),comp:x.lapsComp==null?"":String(x.lapsComp),inc:String(x.inc||0),status:x.status||"Running",bonus:String(x.bonus||0),pts:typeof x.pts==="number"?String(x.pts):"",keep:{car:x.car,stage:x.stage,pen:x.pen,rating:x.rating}}))};}
 
 const ACT={
+  oddsmkt(k){S.oddsMkt=k;draw();},
   career(id){S.view="career";S.careerId=id;setHash();draw();window.scrollTo(0,0);},
   recser(k){S.recSeries=k;draw();},
   seasondrv(a){const[k,id]=String(a).split("|");selectSeason(k).then(()=>{S.view="drivers";S.driverSel=id;setHash();draw();window.scrollTo(0,0);});},
