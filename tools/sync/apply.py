@@ -88,6 +88,8 @@ def main():
         rid = 'r%02d' % int(rd)
         res = []
         for x in rows:
+            if not x[0].strip():  # registered but did not start: leave out, so bets on them push
+                continue
             did = slug(x[3])
             if did not in drivers:
                 drivers[did] = {'id': did, 'name': x[3], 'number': x[2], 'custId': '', 'team': '', 'active': True}
