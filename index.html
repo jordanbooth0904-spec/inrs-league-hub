@@ -203,6 +203,13 @@ footer .presented b{color:var(--accent)}
 .elimrow td{text-align:left;font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--bad);border-top:2px dashed var(--bad)!important;padding:8px!important}
 .why.pop{color:var(--gold);font-weight:600}
 .mvp{font-style:normal;font-size:10px;margin-left:3px;vertical-align:2px}.mvp.up{color:var(--ok)}.mvp.dn{color:var(--bad)}.price.on .mvp{color:#fff}
+.h2hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:10px}
+.h2hcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}.h2hbuild+.h2hcard,.panel .h2hcard{margin-top:10px;padding:0;border:0;background:none}
+.h2htag{font:700 10px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.h2hrow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}.h2hrow .vs,.h2hbuild .vs{font:italic 900 14px var(--display);color:var(--muted)}
+.price.hside{padding:8px 6px}.price.hside small{text-transform:none;letter-spacing:0;font:600 13px var(--body);color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.price.hside small .carno{font-size:12px}
+.price.on.hside small{color:#fff}
+.h2hbuild{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}.h2hbuild select{width:100%;font-size:15px}
 .prices{display:grid;grid-template-columns:repeat(3,62px);gap:4px}
 .price{display:grid;justify-items:center;gap:1px;padding:6px 2px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2);color:var(--fg);cursor:pointer;font:inherit}
 .price small{font:600 9px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.price b{font:italic 900 15px var(--display);color:var(--accent)}
@@ -811,9 +818,10 @@ V.odds=()=>{const c=S.calc;needSeasons();if(!S.marketKick){S.marketKick=1;setTim
   return'<section class="stack">'+top+'<div><div class="eyebrow">Sportsbook · Round '+esc(d.race.round)+" · "+fmtDate(d.race.date)+'</div><h1 class="track" style="font-size:clamp(28px,6vw,44px)">'+esc(trackOf(d.race.track).label)+"</h1>"+
     '<p class="small muted" style="margin:6px 0 0">Play money only. Tap a price to add it to your bet slip, then bet it as a single or combine picks into a parlay, including races from the other series (switch series at the top). Odds come from each driver\'s last 5 races, finishes here this season'+(d.pk?" and last season":"")+", and results on other "+esc(TTYPE_L[d.ty])+".</p>"+
     (d.live&&d.live.active?"":open?'<p class="small" style="margin:6px 0 0;color:var(--accent)">Betting closes '+esc(closeLabel(d.race.date))+" (8:30 PM Eastern) unless live timing is running, then it stays open until 10 laps to go.</p>":'<p class="small" style="color:var(--bad);margin:6px 0 0">Betting is closed for this race.</p>')+liveBanner(d.race)+"</div>"+
-    '<div class="row"><span class="small muted">Sort by</span>'+mk("win","To win")+mk("top5","Top 5")+mk("top10","Top 10")+"</div>"+
+    '<div class="subtabs" role="group" aria-label="Markets">'+['drivers','h2h'].map(t=>'<button class="btn sm" data-act="booktab" data-arg="'+t+'"'+((S.bookTab||"drivers")===t?' aria-current="page"':"")+">"+(t==="h2h"?"Head to head":"Driver odds")+"</button>").join("")+"</div>"+
+    (S.bookTab==="h2h"?h2hSection(d,open,picked,O):'<div class="row"><span class="small muted">Sort by</span>'+mk("win","To win")+mk("top5","Top 5")+mk("top10","Top 10")+"</div>"+
     '<div class="tiles">'+tile(fav?drv(fav.id).name:"–","Favorite "+(fav?oddsFmt(fav.pWin,d.VIG):""),true)+(dark?tile(drv(dark.id).name,"Dark horse "+oddsFmt(dark.pWin,d.VIG),true):"")+tile(d.rows.length,"Drivers priced")+"</div>"+trackPowerPanel(d.tk,trackOf(d.race.track).label,true)+
-    '<div class="panel" style="padding:6px 8px"><div class="list">'+L.map((x,i)=>'<div class="oddrow"><span class="orank">'+(i+1)+'</span><div class="oname">'+dlink(x.id)+'<div class="whys">'+why(x)+'</div></div><div class="prices">'+price(x,"win")+price(x,"top5")+price(x,"top10")+"</div></div>").join("")+"</div></div>"+
+    '<div class="panel" style="padding:6px 8px"><div class="list">'+L.map((x,i)=>'<div class="oddrow"><span class="orank">'+(i+1)+'</span><div class="oname">'+dlink(x.id)+'<div class="whys">'+why(x)+'</div></div><div class="prices">'+price(x,"win")+price(x,"top5")+price(x,"top10")+"</div></div>").join("")+"</div></div>")+
     '<p class="hint">Odds come from simulating the race thousands of times, with a sportsbook-style margin built in. Prices update after each race. Bets settle automatically when SimRacerHub results are posted; a driver who doesn\'t start is voided (singles refunded, parlays drop that pick). When 3 or more people bet the same pick, its odds get shorter, just like a real book moving the line. Entertainment only, no real money.</p></section>';};
 
 /* ---------- track power rankings (top 3, last 3 races at the track, 2+ starts) ---------- */
@@ -863,7 +871,7 @@ function liveBanner(r){const lv=liveFor(r);if(!lv)return"";const ago=Math.max(0,
   return'<div class="livebar'+(lv.active?"":" stale")+'"><span class="ldot"></span><b>'+(lv.active?"LIVE":"LIVE FEED PAUSED")+"</b> "+esc(what)+'<span class="muted small" style="margin-left:auto">'+(ago<90?ago+"s ago":Math.round(ago/60)+" min ago")+"</span></div>";}
 
 /* ---------- sportsbook (play money, saved per browser) ---------- */
-const BK="inrs-bets",START=1000,MKT_L={win:"To win",top5:"Top 5",top10:"Top 10"},MKT_N={win:1,top5:5,top10:10};
+const BK="inrs-bets",START=1000,MKT_L={win:"To win",top5:"Top 5",top10:"Top 10",h2h:"Head to head"},MKT_N={win:1,top5:5,top10:10};
 function book(){if(!S.book){let v=null;try{v=JSON.parse(localStorage.getItem(BK)||"null");}catch(e){}
   S.book=v&&v.v===1?v:{v:1,bets:[],refills:0,slip:[],mode:"single",stakes:{},pstake:""};}return S.book;}
 function saveBook(){try{localStorage.setItem(BK,JSON.stringify(S.book));}catch(e){}}
@@ -876,6 +884,8 @@ const raceOpen=iso=>!iso||Date.now()<new Date(iso).getTime()+CLOSE_MS;
 const closeLabel=iso=>{const d=new Date(new Date(iso).getTime()+CLOSE_MS);return d.toLocaleString(undefined,{weekday:"short",hour:"numeric",minute:"2-digit",timeZoneName:"short"});};
 function seasonRaces(k){if(k===MAINKEY)return S.M.races||[];const a=S.arch[k];return a?a.races||[]:null;}
 function legStatus(l){const R=seasonRaces(l.k);if(!R)return"pending";const r=R.find(x=>x.id===l.rid);if(!r||r.status!=="complete"||!(r.results||[]).length)return"pending";
+  if(l.m==="h2h"){const[a,b]=l.did.split("~"),fa=r.results.find(y=>y.driverId===a),fb=r.results.find(y=>y.driverId===b);
+    if(!fa||!fb||!int(fa.fin)||!int(fb.fin))return"void";return int(fa.fin)<int(fb.fin)?"won":"lost";}
   const x=r.results.find(y=>y.driverId===l.did);if(!x||!int(x.fin))return"void";return int(x.fin)<=MKT_N[l.m]?"won":"lost";}
 function betResult(b){const st=b.legs.map(legStatus);
   if(b.t==="single"){const s=st[0];return{s,pay:s==="won"?b.stake*decOdds(b.legs[0].odds):s==="void"?b.stake:0,st};}
@@ -889,7 +899,10 @@ function needSeasons(){const B=book(),ks=new Set();B.bets.concat([{legs:B.slip}]
   ks.forEach(k=>{const i=S.idx&&S.idx.seasons.find(x=>x.key===k);if(!i||S.bookFetch===k)return;S.bookFetch=k;
     fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[k]=j;}).catch(()=>{}).finally(()=>{S.bookFetch=null;draw();});});}
 function parlayProblem(legs){if(legs.length<2)return"Add at least 2 picks for a parlay.";if(legs.length>10)return"Parlays max out at 10 picks.";
-  const seen={};for(const l of legs){const rk=l.k+"|"+l.rid;if(seen[rk+"|"+l.did])return esc(l.name)+" is in this parlay twice for the same race. Keep one pick per driver per race.";seen[rk+"|"+l.did]=1;
+  const seen={};for(const l of legs){const rk=l.k+"|"+l.rid;
+    if(l.m==="h2h"){const[a,b]=l.did.split("~");if(seen[rk+"|h2h|"+b+"~"+a])return"Both sides of the same head-to-head can't both win. Remove one.";
+      if(legs.some(o=>o.k===l.k&&o.rid===l.rid&&o.m==="win"&&o.did===b))return esc(l.name)+" can't hit if "+esc((drv(b)||{}).name||b)+" wins. Remove one.";seen[rk+"|h2h|"+l.did]=1;continue;}
+    if(seen[rk+"|"+l.did])return esc(l.name)+" is in this parlay twice for the same race. Keep one pick per driver per race.";seen[rk+"|"+l.did]=1;
     if(l.m==="win"){if(seen[rk+"|win"])return"Two different winners in the same race can't both hit. Remove one.";seen[rk+"|win"]=1;}}return"";}
 function slipHtml(){const B=book(),L=B.slip;if(!L.length&&!S.slipOpen)return"";const br=bankroll();
   if(!S.slipOpen)return L.length?'<button class="slipbar" data-act="slip" data-arg="open"><span class="cnt">'+L.length+'</span>Bet slip<span class="sb-r">'+(L.length>1?"Parlay "+amOdds(L.reduce((m,l)=>m*decOdds(l.odds),1)):esc(L[0].odds))+" ▲</span></button>":"";
@@ -913,7 +926,7 @@ const BOOK_ACT={
     if(!raceIsOpen(r)){toast("Betting is closed for this race.",true);return;}
     const key=k+"|"+rid+"|"+did+"|"+m,i=B.slip.findIndex(l=>legKey(l)===key);
     if(i>=0)B.slip.splice(i,1);else{if(B.slip.length>=10){toast("Your slip is full (10 picks).",true);return;}
-      const d=drv(did);B.slip.push({k,rid,did,m,odds,name:d?d.name:did,label:selInfo().year+" "+SER_L[selInfo().series]+" · Rd "+r.round+" "+trackOf(r.track).label,date:r.date});
+      const d=drv(did),nm=m==="h2h"?did.split("~").map(x=>(drv(x)||{name:x}).name).join(" over "):(d?d.name:did);B.slip.push({k,rid,did,m,odds,name:nm,label:selInfo().year+" "+SER_L[selInfo().series]+" · Rd "+r.round+" "+trackOf(r.track).label,date:r.date});
       if(B.slip.length===2&&B.mode==="single"&&!Object.keys(B.stakes).length)B.mode="parlay";}
     saveBook();draw();},
   unpick(key){const B=book();B.slip=B.slip.filter(l=>legKey(l)!==key);delete B.stakes[key];saveBook();draw();},
@@ -923,7 +936,7 @@ const BOOK_ACT={
   placebet(){const B=book(),br=bankroll(),L=B.slip;if(!L.length)return;
     const closed=L.find(l=>!legOpen(l));if(closed){toast("Betting has closed for "+closed.label+". Remove that pick.",true);return;}
     {const d=oddsData();if(d){const vg={win:d.VIG,top5:1.12,top10:1.08},cl={win:"pWin",top5:"p5",top10:"p10"};let changed=0;
-      L.forEach(l=>{if(l.k!==S.sel||l.rid!==d.race.id)return;const x=d.rows.find(y=>y.id===l.did);if(!x)return;const o=priceOf(d,x,l.m);if(o!==l.odds){l.odds=o;changed++;}});
+      L.forEach(l=>{if(l.k!==S.sel||l.rid!==d.race.id)return;if(l.m==="h2h"){const[a,b]=l.did.split("~"),o=h2hPrice(d,a,b);if(o&&o!==l.odds){l.odds=o;changed++;}return;}const x=d.rows.find(y=>y.id===l.did);if(!x)return;const o=priceOf(d,x,l.m);if(o!==l.odds){l.odds=o;changed++;}});
       if(changed){saveBook();draw();toast("Odds moved on "+plural(changed,"pick")+". Check the new prices and tap Place bet again.",true);return;}}}
     const now=new Date().toISOString(),mk=(t,legs,stake)=>({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),t,legs:legs.map(l=>Object.assign({},l)),stake,placed:now});
     let bets=[];
@@ -944,11 +957,32 @@ async function pollMarket(){const u=liveDb();if(!u||document.hidden||(S.view!=="
 setInterval(pollMarket,15000);
 const popCount=(k,rid,did,m)=>((S.market[mkey(k,rid)]||{})[skey(did,m)])||0;
 const marketMult=n=>n>=3?Math.min(1.5,1+0.08*(n-2)):1;
+function h2hP(d,a,b){const A=d.rows.find(y=>y.id===a),Bx=d.rows.find(y=>y.id===b);if(!A||!Bx)return null;return A.w2/(A.w2+Bx.w2);}
+function h2hPrice(d,a,b){const p=h2hP(d,a,b);if(p==null)return null;const n=popCount(S.sel,d.race.id,a+"~"+b,"h2h");return american(Math.min(0.92,Math.max(0.03,p*1.045*marketMult(n))));}
 function priceOf(d,x,mm){const n=popCount(S.sel,d.race.id,x.id,mm);return oddsFmt(x[{win:"pWin",top5:"p5",top10:"p10"}[mm]]*marketMult(n),{win:d.VIG,top5:1.12,top10:1.08}[mm]);}
 function recordMarket(bets){const u=liveDb();if(!u)return;const cid=clientId(),seen=new Set();
   bets.forEach(b=>b.legs.forEach(l=>{const key=mkey(l.k,l.rid)+"/"+skey(l.did,l.m);if(seen.has(key))return;seen.add(key);
     fetch(u+"/market/"+key+"/"+cid+".json",{method:"PUT",headers:{"Content-Type":"application/json"},body:"true"}).catch(()=>{});}));
   setTimeout(pollMarket,1500);}
+
+/* ---------- head-to-head matchups ---------- */
+function h2hSection(d,open,picked,O){const k=S.sel,rid=d.race.id,byE=[...d.rows].sort((a,b)=>a.E-b.E);
+  const od={rows:Object.values(O||{})};
+  const side=(a,b)=>{const o=h2hPrice(d,a,b);if(!o)return"";const key=k+"|"+rid+"|"+a+"~"+b+"|h2h",dr=drv(a)||{name:a};
+    const o0=O&&O[a]&&O[b]?american(Math.min(0.92,Math.max(0.03,O[a].w2/(O[a].w2+O[b].w2)*1.045))):null,mv=o0&&o0!==o?(decOdds(o)>decOdds(o0)?'<i class="mvp up" title="Opened '+o0+'">▲</i>':'<i class="mvp dn" title="Opened '+o0+'">▼</i>'):"";
+    const n=popCount(k,rid,a+"~"+b,"h2h");
+    return'<button class="price hside'+(picked.has(key)?" on":"")+'" '+(open?'data-act="pick" data-arg="'+esc(k+"|"+rid+"|"+a+"~"+b+"|h2h|"+o)+'"':"disabled")+' aria-pressed="'+picked.has(key)+'" aria-label="'+esc(dr.name+" finishes ahead, "+o)+'"><small>'+carno(dr)+esc(dr.name)+(n>=3?" · popular":"")+"</small><b>"+o+mv+"</b></button>";};
+  const card=(a,b,tag)=>'<div class="h2hcard">'+(tag?'<div class="h2htag">'+esc(tag)+"</div>":"")+'<div class="h2hrow">'+side(a,b)+'<span class="vs">VS</span>'+side(b,a)+"</div></div>";
+  // featured: drivers next to each other in expected finish, plus the points leader vs 2nd
+  const feat=[],used=new Set(),st=S.calc.standings.filter(s=>s.off).slice(0,2).map(s=>s.driver.id);
+  if(st.length===2&&d.rows.some(x=>x.id===st[0])&&d.rows.some(x=>x.id===st[1])){feat.push([st[0],st[1],"Points battle"]);st.forEach(x=>used.add(x));}
+  for(let i=0;i<byE.length-1&&feat.length<8;i++){const a=byE[i].id,b=byE[i+1].id;if(used.has(a)||used.has(b))continue;feat.push([a,b,""]);used.add(a);used.add(b);}
+  const opts=sel=>'<option value="">Pick a driver</option>'+[...d.rows].sort((a,b)=>String(drv(a.id).name).localeCompare(drv(b.id).name)).map(x=>'<option value="'+esc(x.id)+'"'+(x.id===sel?" selected":"")+">"+esc(dlabel(drv(x.id)))+"</option>").join("");
+  const A=S.h2hA,Bb=S.h2hB,custom=A&&Bb&&A!==Bb&&d.rows.some(x=>x.id===A)&&d.rows.some(x=>x.id===Bb);
+  return'<p class="small muted" style="margin:0">Pick which driver finishes ahead of the other. If either driver doesn\'t start, the bet pushes (or that leg drops out of a parlay). Add head-to-heads to parlays with any other picks.</p>'+
+    '<div class="panel"><div class="lt">Build a matchup</div><div class="h2hbuild"><select class="yearsel" data-change="h2ha" aria-label="First driver">'+opts(A)+'</select><span class="vs">VS</span><select class="yearsel" data-change="h2hb" aria-label="Second driver">'+opts(Bb)+"</select></div>"+
+    (custom?card(A,Bb,""):'<p class="hint" style="margin:8px 0 0">Choose any two drivers in this race\'s field to get a price.</p>')+"</div>"+
+    '<div><div class="lt">Featured matchups</div><div class="h2hgrid">'+feat.map(f=>card(f[0],f[1],f[2])).join("")+"</div></div>";}
 
 V.bets=()=>{needSeasons();const B=book(),br=bankroll();
   const betCard=b=>{const r=betResult(b),nv=r.st.filter(x=>x==="void").length,d=b.t==="parlay"?b.legs.reduce((m,l,i)=>r.st[i]==="void"?m:m*decOdds(l.odds),1):decOdds(b.legs[0].odds);
@@ -1100,6 +1134,7 @@ function loadResultsForm(id){const r=S.races.find(x=>x.id===id);if(!r){S.forms.r
   S.forms.results={raceId:id,recapUrl:r.recapUrl||"",note:"",rows:[...(r.results||[])].sort((a,b)=>a.fin-b.fin).map(x=>({driverId:x.driverId,newName:"",newNumber:"",newCust:"",fin:String(x.fin??""),start:x.start==null?"":String(x.start),led:String(x.lapsLed||0),comp:x.lapsComp==null?"":String(x.lapsComp),inc:String(x.inc||0),status:x.status||"Running",bonus:String(x.bonus||0),pts:typeof x.pts==="number"?String(x.pts):"",keep:{car:x.car,stage:x.stage,pen:x.pen,rating:x.rating}}))};}
 
 const ACT={
+  booktab(t){S.bookTab=t;draw();},
   ...BOOK_ACT,
   oddsmkt(k){S.oddsMkt=k;draw();},
   career(id){S.view="career";S.careerId=id;setHash();draw();window.scrollTo(0,0);},
@@ -1170,6 +1205,8 @@ const ACT={
     await write(()=>root().set(data),"Settings saved");}
 };
 const CHANGE={
+  h2ha(el){S.h2hA=el.value;draw();},
+  h2hb(el){S.h2hB=el.value;draw();},
   season(el){selectSeason(el.value);},
   cmp(el){S.cmp=S.cmp||[];S.cmp[el.dataset.which==='a'?0:1]=el.value;draw();},
   pickrace(el){loadResultsForm(el.value);draw();},
