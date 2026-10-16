@@ -1016,7 +1016,7 @@ const AW_ACT={
     if(awardsVoted()){toast("You've already voted.",true);return;}
     S.busy=true;draw();const id=clientId();
     try{const r=await fetch(liveDb()+"/awards/2026/"+id+".json",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({t:Date.now()},v))});
-      S.busy=false;if(r.status===401||r.status===403){try{localStorage.setItem(AW_KEY,"1");}catch(e){}S.awOpen=false;draw();toast("A ballot from this device is already in.",true);return;}
+      S.busy=false;if(r.status===401||r.status===403){draw();toast("Voting isn't accepting ballots right now. Please try again later.",true);return;}
       if(!r.ok)throw 0;try{localStorage.setItem(AW_KEY,String(Date.now()));}catch(e){}S.awOpen=false;draw();toast("Ballot submitted. Thanks for voting!");}
     catch(e){S.busy=false;draw();toast("Couldn't submit your ballot. Check your connection and try again.",true);}}};
 
