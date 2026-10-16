@@ -914,7 +914,7 @@ async function pollLive(force,quiet){const u=liveDb();if(!u||document.hidden)ret
   if(!force&&!inWindow(r))return;
   try{const res=await fetch(u+"/live.json",{cache:"no-store"});if(!res.ok)return;const j=await res.json();const sig=JSON.stringify(j&&j.meta)+JSON.stringify(j&&j.race&&j.race.cars);
     const was=liveActive();if(sig!==S.liveSig||(S.view==="live"&&!quiet)){S.liveSig=sig;S.live=j;if(S.view==="odds"||S.view==="home"||S.view==="bets"||S.view==="live"||was!==liveActive())render();}}catch(e){}}
-setInterval(pollLive,10000);setTimeout(pollLive,1500);
+setInterval(pollLive,10000);setTimeout(()=>pollLive(true,true),1500);
 function liveFor(r){const L=S.live;if(!L||!L.meta||!r)return null;if(trackOf(L.meta.track).key!==trackOf(r.track).key)return null;
   const t=new Date(r.date).getTime(),ok=x=>x&&x.updated>t-3*3600e3&&x.updated<t+6*3600e3?x:null;
   const out={practice:ok(L.practice),qualify:ok(L.qualify),race:ok(L.race),updated:L.meta.updated,active:Date.now()-L.meta.updated<180e3,session:L.meta.session};
@@ -935,9 +935,11 @@ function liveBanner(r){const lv=liveFor(r);if(!lv)return"";const ago=Math.max(0,
 const liveActive=()=>!!(S.live&&S.live.meta&&Date.now()-S.live.meta.updated<180e3);
 setInterval(()=>{if(S.view==="live")pollLive(true);},5000);
 setInterval(()=>{if(S.view!=="live")pollLive(true,true);},60000);
+/* the Live tab only shows while the live helper is sending data; redraw when that flips */
+setInterval(()=>{if(!!S.liveTabShown!==liveActive())render();},15000);
 V.live=()=>{const L=S.live;if(!liveDb())return'<div class="lt">Live timing</div>'+empty("Live timing isn't set up","");
   if(!L||!L.meta){if(!S.liveTried){S.liveTried=1;setTimeout(()=>pollLive(true),50);}return'<div class="lt">Live timing</div>'+empty("No live session right now","Live timing shows up here on race nights while the league session is running.");}
-  const sessions=["practice","qualify","race"].filter(k=>L[k]),cur=S.liveSess&&L[S.liveSess]?S.liveSess:L.meta.session&&L[L.meta.session]?L.meta.session:sessions[sessions.length-1],X=L[cur];
+  const sessions=["practice","qualify","race"].filter(k=>L[k]),cur=S.liveSess&&L[S.liveSess]?S.liveSess:L.meta.session&&L[L.meta.session]?L.meta.session:sessions[sessions.length-1],X=L[cur];if(!X||!X.cars)return'<div class="lt">Live timing</div>'+empty("Session starting","The live feed is connected. Timing shows up as soon as cars hit the track.");
   const act=liveActive(),ago=Math.max(0,Math.round((Date.now()-L.meta.updated)/1000)),agoTxt=ago<90?ago+"s ago":ago<5400?Math.round(ago/60)+" min ago":new Date(L.meta.updated).toLocaleString(undefined,{weekday:"short",hour:"numeric",minute:"2-digit"});
   const SN={practice:"Practice",qualify:"Qualifying",race:"Race"};
   const tabs=sessions.length>1?'<div class="subtabs">'+sessions.map(k=>'<button class="btn sm" data-act="livesess" data-arg="'+k+'"'+(k===cur?' aria-current="page"':"")+">"+SN[k]+"</button>").join("")+"</div>":"";
@@ -1588,7 +1590,7 @@ function gcTrack(){try{const g=window.goatcounter;if(!S.static||!g||typeof g.cou
 window.__gcReady=()=>{gcLast=null;gcTrack();};
 function draw(){S.calc=compute();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
   document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
-  document.getElementById("tabs").innerHTML=TABS.filter(t=>t[0]!=="admin"||(S.admin&&isMain())).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy")&&t[0]==="records")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
+  S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy")&&t[0]==="records")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
   if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
   const sw=document.getElementById("switch");if(sw){const h=switcher();sw.hidden=!h;if(!isTyping()||!sw.contains(document.activeElement))sw.innerHTML=h;}
   const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"||S.selLoading?loading():(V[S.view]||V.home)();
