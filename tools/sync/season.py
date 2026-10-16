@@ -16,6 +16,8 @@ DATA = os.path.join(ROOT, 'data')
 TZ = ZoneInfo('America/Indiana/Indianapolis')
 MAIN = ('cup', 2026)
 LABEL = {'cup': 'Cup', 'xfinity': 'Xfinity', 'trucks': 'Truck'}
+RENAMED = {('xfinity', 2026): "O'Reilly"}  # Xfinity Series became the O'Reilly Series in 2026
+FINAL = {'xfinity': 2026}  # last season ever run; once it is complete the weekly sync stops exporting it
 SERIES_ORDER = ['cup', 'xfinity', 'trucks']
 slug = lambda s: re.sub(r'[^a-z0-9]+', '-', s.lower()).strip('-')
 
@@ -126,7 +128,7 @@ def convert(e):
         pts = [o['pts'] or 0 for o in rows]
         cut = next((i + 1 for i in range(min(len(pts) - 1, 30)) if pts[i] > 1000 and pts[i + 1] * 2 < pts[i]), 0)
         official['chaseCutoff'] = cut
-    title = 'INRS %s Series' % LABEL[series]
+    title = 'INRS %s Series' % RENAMED.get((series, year), LABEL[series])
     settings = {'name': title, 'season': str(year), 'hubUrl': 'https://www.simracerhub.com/scoring/season_standings.php?season_id=%s' % e['seasonId'],
                 'maxPerRace': max([x['pts'] for r in races for x in r['results']] or [66])}
     return {'series': series, 'year': year, 'seasonId': e['seasonId'], 'updated': e['exported'][:10], 'settings': settings,
@@ -174,6 +176,9 @@ def main():
         if (e['series'], int(e['year'])) == MAIN:
             print('skip %s (live season lives in data.json)' % f)
             continue
+        fy = FINAL.get(e['series'])
+        if fy and int(e['year']) > fy:
+            sys.exit('%s: the %s series ended after %d; nothing to import.' % (f, e['series'], fy))
         if e.get('missing'):
             sys.exit('%s is missing races %s; re-export it.' % (f, e['missing']))
         s = convert(e)
@@ -196,7 +201,9 @@ def main():
         seasons.append({'key': '%s-%s' % (s['series'], s['year']), 'series': s['series'], 'year': s['year'],
                         'file': 'data/' + os.path.basename(fn), 'champion': champ,
                         'championId': s['official']['rows'][0]['driverId'] if champ else None, 'done': done == len(s['races']),
-                        'races': done, 'lines': lines(s)})
+                        'races': done, 'lines': lines(s),
+                        'lastRace': max((r['date'][:10] for r in s['races'] if r['status'] == 'complete'), default=None),
+                        'final': FINAL.get(s['series']) == s['year']})
         hist[s['series']] += history(s)
     seasons.sort(key=lambda x: (SERIES_ORDER.index(x['series']), -x['year']))
     for k in hist:

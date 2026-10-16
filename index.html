@@ -56,6 +56,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .seg button:focus-visible,.yearsel:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .seg{flex:none}
 .switch .yearsel{width:auto;flex:none;font:600 16px/1.1 var(--mono);background:var(--panel);color:var(--fg);border:1px solid var(--line-2);border-radius:6px;padding:5px 6px;cursor:pointer}
+.farewell{border-left:3px solid var(--accent);margin-bottom:16px}.farewell h2{font-size:20px}details.legyr{border-top:1px solid var(--line);padding:8px 0}details.legyr:first-of-type{border-top:0}details.legyr summary{cursor:pointer;padding:4px 2px}details.legyr .scroll{margin-top:6px}
 .archbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:8px 12px;border:1px solid var(--line-2);border-left:3px solid var(--accent);border-radius:6px;background:var(--panel);font-size:14px}
 .season{display:none;font:600 12px var(--mono);color:var(--muted);border:1px solid var(--line-2);padding:3px 8px;border-radius:4px}
 nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:0 -4px}
@@ -332,7 +333,12 @@ function settings(){const r=S.settingsRaw||{};const p=Object.assign({},DEF.point
   if(!Array.isArray(p.table)||!p.table.length)p.table=DEFAULT_POINTS;
   return Object.assign({},DEF,r,{points:p,rules:Array.isArray(r.rules)?r.rules:[]});}
 /* ---------- seasons ---------- */
-const MAINKEY="cup-2026",SERIES=[["cup","Cup"],["xfinity","Xfinity"],["trucks","Trucks"]];
+const MAINKEY="cup-2026",SERIES=[["cup","Cup"],["xfinity","O'Reilly"],["trucks","Trucks"]];
+/* The Xfinity Series became the O'Reilly Series in 2026, and 2026 is its final season. */
+const SER_RENAME={xfinity:[[2026,"O'Reilly"]]},SER_FINAL={xfinity:2026};
+function serName(k,y){const r=(SER_RENAME[k]||[]).filter(x=>+y>=x[0]).pop();return r?r[1]:({cup:"Cup",xfinity:"Xfinity",trucks:"Trucks"}[k]||k);}
+function serFinalInfo(k){const y=SER_FINAL[k];if(!y||!S.idx)return null;const si=S.idx.seasons.find(x=>x.series===k&&+x.year===y);if(!si)return null;
+  const yrs=S.idx.seasons.filter(x=>x.series===k).map(x=>+x.year);return{year:y,si,ended:!!si.done,first:Math.min(...yrs),last:y,lastRace:si.lastRace||null};}
 const isMain=()=>S.sel===MAINKEY;
 const selInfo=()=>(S.idx&&S.idx.seasons.find(x=>x.key===S.sel))||{key:MAINKEY,series:"cup",year:2026,main:true};
 function applySel(){const M=S.M,a=isMain()?null:S.arch[S.sel];
@@ -348,10 +354,11 @@ async function selectSeason(key){if(!S.idx)return;const i=S.idx.seasons.find(x=>
   applySel();draw();}
 function switcher(){if(!S.idx)return"";const i=selInfo(),L=S.idx.seasons;
   const years=L.filter(x=>x.series===i.series);
-  return'<div class="seg" role="group" aria-label="Series">'+SERIES.filter(([k])=>L.some(x=>x.series===k)).map(([k,l])=>'<button data-act="series" data-arg="'+k+'" aria-pressed="'+(i.series===k)+'">'+l+"</button>").join("")+"</div>"+
-    '<select class="yearsel" data-change="season" aria-label="Season">'+years.map(x=>'<option value="'+esc(x.key)+'"'+(x.key===S.sel?" selected":"")+">"+x.year+"</option>").join("")+"</select>";}
-function archBar(){if(isMain()||!S.idx||S.view==="records"||S.view==="career")return"";const i=selInfo(),done=S.calc&&S.calc.races.length&&!S.calc.next;
-  return'<div class="archbar"><span>Viewing the <b>'+i.year+" "+esc(settings().name.replace(/^INRS\s*/,""))+"</b>"+(done?" archive":"")+'</span><button class="btn sm ghost" data-act="season" data-arg="'+MAINKEY+'" style="margin-left:auto">Back to 2026 Cup</button></div>';}
+  return'<div class="seg" role="group" aria-label="Series">'+SERIES.filter(([k])=>L.some(x=>x.series===k)).map(([k,l])=>'<button data-act="series" data-arg="'+k+'" aria-pressed="'+(i.series===k)+'">'+(i.series===k?serName(k,i.year):l)+"</button>").join("")+"</div>"+
+    '<select class="yearsel" data-change="season" aria-label="Season">'+years.map(x=>'<option value="'+esc(x.key)+'"'+(x.key===S.sel?" selected":"")+">"+x.year+(SER_FINAL[x.series]===+x.year?" (final)":"")+"</option>").join("")+"</select>";}
+function archBar(){if(isMain()||!S.idx||S.view==="records"||S.view==="career"||S.view==="legacy")return"";const i=selInfo(),done=S.calc&&S.calc.races.length&&!S.calc.next;
+  const F=serFinalInfo(i.series);
+  return'<div class="archbar"><span>Viewing the <b>'+i.year+" "+esc(settings().name.replace(/^INRS\s*/,""))+"</b>"+(done?" archive":"")+(F?(+i.year===F.year?(F.ended?" · the final season of the series":" · the final season"):""):"")+"</span>"+(F?'<button class="btn sm" data-act="legacy" data-arg="'+i.series+'">Series legacy</button>':"")+'<button class="btn sm ghost" data-act="season" data-arg="'+MAINKEY+'" style="margin-left:auto">Back to 2026 Cup</button></div>';}
 function fmtDate(iso){if(!iso)return"Date TBA";const d=new Date(iso);if(isNaN(d))return"Date TBA";return d.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric",year:"numeric"});}
 function fmtShort(iso){if(!iso)return"TBA";const d=new Date(iso);if(isNaN(d))return"TBA";return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});}
 function fmtTime(iso,dateOnly){if(!iso||dateOnly)return"";const d=new Date(iso);if(isNaN(d))return"";return d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit",timeZoneName:"short"});}
@@ -453,7 +460,7 @@ V.home=()=>{const c=S.calc;let h="";
   right=dotrPanel()+right;
   right+='<div class="panel"><div class="lt">Latest recap</div>'+(lr?recapEmbed(lr):empty("No recaps yet","Race recaps will be linked here."))+"</div>";
   right+=linksPanel();
-  return h+awardsPanel()+'<div class="grid2"><div class="stack">'+left+'</div><div class="stack">'+right+"</div></div>";};
+  return h+farewellPanel()+awardsPanel()+'<div class="grid2"><div class="stack">'+left+'</div><div class="stack">'+right+"</div></div>";};
 
 function hubBtn(label){const u=safeUrl(settings().hubUrl);return u?'<a class="btn sm" href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(label||"Official standings on SimRacerHub")+" ↗</a>":"";}
 function hubBar(label){const b=hubBtn(label);return b?'<div class="row" style="margin-bottom:12px">'+b+"</div>":"";}
@@ -643,7 +650,7 @@ function trackDetail(t){const season=+settings().season;
     (t.wins.length?'<div class="panel"><div class="lt">Winners at '+esc(t.label)+'</div><div class="list">'+t.wins.map(([n,w],i)=>'<div class="podrow">'+posBadge(i+1)+'<div class="name">'+esc(n)+'</div><span class="pts">'+w+"</span></div>").join("")+"</div></div>":"")+top+"</section>";}
 
 /* ---------- careers & records (all series, all seasons) ---------- */
-const SER_L={cup:"Cup",xfinity:"Xfinity",trucks:"Trucks"};
+const SER_L={cup:"Cup",xfinity:"O'Reilly/Xfinity",trucks:"Trucks"};
 function mainLines(){const M=S.M,o=M.official;if(!o||!Array.isArray(o.rows))return[];const fin={};
   (M.races||[]).forEach(r=>{if(r.status!=="complete"||r.exhibition)return;(r.results||[]).forEach(x=>{const f=int(x.fin);if(!f)return;const a=fin[x.driverId]=fin[x.driverId]||[0,0];a[0]+=f;a[1]++;});});
   const D={};(M.drivers||[]).forEach(d=>D[d.id]=d);
@@ -658,7 +665,7 @@ function careers(series){const C={};
     c.seasons.push(l);const yr=+l.si.year;if(yr>=c.last){c.last=yr;c.name=l.name;if(String(l.number||"")!=="")c.number=l.number;}
     if(l.done&&l.pos===1)c.titles.push(l);["starts","wins","t5","t10","poles","led","inc","finSum","finN"].forEach(k=>c[k]+=l[k]);});
   Object.values(C).forEach(c=>{c.seasons.sort((a,b)=>b.si.year-a.si.year||Object.keys(SER_L).indexOf(a.si.series)-Object.keys(SER_L).indexOf(b.si.series));
-    c.avgFin=c.finN?c.finSum/c.finN:null;c.incRace=c.starts?c.inc/c.starts:null;});
+    c.avgFin=c.finN?c.finSum/c.finN:null;c.incRace=c.starts?c.inc/c.starts:null;c.nT=c.titles.length;});
   return C;}
 const clink=(id,name)=>'<button class="dl" data-act="career" data-arg="'+esc(id)+'">'+esc(name)+"</button>";
 V.records=()=>{if(!S.idx)return loading();const ser=S.recSeries||"all",C=Object.values(careers(ser));
@@ -667,7 +674,7 @@ V.records=()=>{if(!S.idx)return loading();const ser=S.recSeries||"all",C=Object.
   const champ=(y,k)=>{const si=S.idx.seasons.find(s=>s.series===k&&+s.year===y);if(!si)return'<span class="muted">–</span>';
     if(!seasonDone(si)){const L=si.main?mainLines():si.lines||[],ld=L[0];return'<span class="pill">In progress</span>'+(ld?'<div class="small muted" style="margin-top:4px">Leader: '+clink(ld[0],ld[1])+"</div>":"");}
     const L=si.main?mainLines():si.lines||[],w=L[0];return w?'<b class="champ">'+clink(w[0],w[1])+"</b>":"–";};
-  let h='<section class="stack"><div><div class="lt">Records</div>'+segs+"</div>";
+  let h='<section class="stack"><div><div class="sechead"><div class="lt">Records</div>'+(serFinalInfo("xfinity")?'<button class="btn sm" data-act="legacy" data-arg="xfinity">O\'Reilly/Xfinity Series legacy</button>':"")+"</div>"+segs+"</div>";
   h+='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Champions</div><div class="scroll"><table class="tbl"><thead><tr><th>Season</th>'+["cup","xfinity","trucks"].map(k=>"<th>"+SER_L[k]+"</th>").join("")+"</tr></thead><tbody>"+
     years.map(y=>"<tr><td><b>"+y+"</b></td>"+["cup","xfinity","trucks"].map(k=>'<td class="wrapcell">'+champ(y,k)+"</td>").join("")+"</tr>").join("")+"</tbody></table></div></div>";
   const minS=ser==="all"?40:25;
@@ -684,20 +691,46 @@ V.records=()=>{if(!S.idx)return loading();const ser=S.recSeries||"all",C=Object.
     board("Best average finish",[...qual].filter(c=>c.avgFin).sort((a,b)=>a.avgFin-b.avgFin),c=>c.avgFin.toFixed(1),"Minimum "+minS+" starts")+
     board("Cleanest drivers",[...qual].sort((a,b)=>a.incRace-b.incRace),c=>c.incRace.toFixed(1)+"x","Incidents per race · minimum "+minS+" starts")+"</div>";
   const first={};S.idx.seasons.forEach(s=>{first[s.series]=Math.min(first[s.series]||9999,+s.year);});
-  h+='<p class="hint">Official SimRacerHub results: Cup since '+first.cup+", Xfinity and Trucks since "+Math.min(first.xfinity||9999,first.trucks||9999)+". Seasons still running count through the latest race; titles count once a season is finished.</p></section>";
+  h+='<p class="hint">Official SimRacerHub results: Cup since '+first.cup+", O'Reilly/Xfinity and Trucks since "+Math.min(first.xfinity||9999,first.trucks||9999)+". Seasons still running count through the latest race; titles count once a season is finished.</p></section>";
   return h;};
+V.legacy=()=>{if(!S.idx)return loading();const k=S.legacySer||"xfinity",F=serFinalInfo(k);if(!F)return V.records();
+  const nowName=serName(k,F.year),SI=S.idx.seasons.filter(x=>x.series===k).sort((a,b)=>a.year-b.year),H=((S.idx.history||{})[k]||[]).slice(),C=Object.values(careers(k));
+  const names=[...new Set(SI.map(x=>serName(k,x.year)))],formerly=names.filter(n=>n!==nowName);
+  const winners=new Set(H.map(h=>h[6]).filter(Boolean)),starters=C.filter(c=>c.starts>0).length;
+  const fk=k+"-"+F.year;ensureSeason(fk);const FS=S.arch[fk],fr=FS&&FS.races?[...FS.races].filter(r=>r.status==="complete").pop():null;
+  const fdrv=id=>((FS&&FS.drivers)||[]).find(d=>d.id===id)||{name:id};
+  const champ=si=>{const L=si.lines||[],w=L[0];return si.done&&w?clink(w[0],w[1]):(w?'<span class="pill">In progress</span> <span class="small muted">Leader: '+clink(w[0],w[1])+"</span>":"–");};
+  const leader=(t,key,fmt)=>{const L=C.filter(c=>c[key]>0).sort((a,b)=>b[key]-a[key]||b.wins-a.wins).slice(0,5);
+    return'<div class="panel"><div class="lt">'+t+'</div><div class="list">'+(L.length?L.map((c,i)=>'<div class="podrow">'+posBadge(i+1)+'<div class="name">'+(String(c.number||"")!==""?'<span class="carno">#'+esc(c.number)+"</span> ":"")+clink(c.id,c.name)+'</div><span class="pts">'+fmt(c[key])+"</span></div>").join(""):'<p class="small muted">–</p>')+"</div></div>";};
+  let h='<section class="stack"><section class="hero"><div class="eyebrow">Series legacy · '+F.first+"–"+F.last+'</div><h1 class="track">INRS '+esc(nowName)+" Series</h1><div class=\"rule\"></div>"+
+    (formerly.length?'<div class="rname">Raced as the '+esc(formerly.join(" and "))+" Series"+(SI.length>1?" ("+SI.filter(x=>serName(k,x.year)!==nowName).map(x=>x.year).join(", ")+")":"")+" and the "+esc(nowName)+" Series in "+F.year+".</div>":"")+
+    '<p class="small" style="margin:10px 0 0;max-width:62ch">'+(F.ended?F.year+" was the final season. Thank you to every driver, team and fan who raced it. Every race, result and record stays here for good.":F.year+" is the final season of the series. This page fills in the rest of the story as the last races are run.")+"</p>"+
+    '<div class="meta" style="margin-top:12px"><span>'+plural(SI.length,"season")+"</span><span>"+plural(H.length,"race")+"</span><span>"+plural(winners.size,"different winner")+"</span><span>"+plural(starters,"driver")+"</span></div></section>";
+  h+='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Champions</div><div class="list">'+SI.slice().reverse().map(si=>'<div class="podrow"><span class="pts" style="min-width:3.2em">'+si.year+'</span><div class="name">'+champ(si)+'</div><span class="small muted">'+esc(serName(k,si.year))+"</span></div>").join("")+"</div></div>";
+  if(F.ended&&fr){const top=[...fr.results].filter(x=>int(x.fin)).sort((a,b)=>a.fin-b.fin).slice(0,5);
+    h+='<div class="panel"><div class="sechead"><div class="lt">The final race</div><span class="hint">'+esc(raceLabel(fr))+" · "+fmtDate(fr.date)+'</span></div><div class="list">'+top.map(x=>'<div class="podrow">'+posBadge(x.fin)+'<div class="name">'+clink(x.driverId,fdrv(x.driverId).name)+"</div>"+(x.lapsLed?'<span class="small muted">'+plural(x.lapsLed,"lap")+" led</span>":"")+"</div>").join("")+"</div></div>";}
+  h+='<div class="lgrid">'+leader("Most wins","wins",fmtN)+leader("Most top 5s","t5",fmtN)+leader("Most poles","poles",fmtN)+leader("Most laps led","led",fmtN)+leader("Most starts","starts",fmtN)+
+    leader("Championships","nT",x=>x)+"</div>";
+  const all=C.filter(c=>c.starts>0).sort((a,b)=>b.titles.length-a.titles.length||b.wins-a.wins||b.t5-a.t5||b.t10-a.t10||(a.avgFin||99)-(b.avgFin||99)),show=S.legacyAll?all:all.slice(0,25);
+  h+='<div class="panel" style="padding:6px 8px"><div class="sechead" style="margin:8px"><div class="lt">All-time standings</div><span class="hint">Every '+esc(names.join(" & "))+" start, "+F.first+"–"+F.last+'</span></div><div class="scroll"><table class="tbl"><thead><tr><th class="n">#</th><th>Driver</th><th class="n">Titles</th><th class="n">Starts</th><th class="n">Wins</th><th class="n">Top 5</th><th class="n">Top 10</th><th class="n">Poles</th><th class="n">Led</th><th class="n">Avg fin</th></tr></thead><tbody>'+
+    show.map((c,i)=>'<tr><td class="n">'+(i+1)+"</td><td>"+(String(c.number||"")!==""?'<span class="carno">#'+esc(c.number)+"</span> ":"")+clink(c.id,c.name)+'</td><td class="n">'+(c.titles.length||"–")+'</td><td class="n">'+c.starts+'</td><td class="n">'+c.wins+'</td><td class="n">'+c.t5+'</td><td class="n">'+c.t10+'</td><td class="n">'+c.poles+'</td><td class="n">'+fmtN(c.led)+'</td><td class="n">'+(c.avgFin?c.avgFin.toFixed(1):"–")+"</td></tr>").join("")+"</tbody></table></div>"+
+    (all.length>25?'<div class="row" style="margin:8px"><button class="btn sm" data-act="legacyall">'+(S.legacyAll?"Show top 25":"Show all "+all.length+" drivers")+"</button></div>":"")+"</div>";
+  const byY={};H.forEach(x=>(byY[x[0]]=byY[x[0]]||[]).push(x));
+  h+='<div class="panel"><div class="lt">Every winner</div>'+Object.keys(byY).sort((a,b)=>b-a).map((y,i)=>'<details class="legyr"'+(i===0?" open":"")+"><summary><b>"+y+" "+esc(serName(k,y))+'</b> <span class="muted small">'+plural(byY[y].length,"race")+'</span></summary><div class="scroll"><table class="tbl"><thead><tr><th class="n">Rd</th><th>Date</th><th>Track</th><th>Pole</th><th>Winner</th></tr></thead><tbody>'+
+    byY[y].map(x=>'<tr><td class="n">'+esc(x[1])+'</td><td class="muted">'+esc(x[2])+"</td><td>"+esc(trackOf(x[4]).label)+'</td><td class="muted">'+esc(x[5]||"–")+"</td><td><b>"+esc(x[6]||"–")+"</b></td></tr>").join("")+"</tbody></table></div></details>").join("")+"</div>";
+  return h+'<p class="hint">Official SimRacerHub results for every '+esc(names.join(" and "))+" Series race.</p></section>";};
 V.career=()=>{if(!S.idx)return loading();const c=careers("all")[S.careerId];if(!c)return V.records();
   const by={};c.seasons.forEach(l=>{const k=l.si.series,b=by[k]=by[k]||{k,n:0,starts:0,wins:0,t5:0,poles:0,titles:0,best:99};b.n++;b.starts+=l.starts;b.wins+=l.wins;b.t5+=l.t5;b.poles+=l.poles;if(l.done&&l.pos===1)b.titles++;if(l.pos<b.best)b.best=l.pos;});
   const sers=Object.keys(SER_L).filter(k=>by[k]);
   let h='<section class="stack"><div class="row"><button class="btn sm ghost" data-act="nav" data-arg="records">← Records</button></div>'+
     '<div class="dhero"><span class="big">'+(String(c.number||"")!==""?"#"+esc(c.number):"—")+'</span><div><div class="eyebrow">INRS career</div><h1>'+esc(c.name)+'</h1><div class="muted">'+plural(c.seasons.length,"season")+" · "+sers.map(k=>SER_L[k]).join(", ")+"</div></div></div>";
-  if(c.titles.length)h+='<div class="row">'+c.titles.map(l=>'<span class="pill final">'+l.si.year+" "+SER_L[l.si.series]+" champion</span>").join("")+"</div>";
+  if(c.titles.length)h+='<div class="row">'+c.titles.map(l=>'<span class="pill final">'+l.si.year+" "+serName(l.si.series,l.si.year)+" champion</span>").join("")+"</div>";
   h+='<div class="tiles">'+tile(c.titles.length,"Championships")+tile(fmtN(c.starts),"Starts")+tile(fmtN(c.wins),"Wins")+tile(fmtN(c.t5),"Top 5s")+tile(fmtN(c.t10),"Top 10s")+tile(fmtN(c.poles),"Poles")+tile(fmtN(c.led),"Laps led")+
     tile(c.avgFin?c.avgFin.toFixed(1):"–","Avg finish")+tile(c.incRace!=null?c.incRace.toFixed(1)+"x":"–","Inc per race")+tile(c.starts?Math.round(c.wins/c.starts*100)+"%":"–","Win rate")+"</div>";
   if(sers.length>1)h+='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">By series</div><div class="scroll"><table class="tbl"><thead><tr><th>Series</th><th class="n">Seasons</th><th class="n">Titles</th><th class="n">Starts</th><th class="n">Wins</th><th class="n">Top 5s</th><th class="n">Poles</th><th class="n">Best in pts</th></tr></thead><tbody>'+
     sers.map(k=>{const b=by[k];return"<tr><td><b>"+SER_L[k]+'</b></td><td class="n">'+b.n+'</td><td class="n">'+b.titles+'</td><td class="n">'+fmtN(b.starts)+'</td><td class="n">'+b.wins+'</td><td class="n">'+b.t5+'</td><td class="n">'+b.poles+'</td><td class="n">P'+b.best+"</td></tr>";}).join("")+"</tbody></table></div></div>";
   h+='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Season by season</div><div class="scroll"><table class="tbl"><thead><tr><th>Season</th><th>Pos</th><th class="n">Pts</th><th class="n">Starts</th><th class="n">Wins</th><th class="n">T5</th><th class="n">T10</th><th class="n">Poles</th><th class="n">Led</th><th class="n">Avg fin</th><th></th></tr></thead><tbody>'+
-    c.seasons.map(l=>"<tr><td><b>"+l.si.year+" "+SER_L[l.si.series]+"</b>"+(l.done?"":' <span class="pill">Live</span>')+"</td><td>"+posBadge(l.pos)+'</td><td class="n"><span class="pts">'+fmtN(l.pts)+'</span></td><td class="n">'+l.starts+'</td><td class="n">'+l.wins+'</td><td class="n">'+l.t5+'</td><td class="n">'+l.t10+'</td><td class="n">'+l.poles+'</td><td class="n">'+fmtN(l.led)+'</td><td class="n">'+(l.finN?(l.finSum/l.finN).toFixed(1):"–")+'</td><td><button class="btn sm ghost" data-act="seasondrv" data-arg="'+esc(l.si.key+"|"+l.id)+'">Season</button></td></tr>').join("")+
+    c.seasons.map(l=>"<tr><td><b>"+l.si.year+" "+serName(l.si.series,l.si.year)+"</b>"+(l.done?"":' <span class="pill">Live</span>')+"</td><td>"+posBadge(l.pos)+'</td><td class="n"><span class="pts">'+fmtN(l.pts)+'</span></td><td class="n">'+l.starts+'</td><td class="n">'+l.wins+'</td><td class="n">'+l.t5+'</td><td class="n">'+l.t10+'</td><td class="n">'+l.poles+'</td><td class="n">'+fmtN(l.led)+'</td><td class="n">'+(l.finN?(l.finSum/l.finN).toFixed(1):"–")+'</td><td><button class="btn sm ghost" data-act="seasondrv" data-arg="'+esc(l.si.key+"|"+l.id)+'">Season</button></td></tr>').join("")+
     "</tbody></table></div></div></section>";
   return h;};
 
@@ -868,7 +901,7 @@ function trackPower(tk){if(!S.idx)return{loading:true};const i=selInfo(),keys=S.
   return{races:last,top:top.slice(0,3),all:top};}
 function trackPowerPanel(tk,label,compact){const t=trackPower(tk),lbl=esc(label);
   if(t.loading)return'<div class="panel"><div class="lt">Best at '+lbl+'</div><p class="small muted">Loading track history…</p></div>';
-  if(!t.top.length)return compact?"":'<div class="panel"><div class="lt">Track power rankings</div><p class="small muted">Needs at least two past '+esc(SER_L[selInfo().series])+" races here.</p></div>";
+  if(!t.top.length)return compact?"":'<div class="panel"><div class="lt">Track power rankings</div><p class="small muted">Needs at least two past '+esc(serName(selInfo().series,selInfo().year))+" races here.</p></div>";
   const chip=(f,j)=>'<span class="fchip '+(f===1?"w":f&&f<=5?"t5":"")+'" title="'+esc(t.races[j].yr+" "+raceLabel(t.races[j].r))+'">'+(f??"–")+"</span>";
   return'<div class="panel"><div class="sechead"><div class="lt">Best at '+lbl+'</div><span class="hint">Last '+t.races.length+" races here · "+t.races.map(x=>x.yr).join(", ")+'</span></div><div class="list">'+
     t.top.map((p,i)=>'<div class="podrow">'+posBadge(i+1)+'<div class="name">'+(drv(p.id)?dlink(p.id):esc(p.name))+'<div class="chips" style="margin-top:4px">'+p.fins.map(chip).join("")+'</div></div><span class="pts" title="Average finish">'+p.avg.toFixed(1)+"</span></div>").join("")+
@@ -978,7 +1011,7 @@ const BOOK_ACT={
     if(m==="title"?!legOpen({k,rid,m}):!raceIsOpen(r)){toast("Betting is closed for this race.",true);return;}
     const key=k+"|"+rid+"|"+did+"|"+m,i=B.slip.findIndex(l=>legKey(l)===key);
     if(i>=0)B.slip.splice(i,1);else{if(B.slip.length>=10){toast("Your slip is full (10 picks).",true);return;}
-      const d=drv(did),nm=m==="h2h"?did.split("~").map(x=>(drv(x)||{name:x}).name).join(" over "):(d?d.name:did);B.slip.push({k,rid,did,m,odds,name:nm,label:m==="title"?selInfo().year+" "+SER_L[selInfo().series]+" championship":selInfo().year+" "+SER_L[selInfo().series]+" · Rd "+r.round+" "+trackOf(r.track).label,date:r.date});
+      const d=drv(did),nm=m==="h2h"?did.split("~").map(x=>(drv(x)||{name:x}).name).join(" over "):(d?d.name:did);B.slip.push({k,rid,did,m,odds,name:nm,label:m==="title"?selInfo().year+" "+serName(selInfo().series,selInfo().year)+" championship":selInfo().year+" "+serName(selInfo().series,selInfo().year)+" · Rd "+r.round+" "+trackOf(r.track).label,date:r.date});
       if(B.slip.length===2&&B.mode==="single"&&!Object.keys(B.stakes).length)B.mode="parlay";}
     saveBook();draw();},
   unpick(key){const B=book();B.slip=B.slip.filter(l=>legKey(l)!==key);delete B.stakes[key];saveBook();draw();},
@@ -1046,6 +1079,11 @@ function awardsPool(){const M=S.M,o=M.official;if(!o||!Array.isArray(o.rows))ret
   const prior=new Set();((S.idx&&S.idx.seasons)||[]).forEach(s=>{if(s.series==="cup"&&+s.year<2026)(s.lines||[]).forEach(l=>{if(num(l[5])>0)prior.add(l[0]);});});
   const el=o.rows.filter(r=>num(r.starts)>=10&&D[r.driverId]).map(r=>D[r.driverId]).sort((a,b)=>String(a.name).localeCompare(b.name));
   return{all:el,rookies:el.filter(d=>!prior.has(d.id)),vets:el.filter(d=>prior.has(d.id)),ready:!!S.idx};}
+function farewellPanel(){if(!isMain())return"";let h="";Object.keys(SER_FINAL).forEach(k=>{const F=serFinalInfo(k);if(!F||!F.ended)return;
+  const t=F.lastRace?new Date(F.lastRace+"T23:59:00").getTime():0;if(t&&Date.now()>t+21*864e5)return;const L=F.si.lines||[],w=L[0];
+  h+='<section class="panel farewell"><div class="eyebrow">'+F.first+"–"+F.last+'</div><div class="sechead"><div><h2>Thank you, '+esc(serName(k,F.year))+" Series</h2>"+
+    '<p class="small" style="margin:6px 0 0">The '+F.year+" season was the last one. "+(w?esc(w[1])+" is the final champion. ":"")+"Every race, result and record stays on the site for good.</p></div>"+
+    '<button class="btn primary" data-act="legacy" data-arg="'+k+'">See the series legacy</button></div></section>';});return h;}
 function awardsPanel(){if(!isMain())return"";const db=liveDb();if(!db)return"";
   const head='<div class="eyebrow">Fan vote</div><h2 class="awtitle">2026 iNRS Awards</h2>';
   if(awardsVoted())return'<section class="panel awards">'+head+'<p class="muted" style="margin:6px 0 0">Thanks, your ballot is in. Winners will be announced by the league.</p></section>';
@@ -1105,7 +1143,7 @@ const DOTR_ACT={
 
 /* ---------- auto race preview ---------- */
 function previewData(){const c=S.calc,r=c.next;if(!r)return null;const tk=trackOf(r.track).key,lbl=trackOf(r.track).label,out=[],nm=id=>(drv(id)||{name:id}).name;
-  const ser=SER_L[selInfo().series]||"Cup";
+  const ser=serName(selInfo().series,selInfo().year)||"Cup";
   out.push(["",selInfo().year+" INRS "+ser+" Series · Round "+r.round+" · "+lbl+" · "+fmtDate(r.date)+(r.laps?" · "+r.laps+" laps":"")]);
   const ch=chaseData();if(ch&&ch.rows.length>1){const L=ch.rows[0],P=ch.rows[1],sc=chaseScenarios(ch)[0];
     out.push(["The Chase",nm(L.s.driver.id)+" leads "+nm(P.s.driver.id)+" by "+(L.pts-P.pts)+" with "+plural(ch.remaining,"race")+" left. "+ch.rows.filter(x=>x.alive).length+" of "+ch.rows.length+" drivers can still win the title."+(sc?" "+sc.text.replace(/<[^>]+>/g,"").replace(/\s*Leads .+? by \d+\.\s*$/,""):"")]);}
@@ -1176,7 +1214,7 @@ function titlePanel(){const t=titleOdds();if(!t)return"";
 function futuresSection(open){const t=titleOdds();if(!t)return'<p class="small muted">Championship futures open during the Chase.</p>';const B=book(),k=S.sel,picked=new Set(B.slip.map(legKey));
   const R=seasonRaces(k)||[],lastR=R.filter(r=>!r.exhibition).sort((a,b)=>num(b.round,0)-num(a.round,0))[0],closed=!lastR||!raceOpen(lastR.date)||lastR.status==="complete";
   const rows=t.rows.filter(r=>r.p>=0.001);
-  return'<p class="small muted" style="margin:0">Bet on who wins the '+esc(selInfo().year+" "+SER_L[selInfo().series])+" championship. Odds come from simulating the rest of the Chase 4,000 times and update after every race. Bets pay out when the champion is crowned."+(closed?' <b style="color:var(--bad)">Futures are closed.</b>':"")+"</p>"+
+  return'<p class="small muted" style="margin:0">Bet on who wins the '+esc(selInfo().year+" "+serName(selInfo().series,selInfo().year))+" championship. Odds come from simulating the rest of the Chase 4,000 times and update after every race. Bets pay out when the champion is crowned."+(closed?' <b style="color:var(--bad)">Futures are closed.</b>':"")+"</p>"+
     '<div class="panel" style="padding:6px 8px"><div class="list">'+rows.map(r=>{const o=american(Math.min(0.95,Math.max(0.004,r.p*1.12*marketMult(popCount(k,"title",r.id,"title"))))),key=k+"|title|"+r.id+"|title";
       return'<div class="oddrow"><span class="orank">'+r.pos+'</span><div class="oname">'+dlink(r.id)+'<div class="whys"><span class="why"><b>'+fmtN(r.pts)+" pts</b> "+(r.beh?"−"+r.beh+" to the leader":"Leader")+'</span><span class="why"><b>Title chance</b> '+(r.p<0.01?"<1":Math.round(r.p*100))+'%</span></div></div><div class="prices" style="grid-template-columns:90px"><button class="price'+(picked.has(key)?" on":"")+'" '+(!closed&&open!==false?'data-act="pick" data-arg="'+esc(k+"|title|"+r.id+"|title|"+o)+'"':"disabled")+'><small>Champion</small><b>'+o+"</b></button></div></div>";}).join("")+"</div></div>";}
 
@@ -1229,7 +1267,7 @@ function wrappedData(id){const c=S.calc,s=c.D[id];if(!s||!s.starts)return null;c
   else if(s.avgFin&&s.avgFin<=10&&!s.wins){title="Mr. Consistent";why="Average finish of "+s.avgFin.toFixed(1)+" without a win";}
   else if(incPct>0.85&&s.starts>=8){title="Clean Machine";why="One of the cleanest drivers in the series";}
   else{title="The Grinder";why=plural(s.starts,"start")+", never missing a fight";}
-  return{d,s,pos:c.rank[id],best,bt,riv:riv?{id:riv[0],n:riv[1].n,met:riv[1].met}:null,title,why,season:selInfo().year+" "+SER_L[selInfo().series]};}
+  return{d,s,pos:c.rank[id],best,bt,riv:riv?{id:riv[0],n:riv[1].n,met:riv[1].met}:null,title,why,season:selInfo().year+" "+serName(selInfo().series,selInfo().year)};}
 V.wrapped=()=>{const w=wrappedData(S.wrapId);if(!w)return'<div class="lt">Season Wrapped</div>'+empty("No season to wrap yet","This driver needs at least one start this season.");
   const st=(v,l)=>'<div class="wst"><b>'+esc(v)+"</b><span>"+esc(l)+"</span></div>";
   return'<section class="stack"><div class="row"><button class="btn sm ghost" data-act="driver" data-arg="'+esc(w.d.id)+'">← '+esc(w.d.name)+'</button><button class="btn sm primary" data-act="wrapsave">Save as image</button></div>'+
@@ -1405,7 +1443,7 @@ async function write(fn,ok){S.busy=true;draw();try{await fn();toast(ok);return t
 function loadResultsForm(id){const r=S.races.find(x=>x.id===id);if(!r){S.forms.results=null;return;}
   S.forms.results={raceId:id,recapUrl:r.recapUrl||"",note:"",rows:[...(r.results||[])].sort((a,b)=>a.fin-b.fin).map(x=>({driverId:x.driverId,newName:"",newNumber:"",newCust:"",fin:String(x.fin??""),start:x.start==null?"":String(x.start),led:String(x.lapsLed||0),comp:x.lapsComp==null?"":String(x.lapsComp),inc:String(x.inc||0),status:x.status||"Running",bonus:String(x.bonus||0),pts:typeof x.pts==="number"?String(x.pts):"",keep:{car:x.car,stage:x.stage,pen:x.pen,rating:x.rating}}))};}
 
-const ACT={rivser:a=>{S.rivSer=a||"";render();},rivyr:a=>{S.rivYr=+a||0;render();},
+const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false;setHash();draw();window.scrollTo(0,0);},legacyall:()=>{S.legacyAll=!S.legacyAll;draw();},rivser:a=>{S.rivSer=a||"";render();},rivyr:a=>{S.rivYr=+a||0;render();},
   ...RW_ACT,
   ...DOTR_ACT,
   ...PREVIEW_ACT,
@@ -1545,12 +1583,12 @@ document.addEventListener("focusout",()=>setTimeout(()=>{if(S.pending&&!isTyping
 let gcLast=null;
 function gcTrack(){try{const g=window.goatcounter;if(!S.static||!g||typeof g.count!=="function")return;
   const key="/"+S.view+(isMain()?"":"/"+S.sel);if(key===gcLast)return;gcLast=key;
-  const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="compare"?"Head to head":S.view])[1];
+  const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="legacy"?"Series legacy":S.view==="compare"?"Head to head":S.view])[1];
   g.count({path:key,title:tab+(isMain()?"":" · "+S.sel)});}catch(e){}}
 window.__gcReady=()=>{gcLast=null;gcTrack();};
 function draw(){S.calc=compute();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
   document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
-  document.getElementById("tabs").innerHTML=TABS.filter(t=>t[0]!=="admin"||(S.admin&&isMain())).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||(S.view==="career"&&t[0]==="records")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
+  document.getElementById("tabs").innerHTML=TABS.filter(t=>t[0]!=="admin"||(S.admin&&isMain())).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy")&&t[0]==="records")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
   if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
   const sw=document.getElementById("switch");if(sw){const h=switcher();sw.hidden=!h;if(!isTyping()||!sw.contains(document.activeElement))sw.innerHTML=h;}
   const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"||S.selLoading?loading():(V[S.view]||V.home)();
@@ -1565,9 +1603,9 @@ async function loadStatic(){try{const r=await fetch("data.json",{cache:"no-store
   S.mode="live";S.admin=false;S.loaded=true;S.updated=d.updated||"";}catch(e){S.mode="offline";}draw();}
 async function loadIndex(){try{const r=await fetch("data/seasons.json",{cache:"no-store"});if(!r.ok)return;S.idx=await r.json();draw();}catch(e){}}
 window.addEventListener("hashchange",()=>{const hs=(location.hash||"").slice(1).split("/"),v=hs[0],k=hs[1]||MAINKEY;
-  if((TABS.some(t=>t[0]===v)||v==="compare"||v==="career"||v==="bets"||v==="wrapped")&&v!==S.view){S.view=v;S.driverSel=null;S.trackSel=null;}
+  if((TABS.some(t=>t[0]===v)||v==="compare"||v==="career"||v==="bets"||v==="wrapped"||v==="legacy")&&v!==S.view){S.view=v;S.driverSel=null;S.trackSel=null;}
   if(k!==S.sel)selectSeason(k);else draw();});
-async function boot(){const hs=(location.hash||"").slice(1).split("/"),h=hs[0];if(TABS.some(t=>t[0]===h)||h==="compare"||h==="career"||h==="bets"||h==="wrapped")S.view=h;draw();
+async function boot(){const hs=(location.hash||"").slice(1).split("/"),h=hs[0];if(TABS.some(t=>t[0]===h)||h==="compare"||h==="career"||h==="bets"||h==="wrapped"||h==="legacy")S.view=h;draw();
   loadIndex().then(()=>{if(hs[1]&&hs[1]!==MAINKEY)selectSeason(hs[1]);});
   const c=window.claude;if(!c||typeof c.use!=="function"){await loadStatic();return;}
   const [db,user]=await Promise.all([c.use("db"),c.use("user")]);
