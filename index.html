@@ -210,6 +210,9 @@ footer .presented b{color:var(--accent)}
 .price.hside{padding:8px 6px}.price.hside small{text-transform:none;letter-spacing:0;font:600 13px var(--body);color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.price.hside small .carno{font-size:12px}
 .price.on.hside small{color:#fff}
 .h2hbuild{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}.h2hbuild select{width:100%;font-size:15px}
+.awards{margin-bottom:18px;border-top:3px solid var(--gold)}.awtitle{font:italic 900 clamp(24px,5vw,34px)/1.05 var(--display);text-transform:uppercase;margin:4px 0 0;color:var(--gold)}
+.awgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:10px 18px}
+.awrow{display:grid;gap:6px;padding:8px 0;border-top:1px solid var(--line)}.awrow small{display:block;font-size:12px;margin-top:2px}.awrow select{width:100%}
 .prices{display:grid;grid-template-columns:repeat(3,62px);gap:4px}
 .price{display:grid;justify-items:center;gap:1px;padding:6px 2px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2);color:var(--fg);cursor:pointer;font:inherit}
 .price small{font:600 9px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.price b{font:italic 900 15px var(--display);color:var(--accent)}
@@ -429,7 +432,7 @@ V.home=()=>{const c=S.calc;let h="";
   const withRecap=c.done.filter(r=>safeUrl(r.recapUrl));const lr=withRecap[withRecap.length-1];
   right+='<div class="panel"><div class="lt">Latest recap</div>'+(lr?recapEmbed(lr):empty("No recaps yet","Race recaps will be linked here."))+"</div>";
   right+=linksPanel();
-  return h+'<div class="grid2"><div class="stack">'+left+'</div><div class="stack">'+right+"</div></div>";};
+  return h+awardsPanel()+'<div class="grid2"><div class="stack">'+left+'</div><div class="stack">'+right+"</div></div>";};
 
 function hubBtn(label){const u=safeUrl(settings().hubUrl);return u?'<a class="btn sm" href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(label||"Official standings on SimRacerHub")+" ↗</a>":"";}
 function hubBar(label){const b=hubBtn(label);return b?'<div class="row" style="margin-bottom:12px">'+b+"</div>":"";}
@@ -984,6 +987,39 @@ function h2hSection(d,open,picked,O){const k=S.sel,rid=d.race.id,byE=[...d.rows]
     (custom?card(A,Bb,""):'<p class="hint" style="margin:8px 0 0">Choose any two drivers in this race\'s field to get a price.</p>')+"</div>"+
     '<div><div class="lt">Featured matchups</div><div class="h2hgrid">'+feat.map(f=>card(f[0],f[1],f[2])).join("")+"</div></div>";}
 
+/* ---------- 2026 iNRS Awards ballot (anonymous, one per browser, stored in the live database) ---------- */
+const AWARDS=[["roty","Rookie of the Year","First Cup season (no Cup starts before 2026)"],["popular","Most Popular Driver"],["unpopular","Least Popular Driver"],
+  ["wrecker","Most Likely to Wreck You"],["radio","Radioactive Sweetheart","Most likely to blow up over the radio"],["pass","Hardest Pass"],
+  ["steal","Driver You Most Want to Steal for Your Team"],["keyboard","Keyboard Warrior","Who talks the most trash in Discord"],["improved","Most Improved Driver","Raced in the Cup Series before 2026"]];
+const AW_KEY="inrs-awards-2026";
+function awardsVoted(){try{return!!localStorage.getItem(AW_KEY);}catch(e){return false;}}
+function awardsPool(){const M=S.M,o=M.official;if(!o||!Array.isArray(o.rows))return null;const D={};(M.drivers||[]).forEach(d=>D[d.id]=d);
+  const prior=new Set();((S.idx&&S.idx.seasons)||[]).forEach(s=>{if(s.series==="cup"&&+s.year<2026)(s.lines||[]).forEach(l=>{if(num(l[5])>0)prior.add(l[0]);});});
+  const el=o.rows.filter(r=>num(r.starts)>=10&&D[r.driverId]).map(r=>D[r.driverId]).sort((a,b)=>String(a.name).localeCompare(b.name));
+  return{all:el,rookies:el.filter(d=>!prior.has(d.id)),vets:el.filter(d=>prior.has(d.id)),ready:!!S.idx};}
+function awardsPanel(){if(!isMain())return"";const db=liveDb();if(!db)return"";
+  const head='<div class="eyebrow">Fan vote</div><h2 class="awtitle">2026 iNRS Awards</h2>';
+  if(awardsVoted())return'<section class="panel awards">'+head+'<p class="muted" style="margin:6px 0 0">Thanks, your ballot is in. Winners will be announced by the league.</p></section>';
+  if(!S.awOpen)return'<section class="panel awards">'+head+'<p class="muted" style="margin:6px 0 10px">Vote in '+AWARDS.length+' categories, from Rookie of the Year to Keyboard Warrior. Anonymous, one ballot per person. Open to Cup drivers with 10+ starts this season.</p><button class="btn primary" data-act="awopen">Vote now</button></section>';
+  const P=awardsPool();if(!P||!P.ready)return'<section class="panel awards">'+head+loading()+"</section>";
+  const opt=list=>'<option value="">No vote</option>'+list.map(d=>'<option value="'+esc(d.id)+'"'+((S.awVotes||{})[S.awCur]===d.id?" selected":"")+">"+esc(dlabel(d))+"</option>").join("");
+  const rows=AWARDS.map(([k,l,sub])=>{const list=k==="roty"?P.rookies:k==="improved"?P.vets:P.all;const v=(S.awVotes||{})[k]||"";
+    return'<label class="awrow"><span><b>'+esc(l)+"</b>"+(sub?'<small class="muted">'+esc(sub)+"</small>":"")+'</span><select class="yearsel" data-aw="'+k+'">'+'<option value="">No vote</option>'+list.map(d=>'<option value="'+esc(d.id)+'"'+(v===d.id?" selected":"")+">"+esc(dlabel(d))+"</option>").join("")+"</select></label>";}).join("");
+  return'<section class="panel awards">'+head+'<p class="small muted" style="margin:6px 0 12px">Anonymous: your name isn\'t attached to your ballot. You can only submit once, so take your time. Leave any category on "No vote" to skip it.</p><div class="awgrid">'+rows+
+    '</div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="awsubmit"'+(S.busy?" disabled":"")+'>Submit ballot</button><button class="btn ghost" data-act="awclose">Cancel</button></div></section>';}
+document.addEventListener("change",e=>{const el=e.target;if(el.dataset&&el.dataset.aw){S.awVotes=S.awVotes||{};S.awVotes[el.dataset.aw]=el.value;}});
+const AW_ACT={
+  awopen(){S.awOpen=true;S.awVotes=S.awVotes||{};draw();},
+  awclose(){S.awOpen=false;draw();},
+  async awsubmit(){const v={};document.querySelectorAll("select[data-aw]").forEach(s=>{if(s.value)v[s.dataset.aw]=s.value;});
+    if(!Object.keys(v).length){toast("Pick at least one driver before submitting.",true);return;}
+    if(awardsVoted()){toast("You've already voted.",true);return;}
+    S.busy=true;draw();const id=clientId();
+    try{const r=await fetch(liveDb()+"/awards/2026/"+id+".json",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({t:Date.now()},v))});
+      S.busy=false;if(r.status===401||r.status===403){try{localStorage.setItem(AW_KEY,"1");}catch(e){}S.awOpen=false;draw();toast("A ballot from this device is already in.",true);return;}
+      if(!r.ok)throw 0;try{localStorage.setItem(AW_KEY,String(Date.now()));}catch(e){}S.awOpen=false;draw();toast("Ballot submitted. Thanks for voting!");}
+    catch(e){S.busy=false;draw();toast("Couldn't submit your ballot. Check your connection and try again.",true);}}};
+
 V.bets=()=>{needSeasons();const B=book(),br=bankroll();
   const betCard=b=>{const r=betResult(b),nv=r.st.filter(x=>x==="void").length,d=b.t==="parlay"?b.legs.reduce((m,l,i)=>r.st[i]==="void"?m:m*decOdds(l.odds),1):decOdds(b.legs[0].odds);
     const tag={won:'<span class="pill final">Won</span>',lost:'<span class="pill" style="color:var(--bad)">Lost</span>',void:'<span class="pill">Push · refunded</span>',pending:'<span class="pill next">Open</span>'}[r.s];
@@ -1134,6 +1170,7 @@ function loadResultsForm(id){const r=S.races.find(x=>x.id===id);if(!r){S.forms.r
   S.forms.results={raceId:id,recapUrl:r.recapUrl||"",note:"",rows:[...(r.results||[])].sort((a,b)=>a.fin-b.fin).map(x=>({driverId:x.driverId,newName:"",newNumber:"",newCust:"",fin:String(x.fin??""),start:x.start==null?"":String(x.start),led:String(x.lapsLed||0),comp:x.lapsComp==null?"":String(x.lapsComp),inc:String(x.inc||0),status:x.status||"Running",bonus:String(x.bonus||0),pts:typeof x.pts==="number"?String(x.pts):"",keep:{car:x.car,stage:x.stage,pen:x.pen,rating:x.rating}}))};}
 
 const ACT={
+  ...AW_ACT,
   booktab(t){S.bookTab=t;draw();},
   ...BOOK_ACT,
   oddsmkt(k){S.oddsMkt=k;draw();},
