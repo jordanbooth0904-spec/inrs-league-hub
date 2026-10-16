@@ -1185,23 +1185,26 @@ function careerRaces(){if(!S.idx)return null;let missing=false;const out=[];
 function careerName(id){if(drv(id))return drv(id).name;for(const k in S.arch){const d=((S.arch[k]||{}).drivers||[]).find(x=>x.id===id);if(d)return d.name;}const d=(S.M.drivers||[]).find(x=>x.id===id);return d?d.name:id;}
 function rivYears(){return S.idx?[...new Set(S.idx.seasons.map(x=>+x.year))].sort((a,b)=>b-a):[];}
 function rivSeg(){const Y=rivYears(),cur=S.rivYr||0;return'<div class="seg" role="group" aria-label="Rivalry years">'+[[0,"All time"],...Y.map(y=>[y,String(y)])].map(([y,l])=>'<button data-act="rivyr" data-arg="'+y+'" aria-pressed="'+(cur===y)+'">'+l+"</button>").join("")+"</div>";}
-function rivalsOf(id,yr){const CR=careerRaces();if(!CR)return null;const T={};
-  CR.forEach(({y,r})=>{if(yr&&y!==yr)return;const me=r.results.find(x=>x.driverId===id);if(!me||!int(me.fin))return;const f=int(me.fin);
+function rivSerSeg(){const cur=S.rivSer||"",have=S.idx?new Set(S.idx.seasons.map(x=>x.series)):new Set();return'<div class="seg" role="group" aria-label="Rivalry series">'+[["","All series"],["cup","Cup"],["xfinity","Xfinity"],["trucks","Trucks"]].filter(([k])=>!k||have.has(k)).map(([k,l])=>'<button data-act="rivser" data-arg="'+k+'" aria-pressed="'+(cur===k)+'">'+l+"</button>").join("")+"</div>";}
+function rivFilters(){return'<div class="row" style="gap:8px;flex-wrap:wrap">'+rivSerSeg()+rivSeg()+"</div>";}
+function rivScope(yr,ser){return(ser?SER_L[ser]+" ":"")+(yr?"race in "+yr:"race since 2022")+(ser?"":" (all series)");}
+function rivalsOf(id,yr,ser){const CR=careerRaces();if(!CR)return null;const T={};
+  CR.forEach(({k,y,r})=>{if(yr&&y!==yr)return;if(ser&&k.split("-")[0]!==ser)return;const me=r.results.find(x=>x.driverId===id);if(!me||!int(me.fin))return;const f=int(me.fin);
     r.results.forEach(x=>{if(x.driverId===id||!int(x.fin))return;const t=T[x.driverId]=T[x.driverId]||{id:x.driverId,met:0,ahead:0};t.met++;if(f<int(x.fin))t.ahead++;});});
   return Object.values(T);}
-function h2hCareer(a,b,yr){const CR=careerRaces();if(!CR)return null;let met=0,ahead=0,series={};
-  CR.forEach(({k,y:ry,r})=>{if(yr&&ry!==yr)return;const x=r.results.find(y=>y.driverId===a),y=r.results.find(z=>z.driverId===b);if(!x||!y||!int(x.fin)||!int(y.fin))return;met++;if(int(x.fin)<int(y.fin))ahead++;const s=k.split("-")[0];series[s]=(series[s]||0)+1;});
+function h2hCareer(a,b,yr,ser){const CR=careerRaces();if(!CR)return null;let met=0,ahead=0,series={};
+  CR.forEach(({k,y:ry,r})=>{if(yr&&ry!==yr)return;if(ser&&k.split("-")[0]!==ser)return;const x=r.results.find(y=>y.driverId===a),y=r.results.find(z=>z.driverId===b);if(!x||!y||!int(x.fin)||!int(y.fin))return;met++;if(int(x.fin)<int(y.fin))ahead++;const s=k.split("-")[0];series[s]=(series[s]||0)+1;});
   return{met,ahead,series};}
-function rivalsPanel(id){const yr=S.rivYr||0,L=rivalsOf(id,yr);if(!L)return'<div class="panel"><div class="lt">Rivalries</div><p class="small muted">Loading every INRS season…</p></div>';
+function rivalsPanel(id){const yr=S.rivYr||0,ser=S.rivSer||"",L=rivalsOf(id,yr,ser);if(!L)return'<div class="panel"><div class="lt">Rivalries</div><p class="small muted">Loading every INRS season…</p></div>';
   const mx=Math.max(0,...L.map(t=>t.met)),mn=Math.max(yr?4:8,Math.round(mx*0.15)),q=L.filter(t=>t.met>=mn);
-  const head='<div class="sechead"><div class="lt">Rivalries</div>'+rivSeg()+"</div>";
-  if(!q.length)return'<div class="panel">'+head+'<p class="small muted" style="margin:0">'+(L.length?"Not enough races together "+(yr?"in "+yr:"yet")+" to call a rivalry.":"No races "+(yr?"in "+yr:"yet")+".")+"</p></div>";const pct=t=>t.ahead/t.met;
+  const head='<div class="sechead"><div class="lt">Rivalries</div>'+rivFilters()+"</div>",scope=(ser?SER_L[ser]+" ":"")+(yr?"in "+yr:"yet");
+  if(!q.length)return'<div class="panel">'+head+'<p class="small muted" style="margin:0">'+(L.length?"Not enough "+(ser?SER_L[ser]+" ":"")+"races together "+(yr?"in "+yr:"yet")+" to call a rivalry.":"No "+(ser?SER_L[ser]+" ":"")+"races "+(yr?"in "+yr:"yet")+".")+"</p></div>";const pct=t=>t.ahead/t.met;
   const nem=[...q].sort((a,b)=>pct(a)-pct(b)||b.met-a.met)[0],vic=[...q].sort((a,b)=>pct(b)-pct(a)||b.met-a.met)[0],
     close=[...q].filter(t=>t.met>=(yr?6:12)).sort((a,b)=>Math.abs(pct(a)-.5)-Math.abs(pct(b)-.5)||b.met-a.met)[0],often=[...L].sort((a,b)=>b.met-a.met).slice(0,6);
   const nm=x=>drv(x)?dlink(x):'<button class="dl" data-act="career" data-arg="'+esc(x)+'">'+esc(careerName(x))+"</button>",rec=t=>t.ahead+"–"+(t.met-t.ahead);
   const card=(lbl,t,sub)=>t?'<div class="rivcard"><span class="eyebrow">'+lbl+'</span><b>'+nm(t.id)+'</b><span class="small muted">'+sub(t)+"</span></div>":"";
-  return'<div class="panel">'+head+'<p class="hint" style="margin:6px 0 10px">'+(yr?"Every INRS race in "+yr+" (all series)":"Every INRS race since 2022")+" · min. "+mn+' races together</p><div class="rivgrid">'+
-    card("Nemesis",nem,t=>"Beat you in "+(t.met-t.ahead)+" of "+t.met+" races")+card("Favorite victim",vic,t=>"Beat them in "+t.ahead+" of "+t.met+" races")+(close&&close.id!==nem.id&&close.id!==vic.id?card("Closest rival",close,t=>t.ahead*2===t.met?"Dead even at "+rec(t):(t.ahead*2>t.met?"You lead ":"They lead ")+rec(t).split("–").sort((x,y)=>y-x).join("–")):"")+"</div>"+
+  return'<div class="panel">'+head+'<p class="hint" style="margin:6px 0 10px">'+"Every INRS "+rivScope(yr,ser)+" · min. "+mn+' races together</p><div class="rivgrid">'+
+    card(nem&&nem.ahead*2<nem.met?"Nemesis":"Toughest opponent",nem,t=>"Beat you in "+(t.met-t.ahead)+" of "+t.met+" races")+card("Favorite victim",vic,t=>"Beat them in "+t.ahead+" of "+t.met+" races")+(close&&close.id!==nem.id&&close.id!==vic.id?card("Closest rival",close,t=>t.ahead*2===t.met?"Dead even at "+rec(t):(t.ahead*2>t.met?"You lead ":"They lead ")+rec(t).split("–").sort((x,y)=>y-x).join("–")):"")+"</div>"+
     '<div class="scroll" style="margin-top:10px"><table class="tbl"><thead><tr><th>Most-raced opponents</th><th class="n">Races</th><th class="n">Ahead</th><th class="n">Behind</th></tr></thead><tbody>'+
     often.map(t=>"<tr><td>"+nm(t.id)+'</td><td class="n">'+t.met+'</td><td class="n">'+t.ahead+'</td><td class="n">'+(t.met-t.ahead)+"</td></tr>").join("")+"</tbody></table></div></div>";}
 
@@ -1399,7 +1402,7 @@ async function write(fn,ok){S.busy=true;draw();try{await fn();toast(ok);return t
 function loadResultsForm(id){const r=S.races.find(x=>x.id===id);if(!r){S.forms.results=null;return;}
   S.forms.results={raceId:id,recapUrl:r.recapUrl||"",note:"",rows:[...(r.results||[])].sort((a,b)=>a.fin-b.fin).map(x=>({driverId:x.driverId,newName:"",newNumber:"",newCust:"",fin:String(x.fin??""),start:x.start==null?"":String(x.start),led:String(x.lapsLed||0),comp:x.lapsComp==null?"":String(x.lapsComp),inc:String(x.inc||0),status:x.status||"Running",bonus:String(x.bonus||0),pts:typeof x.pts==="number"?String(x.pts):"",keep:{car:x.car,stage:x.stage,pen:x.pen,rating:x.rating}}))};}
 
-const ACT={rivyr:a=>{S.rivYr=+a||0;render();},
+const ACT={rivser:a=>{S.rivSer=a||"";render();},rivyr:a=>{S.rivYr=+a||0;render();},
   ...RW_ACT,
   ...DOTR_ACT,
   ...PREVIEW_ACT,
@@ -1529,8 +1532,8 @@ document.addEventListener("change",e=>{const el=e.target,p=el.dataset&&el.datase
 /* ---------- render ---------- */
 {const _cmp=V.compare;V.compare=()=>{let h=_cmp();const c=S.calc,all=c.standings.filter(s=>s.starts>0||s.off);if(all.length<2)return h;
   let[a,b]=S.cmp||[];if(!c.D[a])a=all[0].driver.id;if(!c.D[b]||b===a)b=(all.find(s=>s.driver.id!==a)||all[1]).driver.id;
-  const yr=S.rivYr||0,r=h2hCareer(a,b,yr),na=c.D[a].driver.name,nb=c.D[b].driver.name;
-  const p=r?(r.met?'<div class="panel"><div class="sechead"><div class="lt">'+(yr?yr+" head to head":"Career head to head")+'</div>'+rivSeg()+'</div><p style="margin:0"><b>'+esc(na)+"</b> has finished ahead of <b>"+esc(nb)+"</b> in <b>"+r.ahead+" of "+r.met+"</b> races they've both run"+(yr?" in "+yr:"")+" ("+Object.entries(r.series).map(([k,n])=>n+" "+SER_L[k]).join(", ")+').</p><div class="cbar"><i style="width:'+(r.ahead/r.met*100).toFixed(1)+'%"></i></div><div class="row small" style="justify-content:space-between"><span>'+esc(na)+" "+r.ahead+"</span><span>"+(r.met-r.ahead)+" "+esc(nb)+"</span></div></div>":'<div class="panel"><div class="sechead"><div class="lt">'+(yr?yr+" head to head":"Career head to head")+'</div>'+rivSeg()+'</div><p class="small muted" style="margin:0">They haven\'t finished a race together'+(yr?" in "+yr:" yet")+'.</p></div>'):'<div class="panel"><div class="lt">Career head to head</div><p class="small muted" style="margin:0">Loading every INRS season…</p></div>';
+  const yr=S.rivYr||0,ser=S.rivSer||"",r=h2hCareer(a,b,yr,ser),na=c.D[a].driver.name,nb=c.D[b].driver.name;
+  const p=r?(r.met?'<div class="panel"><div class="sechead"><div class="lt">'+(yr?yr+" ":"Career ")+(ser?SER_L[ser]+" ":"")+"head to head"+'</div>'+rivFilters()+'</div><p style="margin:0"><b>'+esc(na)+"</b> has finished ahead of <b>"+esc(nb)+"</b> in <b>"+r.ahead+" of "+r.met+"</b> "+(ser?SER_L[ser]+" ":"")+"races they've both run"+(yr?" in "+yr:"")+(ser?"":" ("+Object.entries(r.series).map(([k,n])=>n+" "+SER_L[k]).join(", ")+")")+'.</p><div class="cbar"><i style="width:'+(r.ahead/r.met*100).toFixed(1)+'%"></i></div><div class="row small" style="justify-content:space-between"><span>'+esc(na)+" "+r.ahead+"</span><span>"+(r.met-r.ahead)+" "+esc(nb)+"</span></div></div>":'<div class="panel"><div class="sechead"><div class="lt">'+(yr?yr+" ":"Career ")+(ser?SER_L[ser]+" ":"")+"head to head"+'</div>'+rivFilters()+'</div><p class="small muted" style="margin:0">They haven\'t finished a '+(ser?SER_L[ser]+" ":"")+'race together'+(yr?" in "+yr:" yet")+'.</p></div>'):'<div class="panel"><div class="lt">Career head to head</div><p class="small muted" style="margin:0">Loading every INRS season…</p></div>';
   const i=h.lastIndexOf("</section>");return i>=0?h.slice(0,i)+p+h.slice(i):h+p;};}
 function isTyping(){const a=document.activeElement;return!!(a&&a.closest&&a.closest("#main")&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&a.type!=="file");}
 function render(){if(isTyping()){S.pending=true;return;}draw();}
