@@ -199,6 +199,7 @@ footer .presented b{color:var(--accent)}
 .why.live{color:#ff8080;font-weight:600}
 @media (prefers-reduced-motion:no-preference){.livebar:not(.stale) .ldot,.why.live .ldot{animation:blink 1.4s ease-in-out infinite}}
 .dot.void{background:transparent;border:2px solid var(--muted)}
+.why.pop{color:var(--gold);font-weight:600}
 .mvp{font-style:normal;font-size:10px;margin-left:3px;vertical-align:2px}.mvp.up{color:var(--ok)}.mvp.dn{color:var(--bad)}.price.on .mvp{color:#fff}
 .prices{display:grid;grid-template-columns:repeat(3,62px);gap:4px}
 .price{display:grid;justify-items:center;gap:1px;padding:6px 2px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2);color:var(--fg);cursor:pointer;font:inherit}
@@ -601,7 +602,7 @@ function trackDetail(t){const season=+settings().season;
   const cur=t.races.filter(r=>r.current&&r.done&&r.raceId);let top="";
   if(cur.length){top='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">'+season+" results here</div>"+cur.map(r=>{const race=S.races.find(x=>x.id===r.raceId);return race?'<div class="small muted" style="margin:6px 8px">'+esc(raceLabel(race))+" · "+fmtShort(race.date)+"</div>"+resultsTable(Object.assign({},race,{results:[...race.results].sort((a,b)=>a.fin-b.fin).slice(0,10)})):"";}).join("")+"</div>";}
   return'<section class="stack"><div><button class="btn sm ghost" data-act="nav" data-arg="tracks">← All tracks</button></div><div><div class="eyebrow">Track history</div><h1 class="track" style="font-size:clamp(28px,6vw,44px)">'+esc(t.label)+"</h1></div>"+
-    '<div class="tiles">'+tile(t.races.filter(r=>r.winner&&!r.exhibition).length,"INRS races")+(()=>{const mw=mostWins(t);return tile(mw?mw.who:"–","Most wins"+(mw?" ("+mw.detail+")":""),true);})()+tile(new Set(t.races.filter(r=>r.winner).map(r=>r.winner)).size,"Different winners")+(t.next?tile("Rd "+t.next.round,"Next visit · "+t.next.date):"")+"</div>"+
+    '<div class="tiles">'+tile(t.races.filter(r=>r.winner&&!r.exhibition).length,"INRS races")+(()=>{const mw=mostWins(t);return tile(mw?mw.who:"–","Most wins"+(mw?" ("+mw.detail+")":""),true);})()+tile(new Set(t.races.filter(r=>r.winner).map(r=>r.winner)).size,"Different winners")+(t.next?tile("Rd "+t.next.round,"Next visit · "+t.next.date):"")+"</div>"+trackPowerPanel(t.key,t.label)+
     '<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Every race here</div><div class="scroll"><table class="tbl"><thead><tr><th>Season</th><th class="n">Rd</th><th>Date</th><th>Event</th><th>Pole</th><th>Winner</th></tr></thead><tbody>'+
     t.races.map(r=>"<tr><td>"+r.season+(r.current&&!r.done?' <span class="pill">Upcoming</span>':"")+(r.exhibition?' <span class="pill">Exhibition</span>':"")+'</td><td class="n">'+esc(r.round||"")+"</td><td>"+esc(r.date||"")+'</td><td class="wrapcell muted">'+esc(r.event||"")+"</td><td>"+esc(r.pole||"–")+"</td><td><b>"+(r.raceId&&r.done?'<button class="dl" data-act="openrace" data-arg="'+esc(r.raceId)+'">'+esc(r.winner||"–")+"</button>":esc(r.winner||"–"))+"</b></td></tr>").join("")+"</tbody></table></div></div>"+
     (t.wins.length?'<div class="panel"><div class="lt">Winners at '+esc(t.label)+'</div><div class="list">'+t.wins.map(([n,w],i)=>'<div class="podrow">'+posBadge(i+1)+'<div class="name">'+esc(n)+'</div><span class="pts">'+w+"</span></div>").join("")+"</div></div>":"")+top+"</section>";}
@@ -783,14 +784,14 @@ function oddsData(noLive){const c=S.calc,r=c.next;if(!r)return null;const tk=tra
   rows.sort((a,b)=>b.pWin-a.pWin||a.E-b.E);
   return{race:r,tk,ty,rows,VIG,prevLoaded:!pk||!!S.arch[pk],pk,live:lv};}
 const oddsFmt=(p,vig)=>american(Math.min(0.92,Math.max(0.0035,p*vig)));
-V.odds=()=>{const c=S.calc;needSeasons();const B=book(),br=bankroll();
+V.odds=()=>{const c=S.calc;needSeasons();if(!S.marketKick){S.marketKick=1;setTimeout(()=>{S.marketKick=0;pollMarket();},300);}const B=book(),br=bankroll();
   const top='<div class="row bookbar"><span>Balance <b>'+bucks(br.bal)+'</b></span><button class="btn sm" data-act="nav" data-arg="bets">My bets'+(br.open?" ("+br.open+" open)":"")+"</button></div>";
   if(!c.next)return top+'<div class="lt">Sportsbook</div>'+empty("No upcoming race","Pick another series in the header, or check back when the next race is on the schedule.");
   S.oddsFail=S.oddsFail||{};const pk=prevSeasonKey();if(pk&&!S.arch[pk]&&!S.oddsFail[pk]){if(!S.oddsFetching){S.oddsFetching=true;const i=S.idx.seasons.find(x=>x.key===pk);
       fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[pk]=j;}).catch(()=>{}).finally(()=>{S.oddsFetching=false;if(!S.arch[pk])S.oddsFail[pk]=true;draw();});}return loading();}
   const d=oddsData();if(!d)return top+'<div class="lt">Sportsbook</div>'+empty("Not enough races yet","Odds need at least three results this season.");
   const m=S.oddsMkt||"win",col={win:"pWin",top5:"p5",top10:"p10"},vig={win:d.VIG,top5:1.12,top10:1.08},open=raceIsOpen(d.race),k=S.sel,picked=new Set(B.slip.map(legKey));
-  const L=[...d.rows].sort((a,b)=>b[col[m]]-a[col[m]]||a.E-b.E);const od=d.live?oddsData(true):null,O={};if(od)od.rows.forEach(x=>O[x.id]=x);
+  const L=[...d.rows].sort((a,b)=>b[col[m]]-a[col[m]]||a.E-b.E);const od=oddsData(true),O={};if(od)od.rows.forEach(x=>O[x.id]=x);
   const mk=(kk,l)=>'<button class="btn sm" data-act="oddsmkt" data-arg="'+kk+'"'+(m===kk?' aria-current="page"':"")+">"+l+"</button>";
   const chip=f=>'<span class="fchip '+(f===1?"w":f<=5?"t5":"")+'">'+f+"</span>";
   const why=x=>{const out=[];const avg=a=>(a.reduce((s,v)=>s+v.f,0)/a.length).toFixed(1);
@@ -799,8 +800,9 @@ V.odds=()=>{const c=S.calc;needSeasons();const B=book(),br=bankroll();
     if(x.typ.length)out.push('<span class="why"><b>'+esc(TTYPE_L[d.ty].replace(/^./,ch=>ch.toUpperCase()))+"</b> avg "+avg(x.typ)+' <span class="muted">('+x.typ.length+")</span></span>");
     out.push('<span class="why"><b>Last 5</b> '+x.form.map(v=>chip(v.f)).join("")+"</span>");
     const lv=[];if(x.lp&&x.lp.best)lv.push("Practice P"+x.lp.pos+" · "+lapFmt(x.lp.best));if(x.lq)lv.push("Starts P"+x.lq);if(x.lr&&x.lr.pos)lv.push("Running P"+x.lr.pos);
-    return(lv.length?'<span class="why live"><span class="ldot"></span>'+lv.join(" · ")+"</span>":"")+out.join("");};
-  const price=(x,mm)=>{const o=oddsFmt(x[col[mm]],vig[mm]),key=k+"|"+d.race.id+"|"+x.id+"|"+mm;
+    const pops=["win","top5","top10"].map(mm=>[mm,popCount(S.sel,d.race.id,x.id,mm)]).filter(v=>v[1]>=3);
+    return(pops.length?'<span class="why pop">Popular bet: '+pops.map(v=>MKT_L[v[0]]+" ("+v[1]+" bettors)").join(", ")+" · odds shortened</span>":"")+(lv.length?'<span class="why live"><span class="ldot"></span>'+lv.join(" · ")+"</span>":"")+out.join("");};
+  const price=(x,mm)=>{const o=priceOf(d,x,mm),key=k+"|"+d.race.id+"|"+x.id+"|"+mm;
     const o0=O[x.id]?oddsFmt(O[x.id][col[mm]],vig[mm]):null,mv=o0&&o0!==o?(decOdds(o)>decOdds(o0)?'<i class="mvp up" title="Opened '+o0+'">▲</i>':'<i class="mvp dn" title="Opened '+o0+'">▼</i>'):"";
     const full=d.rows.length<=MKT_N[mm];return'<button title="'+(o0&&o0!==o?"Opened "+o0:"")+'" class="price'+(picked.has(key)?" on":"")+'" '+(open&&!full?'data-act="pick" data-arg="'+esc(k+"|"+d.race.id+"|"+x.id+"|"+mm+"|"+o)+'"':"disabled")+' aria-pressed="'+picked.has(key)+'" aria-label="'+esc(drv(x.id).name+" "+MKT_L[mm]+" "+o)+'"><small>'+MKT_L[mm]+"</small><b>"+o+mv+"</b></button>";};
   const fav=[...d.rows].sort((a,b)=>b.pWin-a.pWin)[0],dark=d.rows.filter(x=>x.pWin*d.VIG<0.07).sort((a,b)=>b.pWin-a.pWin)[0];
@@ -808,9 +810,31 @@ V.odds=()=>{const c=S.calc;needSeasons();const B=book(),br=bankroll();
     '<p class="small muted" style="margin:6px 0 0">Play money only. Tap a price to add it to your bet slip, then bet it as a single or combine picks into a parlay, including races from the other series (switch series at the top). Odds come from each driver\'s last 5 races, finishes here this season'+(d.pk?" and last season":"")+", and results on other "+esc(TTYPE_L[d.ty])+".</p>"+
     (d.live&&d.live.active?"":open?'<p class="small" style="margin:6px 0 0;color:var(--accent)">Betting closes '+esc(closeLabel(d.race.date))+" (8:30 PM Eastern) unless live timing is running, then it stays open until 10 laps to go.</p>":'<p class="small" style="color:var(--bad);margin:6px 0 0">Betting is closed for this race.</p>')+liveBanner(d.race)+"</div>"+
     '<div class="row"><span class="small muted">Sort by</span>'+mk("win","To win")+mk("top5","Top 5")+mk("top10","Top 10")+"</div>"+
-    '<div class="tiles">'+tile(fav?drv(fav.id).name:"–","Favorite "+(fav?oddsFmt(fav.pWin,d.VIG):""),true)+(dark?tile(drv(dark.id).name,"Dark horse "+oddsFmt(dark.pWin,d.VIG),true):"")+tile(d.rows.length,"Drivers priced")+"</div>"+
+    '<div class="tiles">'+tile(fav?drv(fav.id).name:"–","Favorite "+(fav?oddsFmt(fav.pWin,d.VIG):""),true)+(dark?tile(drv(dark.id).name,"Dark horse "+oddsFmt(dark.pWin,d.VIG),true):"")+tile(d.rows.length,"Drivers priced")+"</div>"+trackPowerPanel(d.tk,trackOf(d.race.track).label,true)+
     '<div class="panel" style="padding:6px 8px"><div class="list">'+L.map((x,i)=>'<div class="oddrow"><span class="orank">'+(i+1)+'</span><div class="oname">'+dlink(x.id)+'<div class="whys">'+why(x)+'</div></div><div class="prices">'+price(x,"win")+price(x,"top5")+price(x,"top10")+"</div></div>").join("")+"</div></div>"+
-    '<p class="hint">Odds come from simulating the race thousands of times, with a sportsbook-style margin built in. Prices update after each race. Bets settle automatically when SimRacerHub results are posted; a driver who doesn\'t start is voided (singles refunded, parlays drop that pick). Entertainment only, no real money.</p></section>';};
+    '<p class="hint">Odds come from simulating the race thousands of times, with a sportsbook-style margin built in. Prices update after each race. Bets settle automatically when SimRacerHub results are posted; a driver who doesn\'t start is voided (singles refunded, parlays drop that pick). When 3 or more people bet the same pick, its odds get shorter, just like a real book moving the line. Entertainment only, no real money.</p></section>';};
+
+/* ---------- track power rankings (top 3, last 3 races at the track, 2+ starts) ---------- */
+S.fetching={};
+function ensureSeason(k){if(k===MAINKEY||S.arch[k]||S.fetching[k]||!S.idx)return;const i=S.idx.seasons.find(x=>x.key===k);if(!i)return;S.fetching[k]=1;
+  fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[k]=j;}).catch(()=>{}).finally(()=>{delete S.fetching[k];if(!S.arch[k])S.arch[k]={races:[],drivers:[],failed:true};draw();});}
+function trackPower(tk){if(!S.idx)return{loading:true};const i=selInfo(),keys=S.idx.seasons.filter(x=>x.series===i.series&&+x.year<=+i.year).sort((a,b)=>b.year-a.year).map(x=>x.key);
+  const found=[],names={};
+  for(const k of keys){const R=k===S.sel?S.races:seasonRaces(k),D=k===S.sel?S.drivers:k===MAINKEY?S.M.drivers:(S.arch[k]||{}).drivers;
+    if(!R){ensureSeason(k);return{loading:true};}(D||[]).forEach(d=>{if(!names[d.id])names[d.id]=d.name;});
+    R.forEach(r=>{if(r.status==="complete"&&!r.exhibition&&(r.results||[]).length&&trackOf(r.track).key===tk)found.push({r,yr:+S.idx.seasons.find(x=>x.key===k).year});});
+    if(found.length>=3)break;}
+  found.sort((a,b)=>new Date(b.r.date)-new Date(a.r.date));const last=found.slice(0,3).reverse();if(last.length<2)return{races:last,top:[]};
+  const P={};last.forEach((x,j)=>x.r.results.forEach(y=>{const f=int(y.fin);if(!f)return;const p=P[y.driverId]=P[y.driverId]||{id:y.driverId,fins:Array(last.length).fill(null),sum:0,n:0,wins:0,best:99};p.fins[j]=f;p.sum+=f;p.n++;if(f===1)p.wins++;if(f<p.best)p.best=f;}));
+  const top=Object.values(P).filter(p=>p.n>=2).map(p=>Object.assign(p,{avg:p.sum/p.n,name:names[p.id]||p.id})).sort((a,b)=>a.avg-b.avg||b.wins-a.wins||a.best-b.best).slice(0,3);
+  return{races:last,top};}
+function trackPowerPanel(tk,label,compact){const t=trackPower(tk),lbl=esc(label);
+  if(t.loading)return'<div class="panel"><div class="lt">Best at '+lbl+'</div><p class="small muted">Loading track history…</p></div>';
+  if(!t.top.length)return compact?"":'<div class="panel"><div class="lt">Track power rankings</div><p class="small muted">Needs at least two past '+esc(SER_L[selInfo().series])+" races here.</p></div>";
+  const chip=(f,j)=>'<span class="fchip '+(f===1?"w":f&&f<=5?"t5":"")+'" title="'+esc(t.races[j].yr+" "+raceLabel(t.races[j].r))+'">'+(f??"–")+"</span>";
+  return'<div class="panel"><div class="sechead"><div class="lt">Best at '+lbl+'</div><span class="hint">Last '+t.races.length+" races here · "+t.races.map(x=>x.yr).join(", ")+'</span></div><div class="list">'+
+    t.top.map((p,i)=>'<div class="podrow">'+posBadge(i+1)+'<div class="name">'+(drv(p.id)?dlink(p.id):esc(p.name))+'<div class="chips" style="margin-top:4px">'+p.fins.map(chip).join("")+'</div></div><span class="pts" title="Average finish">'+p.avg.toFixed(1)+"</span></div>").join("")+
+    '</div><p class="hint" style="margin:8px 0 0">Ranked by average finish. Drivers need 2 of the last 3 races here to qualify.</p></div>';}
 
 /* ---------- live timing (race night: practice, qualifying, race) ---------- */
 const liveDb=()=>safeUrl(((S.M&&S.M.settingsRaw)||{}).liveDb||"").replace(/\/$/,"");
@@ -897,16 +921,33 @@ const BOOK_ACT={
   placebet(){const B=book(),br=bankroll(),L=B.slip;if(!L.length)return;
     const closed=L.find(l=>!legOpen(l));if(closed){toast("Betting has closed for "+closed.label+". Remove that pick.",true);return;}
     {const d=oddsData();if(d){const vg={win:d.VIG,top5:1.12,top10:1.08},cl={win:"pWin",top5:"p5",top10:"p10"};let changed=0;
-      L.forEach(l=>{if(l.k!==S.sel||l.rid!==d.race.id)return;const x=d.rows.find(y=>y.id===l.did);if(!x)return;const o=oddsFmt(x[cl[l.m]],vg[l.m]);if(o!==l.odds){l.odds=o;changed++;}});
+      L.forEach(l=>{if(l.k!==S.sel||l.rid!==d.race.id)return;const x=d.rows.find(y=>y.id===l.did);if(!x)return;const o=priceOf(d,x,l.m);if(o!==l.odds){l.odds=o;changed++;}});
       if(changed){saveBook();draw();toast("Odds moved on "+plural(changed,"pick")+". Check the new prices and tap Place bet again.",true);return;}}}
     const now=new Date().toISOString(),mk=(t,legs,stake)=>({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),t,legs:legs.map(l=>Object.assign({},l)),stake,placed:now});
     let bets=[];
     if(B.mode==="parlay"){const prob=parlayProblem(L);if(prob){toast(prob.replace(/<[^>]+>/g,""),true);return;}const st=parseFloat(B.pstake);if(!(st>0)){toast("Enter a stake for the parlay.",true);return;}bets=[mk("parlay",L,st)];}
     else{for(const l of L){const st=parseFloat(B.stakes[legKey(l)]);if(st>0)bets.push(mk("single",[l],st));}if(!bets.length){toast("Enter a stake on at least one pick.",true);return;}}
     const tot=bets.reduce((s,b)=>s+b.stake,0);if(tot>br.bal+1e-9){toast("That's "+bucks(tot)+" but your balance is "+bucks(br.bal)+".",true);return;}
-    B.bets.push(...bets);const placed=new Set(bets.flatMap(b=>b.legs.map(legKey)));B.slip=B.mode==="parlay"?[]:B.slip.filter(l=>!placed.has(legKey(l)));
+    B.bets.push(...bets);recordMarket(bets);const placed=new Set(bets.flatMap(b=>b.legs.map(legKey)));B.slip=B.mode==="parlay"?[]:B.slip.filter(l=>!placed.has(legKey(l)));
     placed.forEach(k=>delete B.stakes[k]);B.pstake="";saveBook();S.slipOpen=!!B.slip.length;draw();toast(plural(bets.length,"bet")+" placed · "+bucks(tot)+" staked");},
   refill(){const B=book();if(bankroll().bal>=10){toast("Refills unlock when your balance drops under Ⓑ10.",true);return;}B.refills++;saveBook();draw();toast("Added "+bucks(START)+". Good luck.");}};
+/* ---------- betting market: popular picks get worse odds (shared through the live database) ---------- */
+S.market={};S.marketSig={};
+const mkey=(k,rid)=>k+"_"+rid,skey=(did,m)=>did+"_"+m;
+function clientId(){const B=book();if(!B.cid){B.cid="c"+Math.random().toString(36).slice(2,10)+Date.now().toString(36);saveBook();}return B.cid;}
+async function pollMarket(){const u=liveDb();if(!u||document.hidden||(S.view!=="odds"&&!S.slipOpen))return;const r=S.calc&&S.calc.next;if(!r)return;const mk=mkey(S.sel,r.id);
+  try{const res=await fetch(u+"/market/"+mk+".json",{cache:"no-store"});if(!res.ok)return;const j=(await res.json())||{},cnt={};
+    Object.entries(j).forEach(([sel,v])=>{cnt[sel]=Object.keys(v||{}).length;});const sig=JSON.stringify(cnt);
+    if(sig!==S.marketSig[mk]){S.marketSig[mk]=sig;S.market[mk]=cnt;render();}}catch(e){}}
+setInterval(pollMarket,15000);
+const popCount=(k,rid,did,m)=>((S.market[mkey(k,rid)]||{})[skey(did,m)])||0;
+const marketMult=n=>n>=3?Math.min(1.5,1+0.08*(n-2)):1;
+function priceOf(d,x,mm){const n=popCount(S.sel,d.race.id,x.id,mm);return oddsFmt(x[{win:"pWin",top5:"p5",top10:"p10"}[mm]]*marketMult(n),{win:d.VIG,top5:1.12,top10:1.08}[mm]);}
+function recordMarket(bets){const u=liveDb();if(!u)return;const cid=clientId(),seen=new Set();
+  bets.forEach(b=>b.legs.forEach(l=>{const key=mkey(l.k,l.rid)+"/"+skey(l.did,l.m);if(seen.has(key))return;seen.add(key);
+    fetch(u+"/market/"+key+"/"+cid+".json",{method:"PUT",headers:{"Content-Type":"application/json"},body:"true"}).catch(()=>{});}));
+  setTimeout(pollMarket,1500);}
+
 V.bets=()=>{needSeasons();const B=book(),br=bankroll();
   const betCard=b=>{const r=betResult(b),nv=r.st.filter(x=>x==="void").length,d=b.t==="parlay"?b.legs.reduce((m,l,i)=>r.st[i]==="void"?m:m*decOdds(l.odds),1):decOdds(b.legs[0].odds);
     const tag={won:'<span class="pill final">Won</span>',lost:'<span class="pill" style="color:var(--bad)">Lost</span>',void:'<span class="pill">Push · refunded</span>',pending:'<span class="pill next">Open</span>'}[r.s];
