@@ -198,6 +198,7 @@ footer .presented b{color:var(--accent)}
 .ldot{width:8px;height:8px;border-radius:50%;background:#ff3b3b;flex:none;display:inline-block}.livebar.stale .ldot{background:var(--muted)}
 .why.live{color:#ff8080;font-weight:600}
 @media (prefers-reduced-motion:no-preference){.livebar:not(.stale) .ldot,.why.live .ldot{animation:blink 1.4s ease-in-out infinite}}
+.dot.void{background:transparent;border:2px solid var(--muted)}
 .mvp{font-style:normal;font-size:10px;margin-left:3px;vertical-align:2px}.mvp.up{color:var(--ok)}.mvp.dn{color:var(--bad)}.price.on .mvp{color:#fff}
 .prices{display:grid;grid-template-columns:repeat(3,62px);gap:4px}
 .price{display:grid;justify-items:center;gap:1px;padding:6px 2px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2);color:var(--fg);cursor:pointer;font:inherit}
@@ -907,10 +908,10 @@ const BOOK_ACT={
     placed.forEach(k=>delete B.stakes[k]);B.pstake="";saveBook();S.slipOpen=!!B.slip.length;draw();toast(plural(bets.length,"bet")+" placed · "+bucks(tot)+" staked");},
   refill(){const B=book();if(bankroll().bal>=10){toast("Refills unlock when your balance drops under Ⓑ10.",true);return;}B.refills++;saveBook();draw();toast("Added "+bucks(START)+". Good luck.");}};
 V.bets=()=>{needSeasons();const B=book(),br=bankroll();
-  const betCard=b=>{const r=betResult(b),d=b.t==="parlay"?b.legs.reduce((m,l)=>m*decOdds(l.odds),1):decOdds(b.legs[0].odds);
-    const tag={won:'<span class="pill final">Won</span>',lost:'<span class="pill" style="color:var(--bad)">Lost</span>',void:'<span class="pill">Void · refunded</span>',pending:'<span class="pill next">Open</span>'}[r.s];
-    return'<div class="betcard '+r.s+'"><div class="sechead" style="margin:0 0 6px"><b>'+(b.t==="parlay"?b.legs.length+"-pick parlay":"Single")+" "+amOdds(d)+"</b>"+tag+"</div>"+
-      b.legs.map((l,i)=>'<div class="bleg"><span class="dot '+r.st[i]+'"></span><div><b>'+esc(l.name)+"</b> "+MKT_L[l.m]+' <span class="muted">'+esc(l.odds)+'</span><div class="small muted">'+esc(l.label)+"</div></div></div>").join("")+
+  const betCard=b=>{const r=betResult(b),nv=r.st.filter(x=>x==="void").length,d=b.t==="parlay"?b.legs.reduce((m,l,i)=>r.st[i]==="void"?m:m*decOdds(l.odds),1):decOdds(b.legs[0].odds);
+    const tag={won:'<span class="pill final">Won</span>',lost:'<span class="pill" style="color:var(--bad)">Lost</span>',void:'<span class="pill">Push · refunded</span>',pending:'<span class="pill next">Open</span>'}[r.s];
+    return'<div class="betcard '+r.s+'"><div class="sechead" style="margin:0 0 6px"><b>'+(b.t==="parlay"?(b.legs.length-nv)+"-pick parlay":"Single")+" "+amOdds(d)+"</b>"+tag+"</div>"+
+      b.legs.map((l,i)=>'<div class="bleg"><span class="dot '+r.st[i]+'"></span><div><b>'+esc(l.name)+"</b> "+MKT_L[l.m]+' <span class="muted">'+esc(l.odds)+'</span><div class="small muted">'+esc(l.label)+(r.st[i]==="void"?' · <b style="color:var(--fg)">did not start, '+(b.t==="parlay"?"leg voided":"bet pushed")+"</b>":"")+"</div></div></div>").join("")+(b.t==="parlay"&&nv&&r.s!=="void"?'<div class="small muted" style="margin-top:4px">'+plural(nv,"leg")+" voided · parlay now pays "+amOdds(d)+"</div>":"")+
       '<div class="small muted" style="margin-top:6px">Stake '+bucks(b.stake)+" · "+(r.s==="pending"?"To win "+bucks(b.stake*(d-1)):r.s==="won"?"<b style=\"color:var(--ok)\">Paid "+bucks(r.pay)+"</b>":r.s==="void"?"Refunded "+bucks(r.pay):"Lost")+" · placed "+fmtShort(b.placed)+"</div></div>";};
   const open=B.bets.filter(b=>betResult(b).s==="pending").reverse(),done=B.bets.filter(b=>betResult(b).s!=="pending").reverse();
   return'<section class="stack"><div class="row"><button class="btn sm ghost" data-act="nav" data-arg="odds">← Sportsbook</button></div><div><div class="lt">My bets</div><p class="small muted" style="margin:0">Play money only. Your bets are saved in this browser on this device.</p></div>'+
