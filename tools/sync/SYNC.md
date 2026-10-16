@@ -15,7 +15,7 @@ simracerhub.com, youtube.com, github.com. If the browser can't be reached, stop 
    `https://www.simracerhub.com/scoring/season_standings.php?season_id=28439`.
    Run `javascript_tool` with `window.__KNOWN = <KNOWN>;` followed by the full text of
    `tools/sync/extract_main.js`. Save the returned JSON string **exactly as returned** to `/tmp/sync_main.json`.
-3. `navigate` to the same URL with `&view=team`. Run `tools/sync/extract_teams.js`.
+3. (Skipped while `official.teamsManual` is true in data.json: Jordan posts the official team standings himself and they are entered by hand.) Otherwise `navigate` to the same URL with `&view=team`. Run `tools/sync/extract_teams.js`.
    Save the result to `/tmp/sync_teams.json`.
 4. `navigate` to `https://www.youtube.com/@40XLIRacing/videos` (if youtube.com needs approval,
    call `request_access` once with scope "site"). Run `tools/sync/extract_youtube.js`.

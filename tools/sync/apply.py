@@ -137,7 +137,7 @@ def main():
     off.setdefault('chaseCutoff', 16)
     off.setdefault('source', 'SimRacerHub')
 
-    if get('--teams'):
+    if get('--teams') and not off.get('teamsManual'):  # league posts its own team standings (teamsManual); keep them
         T = json.load(open(get('--teams')))
         off['teams'] = [{'pos': int(t[0]), 'team': t[1], 'starts': num(t[2]), 'counted': num(t[3]), 'pts': num(t[4]), 'pen': num(t[5]),
                          'behLead': num(t[6]) or 0, 'wins': num(t[7]), 'inc': num(t[8])} for t in T]
