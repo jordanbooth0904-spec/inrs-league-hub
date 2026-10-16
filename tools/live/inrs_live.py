@@ -57,6 +57,9 @@ def ms(t):
     return int(round(t * 1000)) if t > 0 else 0
 
 
+MEMO = {}  # best lap / laps per session, so values iRacing clears at session end are never lost
+
+
 def snapshot(ir):
     ir.freeze_var_buffer_latest()
     wk, di, si = ir['WeekendInfo'] or {}, ir['DriverInfo'] or {}, ir['SessionInfo'] or {}
@@ -77,15 +80,25 @@ def snapshot(ir):
     q = ir['QualifyResultsInfo'] or {}
     for r in (q.get('Results') or []):
         grid[r['CarIdx']] = r['Position'] + 1
+    sid = '%s-%s' % (wk.get('SubSessionID', ''), sn)
+    mem = MEMO.setdefault(sid, {})
     cars = []
     for idx, d in drivers.items():
-        b = ms(best[idx]) if idx < len(best) else 0
-        if not b and idx in res:
-            b = ms(res[idx].get('FastestTime'))
-        p = int(pos[idx]) if idx < len(pos) and pos[idx] and pos[idx] > 0 else int(res[idx]['Position']) if idx in res else 0
-        lp = int(laps[idx]) if idx < len(laps) and laps[idx] and laps[idx] > 0 else 0
-        cars.append([str(d.get('CarNumber', '')), d['UserName'], b, p, lp, grid.get(idx, 0)])
-    if k in ('practice', 'qualify'):  # rank by best lap
+        r = res.get(idx) or {}
+        tb = ms(best[idx]) if idx < len(best) else 0
+        rb = ms(r.get('FastestTime'))
+        b = rb or tb  # official session best when iRacing has it, else live telemetry
+        tl = int(laps[idx]) if idx < len(laps) and laps[idx] and laps[idx] > 0 else 0
+        rl = int(r.get('LapsComplete') or 0) if r else 0
+        m = mem.setdefault(d['UserName'], {'b': 0, 'l': 0})
+        if b and (not m['b'] or rb or b < m['b']):
+            m['b'] = b
+        m['l'] = max(m['l'], tl, rl)
+        p = int(pos[idx]) if idx < len(pos) and pos[idx] and pos[idx] > 0 else int(r['Position']) if r.get('Position') else 0
+        cars.append([str(d.get('CarNumber', '')), d['UserName'], m['b'], p, m['l'], grid.get(idx, 0)])
+    if k in ('practice', 'qualify'):  # rank by best lap; no time = no position
+        for c in cars:
+            c[3] = 0
         timed = sorted([c for c in cars if c[2]], key=lambda c: c[2])
         for i, c in enumerate(timed):
             c[3] = i + 1
