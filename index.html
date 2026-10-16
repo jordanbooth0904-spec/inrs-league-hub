@@ -965,7 +965,7 @@ V.bets=()=>{needSeasons();const B=book(),br=bankroll();
 
 /* ---------- teams ---------- */
 function teamsView(){const o=S.calc.off,T=(o&&o.teams)||[];if(!T.length)return empty("No team standings yet","");
-  if(o.teamsManual){const lead=num(T[0].pts,0),roster=team=>S.calc.standings.filter(s=>s.off&&s.off.team===team).sort((a,b)=>a.off.pos-b.off.pos);let line=false;
+  if(o.teamsManual){const lead=num(T[0].pts,0),roster=team=>S.calc.standings.filter(s=>s.off&&String(s.off.team||"").toLowerCase()===String(team).toLowerCase()).sort((a,b)=>a.off.pos-b.off.pos);let line=false;
     return'<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Team</th><th class="n">Pts</th><th class="n">Gap</th><th>Drivers</th></tr></thead><tbody>'+
       T.map(t=>{let pre="";if(t.out&&!line){line=true;pre='<tr class="elimrow"><td colspan="5">Mathematically eliminated</td></tr>';}
         return pre+'<tr'+(t.out?' class="muted"':"")+"><td>"+posBadge(t.pos)+"</td><td><b>"+esc(t.team)+'</b></td><td class="n"><span class="pts">'+fmtN(t.pts)+'</span></td><td class="n muted">'+(t.pos>1?"−"+fmtN(+(lead-num(t.pts,0)).toFixed(1)):"Leader")+'</td><td class="wrapcell small">'+roster(t.team).map(s=>dlink(s.driver.id)).join(", ")+"</td></tr>";}).join("")+
