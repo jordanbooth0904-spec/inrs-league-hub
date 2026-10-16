@@ -1075,15 +1075,17 @@ async function loadDotr(){const u=liveDb();if(!u)return;S.dotrAt=Date.now();try{
 function dotrTally(key){const v=(S.dotr||{})[key]||{},T={};Object.values(v).forEach(id=>{if(typeof id==="string")T[id]=(T[id]||0)+1;});
   const list=Object.entries(T).sort((a,b)=>b[1]-a[1]);return{list,total:list.reduce((s,x)=>s+x[1],0)};}
 const dotrKey=(k,rid)=>k+"_"+rid;
+/* Driver of the Race is Cup-only and only for the current season's latest race */
+function dotrCloses(R,r){const nx=R.filter(x=>num(x.round,0)>num(r.round,0)).sort((a,b)=>num(a.round,0)-num(b.round,0))[0];return nx?new Date(nx.date).getTime():new Date(r.date).getTime()+7*864e5;}
 function dotrMine(key){try{return localStorage.getItem("inrs-dotr-"+key)||"";}catch(e){return"";}}
 function dotrWinners(){const W={};Object.keys(S.dotr||{}).forEach(key=>{const t=dotrTally(key);if(!t.total)return;
-  const [k,rid]=[key.slice(0,key.lastIndexOf("_")),key.slice(key.lastIndexOf("_")+1)];
+  const [k,rid]=[key.slice(0,key.lastIndexOf("_")),key.slice(key.lastIndexOf("_")+1)];if(k!==MAINKEY)return;
   /* a poll counts once it has closed: the next race in that season has started */
   const R=seasonRaces(k)||[],r=R.find(x=>x.id===rid),nx=r&&R.filter(x=>num(x.round,0)>num(r.round,0)).sort((a,b)=>num(a.round,0)-num(b.round,0))[0];
-  if(!r||(nx&&Date.now()<new Date(nx.date).getTime())||(!nx))return;const top=t.list[0][1];t.list.filter(x=>x[1]===top).forEach(([id])=>{(W[id]=W[id]||[]).push({k,r});});});return W;}
-function dotrPanel(){const c=S.calc,last=c.done[c.done.length-1];if(!last||!liveDb())return"";
+  if(!r||Date.now()<dotrCloses(R,r))return;const top=t.list[0][1];t.list.filter(x=>x[1]===top).forEach(([id])=>{(W[id]=W[id]||[]).push({k,r});});});return W;}
+function dotrPanel(){if(!isMain())return"";const c=S.calc,last=c.done[c.done.length-1];if(!last||!liveDb())return"";
   if(!S.dotr||Date.now()-S.dotrAt>60e3){if(!S.dotrLoading){S.dotrLoading=1;loadDotr().finally(()=>{S.dotrLoading=0;});}}
-  const key=dotrKey(S.sel,last.id),open=!c.next||Date.now()<new Date(c.next.date).getTime(),mine=dotrMine(key),t=dotrTally(key);
+  const key=dotrKey(S.sel,last.id),open=Date.now()<dotrCloses(S.M.races,last),mine=dotrMine(key),t=dotrTally(key);
   const field=[...last.results].filter(x=>int(x.fin)).sort((a,b)=>a.fin-b.fin);
   const head='<div class="sechead"><div class="lt">Driver of the Race</div><span class="hint">'+esc(raceLabel(last))+"</span></div>";
   const bars=()=>t.total?'<div class="list">'+t.list.slice(0,5).map(([id,n],i)=>{const pct=Math.round(n/t.total*100);return'<div class="dotrbar'+(id===mine?" mine":"")+'"><div class="dotrfill" style="width:'+pct+'%"></div><span class="nm">'+(drv(id)?dlink(id):esc(id))+(id===mine?' <span class="pill">Your vote</span>':"")+'</span><span class="pc">'+pct+"%</span></div>";}).join("")+'</div><p class="hint" style="margin:8px 0 0">'+plural(t.total,"vote")+(open?" so far · voting closes when the next race goes green":" · voting closed")+".</p>":'<p class="small muted">No votes yet.</p>';
@@ -1093,7 +1095,8 @@ function dotrPanel(){const c=S.calc,last=c.done[c.done.length-1];if(!last||!live
     '</div><div class="row" style="margin-top:10px"><button class="btn primary" data-act="dotrvote"'+(S.dotrSel?"":" disabled")+">Vote</button>"+(t.total?'<span class="hint">'+plural(t.total,"vote")+" so far</span>":"")+"</div></div>";}
 const DOTR_ACT={
   dotrsel(id){S.dotrSel=id;draw();},
-  async dotrvote(){const c=S.calc,last=c.done[c.done.length-1];if(!last||!S.dotrSel)return;const key=dotrKey(S.sel,last.id);
+  async dotrvote(){const c=S.calc,last=c.done[c.done.length-1];if(!isMain()||!last||!S.dotrSel)return;
+    if(Date.now()>=dotrCloses(S.M.races,last)){toast("Voting for this race has closed.",true);draw();return;}const key=dotrKey(S.sel,last.id);
     if(dotrMine(key)){toast("You've already voted for this race.",true);return;}
     try{const r=await fetch(liveDb()+"/dotr/"+key+"/"+clientId()+".json",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(S.dotrSel)});
       if(!r.ok){toast(r.status===401||r.status===403?"Voting isn't accepting votes right now. Try again later.":"Couldn't save your vote. Try again.",true);return;}
