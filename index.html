@@ -215,7 +215,6 @@ footer .presented b{color:var(--accent)}
 .awrow{display:grid;gap:6px;padding:8px 0;border-top:1px solid var(--line)}.awrow small{display:block;font-size:12px;margin-top:2px}.awrow select{width:100%}
 .hl{}@media (max-width:480px){.hl{display:none}}
 .fastlap{color:var(--accent);font-weight:700}
-tr.me td{background:var(--accent-soft)}
 .tab .ldot{width:7px;height:7px;vertical-align:1px}
 .prices{display:grid;grid-template-columns:repeat(3,62px);gap:4px}
 .price{display:grid;justify-items:center;gap:1px;padding:6px 2px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2);color:var(--fg);cursor:pointer;font:inherit}
@@ -801,7 +800,7 @@ function oddsData(noLive){const c=S.calc,r=c.next;if(!r)return null;const tk=tra
   return{race:r,tk,ty,rows,VIG,prevLoaded:!pk||!!S.arch[pk],pk,live:lv};}
 const oddsFmt=(p,vig)=>american(Math.min(0.92,Math.max(0.0035,p*vig)));
 V.odds=()=>{const c=S.calc;needSeasons();if(!S.marketKick){S.marketKick=1;setTimeout(()=>{S.marketKick=0;pollMarket();},300);}const B=book(),br=bankroll();
-  const top='<div class="row bookbar"><span>Balance <b>'+bucks(br.bal)+'</b></span><span class="row" style="gap:6px"><button class="btn sm" data-act="nav" data-arg="leaderboard">Leaderboard</button><button class="btn sm" data-act="nav" data-arg="bets">My bets'+(br.open?" ("+br.open+" open)":"")+"</button></span></div>";
+  const top='<div class="row bookbar"><span>Balance <b>'+bucks(br.bal)+'</b></span><button class="btn sm" data-act="nav" data-arg="bets">My bets'+(br.open?" ("+br.open+" open)":"")+"</button></div>";
   if(!c.next)return top+'<div class="lt">Sportsbook</div>'+empty("No upcoming race","Pick another series in the header, or check back when the next race is on the schedule.");
   S.oddsFail=S.oddsFail||{};const pk=prevSeasonKey();if(pk&&!S.arch[pk]&&!S.oddsFail[pk]){if(!S.oddsFetching){S.oddsFetching=true;const i=S.idx.seasons.find(x=>x.key===pk);
       fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[pk]=j;}).catch(()=>{}).finally(()=>{S.oddsFetching=false;if(!S.arch[pk])S.oddsFail[pk]=true;draw();});}return loading();}
@@ -897,43 +896,6 @@ V.live=()=>{const L=S.live;if(!liveDb())return'<div class="lt">Live timing</div>
     '<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">Best lap</th><th class="n">'+(race?"Status":"Gap")+'</th><th class="n hl">Laps</th></tr></thead><tbody>'+cars.map(row).join("")+"</tbody></table></div></div>"+
     '<p class="hint">Updates every few seconds straight from the league session. '+(race?"Running order and laps completed.":"Ranked by best lap.")+' <button class="btn sm ghost" data-act="nav" data-arg="odds">Live odds in the Sportsbook</button></p></section>';};
 
-/* ---------- Sportsbook leaderboard (Firebase anonymous sign-in; one entry per browser) ---------- */
-const fbKey=()=>String(((S.M&&S.M.settingsRaw)||{}).fbKey||"").trim();
-function fbAuthStore(v){try{if(v===undefined)return JSON.parse(localStorage.getItem("inrs-fbauth")||"null");localStorage.setItem("inrs-fbauth",JSON.stringify(v));}catch(e){return null;}}
-async function fbToken(){const k=fbKey();if(!k)throw new Error("nokey");let a=fbAuthStore();
-  if(a&&a.idToken&&a.exp>Date.now()+60e3)return a;
-  if(a&&a.refresh){const r=await fetch("https://securetoken.googleapis.com/v1/token?key="+encodeURIComponent(k),{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=refresh_token&refresh_token="+encodeURIComponent(a.refresh)});
-    if(r.ok){const j=await r.json();a={uid:j.user_id,idToken:j.id_token,refresh:j.refresh_token,exp:Date.now()+(+j.expires_in)*1000};fbAuthStore(a);return a;}}
-  const r=await fetch("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key="+encodeURIComponent(k),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({returnSecureToken:true})});
-  if(!r.ok)throw new Error("auth");const j=await r.json();a={uid:j.localId,idToken:j.idToken,refresh:j.refreshToken,exp:Date.now()+(+j.expiresIn)*1000};fbAuthStore(a);return a;}
-const weekKey=t=>{const d=new Date(t),day=(d.getDay()+6)%7;d.setHours(0,0,0,0);d.setDate(d.getDate()-day);return d.toISOString().slice(0,10);};
-function myStats(){const B=book(),br=bankroll(),wk=weekKey(Date.now());let wp=0;
-  B.bets.forEach(b=>{if(weekKey(b.placed)!==wk)return;const r=betResult(b);if(r.s!=="pending")wp+=r.pay-b.stake;});
-  return{bal:Math.round(br.bal*100)/100,profit:Math.round(br.profit*100)/100,w:br.w,l:br.l,open:br.open,bets:B.bets.length,week:wk,wprofit:Math.round(wp*100)/100};}
-async function publishBoard(force){const B=book();if(!B.boardName||!liveDb()||!fbKey())return;const st=myStats(),sig=JSON.stringify(st)+B.boardName;if(!force&&sig===B.boardSig)return;
-  try{const a=await fbToken();const r=await fetch(liveDb()+"/board/"+a.uid+".json?auth="+encodeURIComponent(a.idToken),{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({name:B.boardName,t:Date.now()},st))});
-    if(r.ok){B.boardSig=sig;B.boardUid=a.uid;saveBook();}}catch(e){}}
-async function loadBoard(){if(!liveDb())return;try{const r=await fetch(liveDb()+"/board.json",{cache:"no-store"});if(!r.ok)return;S.board=(await r.json())||{};S.boardAt=Date.now();render();}catch(e){}}
-const BOARD_ACT={
-  boardjoin(){const el=document.getElementById("boardname"),v=(el&&el.value||"").replace(/\s+/g," ").trim();
-    if(v.length<2||v.length>20){toast("Pick a nickname between 2 and 20 characters.",true);return;}
-    const B=book();B.boardName=v;B.boardSig="";saveBook();publishBoard(true).then(()=>{loadBoard();toast("You're on the leaderboard as "+v+".");});draw();},
-  boardtab(t){S.boardTab=t;draw();}};
-V.leaderboard=()=>{const B=book();if(!S.boardAt||Date.now()-S.boardAt>30e3){S.boardAt=Date.now();setTimeout(loadBoard,10);}publishBoard();
-  const ready=!!fbKey(),tab=S.boardTab||"season",wk=weekKey(Date.now()),mine=B.boardUid;
-  let L=Object.entries(S.board||{}).map(([uid,v])=>Object.assign({uid},v)).filter(v=>v&&v.name);
-  L=tab==="week"?L.filter(v=>v.week===wk).sort((a,b)=>b.wprofit-a.wprofit):L.sort((a,b)=>b.profit-a.profit||b.bal-a.bal);
-  const money=v=>(v>=0?"+":"−")+bucks(Math.abs(v));
-  const join=!ready?'<p class="small muted">The leaderboard is almost ready. It switches on once the league finishes its setup.</p>':B.boardName?'<p class="small muted" style="margin:0">You\'re on the board as <b>'+esc(B.boardName)+'</b>. Your record updates as your bets settle.</p>':
-    '<div class="panel"><div class="lt">Join the leaderboard</div><p class="small muted" style="margin:0 0 8px">Pick a nickname. Only your nickname and betting record are shown.</p><div class="row"><input id="boardname" maxlength="20" placeholder="Nickname" style="max-width:240px"><button class="btn primary" data-act="boardjoin">Join</button></div></div>';
-  const tb=(k,l)=>'<button class="btn sm" data-act="boardtab" data-arg="'+k+'"'+(tab===k?' aria-current="page"':"")+">"+l+"</button>";
-  return'<section class="stack"><div class="row"><button class="btn sm ghost" data-act="nav" data-arg="odds">← Sportsbook</button><button class="btn sm ghost" data-act="nav" data-arg="bets">My bets</button></div><div><div class="lt">Leaderboard</div>'+join+"</div>"+
-    '<div class="subtabs">'+tb("season","Season")+tb("week","This week")+"</div>"+
-    (L.length?'<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th>Rank</th><th>Player</th><th class="n">'+(tab==="week"?"Week profit":"Profit")+'</th><th class="n">Balance</th><th class="n">W-L</th></tr></thead><tbody>'+
-      L.slice(0,100).map((v,i)=>"<tr"+(v.uid===mine?' class="me"':"")+"><td>"+posBadge(i+1)+"</td><td><b>"+esc(v.name)+"</b>"+(v.uid===mine?' <span class="pill">You</span>':"")+'</td><td class="n"><span class="pts" style="color:'+((tab==="week"?v.wprofit:v.profit)>=0?"var(--ok)":"var(--bad)")+'">'+money(tab==="week"?v.wprofit:v.profit)+'</span></td><td class="n">'+bucks(v.bal)+'</td><td class="n">'+(v.w||0)+"-"+(v.l||0)+"</td></tr>").join("")+"</tbody></table></div></div>"
-      :empty(tab==="week"?"No settled bets this week yet":"Nobody on the board yet",ready?"Be the first: join above and place a bet.":""))+
-    '<p class="hint">Ranked by profit, so reloads don\'t count as winnings. The week runs Monday to Sunday. Play money only.</p></section>';};
-
 /* ---------- sportsbook (play money, saved per browser) ---------- */
 const BK="inrs-bets",START=1000,MKT_L={win:"To win",top5:"Top 5",top10:"Top 10",h2h:"Head to head"},MKT_N={win:1,top5:5,top10:10};
 function book(){if(!S.book){let v=null;try{v=JSON.parse(localStorage.getItem(BK)||"null");}catch(e){}
@@ -1007,7 +969,7 @@ const BOOK_ACT={
     if(B.mode==="parlay"){const prob=parlayProblem(L);if(prob){toast(prob.replace(/<[^>]+>/g,""),true);return;}const st=parseFloat(B.pstake);if(!(st>0)){toast("Enter a stake for the parlay.",true);return;}bets=[mk("parlay",L,st)];}
     else{for(const l of L){const st=parseFloat(B.stakes[legKey(l)]);if(st>0)bets.push(mk("single",[l],st));}if(!bets.length){toast("Enter a stake on at least one pick.",true);return;}}
     const tot=bets.reduce((s,b)=>s+b.stake,0);if(tot>br.bal+1e-9){toast("That's "+bucks(tot)+" but your balance is "+bucks(br.bal)+".",true);return;}
-    B.bets.push(...bets);recordMarket(bets);setTimeout(()=>publishBoard(),200);const placed=new Set(bets.flatMap(b=>b.legs.map(legKey)));B.slip=B.mode==="parlay"?[]:B.slip.filter(l=>!placed.has(legKey(l)));
+    B.bets.push(...bets);recordMarket(bets);const placed=new Set(bets.flatMap(b=>b.legs.map(legKey)));B.slip=B.mode==="parlay"?[]:B.slip.filter(l=>!placed.has(legKey(l)));
     placed.forEach(k=>delete B.stakes[k]);B.pstake="";saveBook();S.slipOpen=!!B.slip.length;draw();toast(plural(bets.length,"bet")+" placed · "+bucks(tot)+" staked");},
   refill(){const B=book();if(bankroll().bal>=10){toast("Refills unlock when your balance drops under Ⓑ10.",true);return;}B.refills++;saveBook();draw();toast("Added "+bucks(START)+". Good luck.");}};
 /* ---------- betting market: popular picks get worse odds (shared through the live database) ---------- */
@@ -1081,7 +1043,7 @@ const AW_ACT={
       if(!r.ok)throw 0;try{localStorage.setItem(AW_KEY,String(Date.now()));}catch(e){}S.awOpen=false;draw();toast("Ballot submitted. Thanks for voting!");}
     catch(e){S.busy=false;draw();toast("Couldn't submit your ballot. Check your connection and try again.",true);}}};
 
-V.bets=()=>{needSeasons();setTimeout(()=>publishBoard(),300);const B=book(),br=bankroll();
+V.bets=()=>{needSeasons();const B=book(),br=bankroll();
   const betCard=b=>{const r=betResult(b),nv=r.st.filter(x=>x==="void").length,d=b.t==="parlay"?b.legs.reduce((m,l,i)=>r.st[i]==="void"?m:m*decOdds(l.odds),1):decOdds(b.legs[0].odds);
     const tag={won:'<span class="pill final">Won</span>',lost:'<span class="pill" style="color:var(--bad)">Lost</span>',void:'<span class="pill">Push · refunded</span>',pending:'<span class="pill next">Open</span>'}[r.s];
     return'<div class="betcard '+r.s+'"><div class="sechead" style="margin:0 0 6px"><b>'+(b.t==="parlay"?(b.legs.length-nv)+"-pick parlay":"Single")+" "+amOdds(d)+"</b>"+tag+"</div>"+
@@ -1231,7 +1193,6 @@ function loadResultsForm(id){const r=S.races.find(x=>x.id===id);if(!r){S.forms.r
   S.forms.results={raceId:id,recapUrl:r.recapUrl||"",note:"",rows:[...(r.results||[])].sort((a,b)=>a.fin-b.fin).map(x=>({driverId:x.driverId,newName:"",newNumber:"",newCust:"",fin:String(x.fin??""),start:x.start==null?"":String(x.start),led:String(x.lapsLed||0),comp:x.lapsComp==null?"":String(x.lapsComp),inc:String(x.inc||0),status:x.status||"Running",bonus:String(x.bonus||0),pts:typeof x.pts==="number"?String(x.pts):"",keep:{car:x.car,stage:x.stage,pen:x.pen,rating:x.rating}}))};}
 
 const ACT={
-  ...BOARD_ACT,
   livesess(k){S.liveSess=k;draw();},
   ...AW_ACT,
   booktab(t){S.bookTab=t;draw();},
@@ -1368,11 +1329,11 @@ function gcTrack(){try{const g=window.goatcounter;if(!S.static||!g||typeof g.cou
 window.__gcReady=()=>{gcLast=null;gcTrack();};
 function draw(){S.calc=compute();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
   document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
-  document.getElementById("tabs").innerHTML=TABS.filter(t=>t[0]!=="admin"||(S.admin&&isMain())).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||(S.view==="career"&&t[0]==="records")||(S.view==="compare"&&t[0]==="drivers")||((S.view==="bets"||S.view==="leaderboard")&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
+  document.getElementById("tabs").innerHTML=TABS.filter(t=>t[0]!=="admin"||(S.admin&&isMain())).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||(S.view==="career"&&t[0]==="records")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
   if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
   const sw=document.getElementById("switch");if(sw){const h=switcher();sw.hidden=!h;if(!isTyping()||!sw.contains(document.activeElement))sw.innerHTML=h;}
   const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"||S.selLoading?loading():(V[S.view]||V.home)();
-  document.getElementById("main").innerHTML=notice()+(S.view==="bets"||S.view==="leaderboard"||S.view==="live"?"":archBar())+body;drawSlip();if(S.loaded&&!S.selLoading)gcTrack();
+  document.getElementById("main").innerHTML=notice()+(S.view==="bets"||S.view==="live"?"":archBar())+body;drawSlip();if(S.loaded&&!S.selLoading)gcTrack();
   const dc=safeUrl(st.discord),sp=safeUrl(st.sponsorUrl);
   document.getElementById("foot").innerHTML='<span class="presented">Presented by <b>'+esc(st.sponsorName||"40XLI")+"</b></span>"+(dc?'<a class="btn sm ghost" href="'+esc(dc)+'" target="_blank" rel="noopener">Discord</a>':"")+(sp?'<a class="btn sm ghost" href="'+esc(sp)+'" target="_blank" rel="noopener">'+esc(st.sponsorName||"Sponsor")+"</a>":"");}
 
@@ -1383,9 +1344,9 @@ async function loadStatic(){try{const r=await fetch("data.json",{cache:"no-store
   S.mode="live";S.admin=false;S.loaded=true;S.updated=d.updated||"";}catch(e){S.mode="offline";}draw();}
 async function loadIndex(){try{const r=await fetch("data/seasons.json",{cache:"no-store"});if(!r.ok)return;S.idx=await r.json();draw();}catch(e){}}
 window.addEventListener("hashchange",()=>{const hs=(location.hash||"").slice(1).split("/"),v=hs[0],k=hs[1]||MAINKEY;
-  if((TABS.some(t=>t[0]===v)||v==="compare"||v==="career"||v==="bets"||v==="leaderboard")&&v!==S.view){S.view=v;S.driverSel=null;S.trackSel=null;}
+  if((TABS.some(t=>t[0]===v)||v==="compare"||v==="career"||v==="bets")&&v!==S.view){S.view=v;S.driverSel=null;S.trackSel=null;}
   if(k!==S.sel)selectSeason(k);else draw();});
-async function boot(){const hs=(location.hash||"").slice(1).split("/"),h=hs[0];if(TABS.some(t=>t[0]===h)||h==="compare"||h==="career"||h==="bets"||h==="leaderboard")S.view=h;draw();
+async function boot(){const hs=(location.hash||"").slice(1).split("/"),h=hs[0];if(TABS.some(t=>t[0]===h)||h==="compare"||h==="career"||h==="bets")S.view=h;draw();
   loadIndex().then(()=>{if(hs[1]&&hs[1]!==MAINKEY)selectSeason(hs[1]);});
   const c=window.claude;if(!c||typeof c.use!=="function"){await loadStatic();return;}
   const [db,user]=await Promise.all([c.use("db"),c.use("user")]);
