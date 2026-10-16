@@ -222,6 +222,17 @@ footer .presented b{color:var(--accent)}
 .dotrbar{position:relative;display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;background:var(--panel-2);overflow:hidden}.dotrbar+.dotrbar{margin-top:6px}
 .dotrfill{position:absolute;left:0;top:0;bottom:0;background:var(--accent-soft)}.dotrbar.mine .dotrfill{background:#3a1f55}.dotrbar .nm,.dotrbar .pc{position:relative}.dotrbar .pc{font:700 13px var(--mono)}
 .dotrpill{color:var(--gold);border-color:var(--gold)}
+.tchart svg{width:100%;height:auto;display:block}.tchart .ax{font:11px var(--mono);fill:var(--muted)}@media (max-width:599px){.tchart .ax{font-size:10px}}.tchart .lbl{font:600 12px var(--body);fill:var(--fg)}
+.tlegend{gap:6px 14px;font-size:13px;margin-top:6px}.tlegend span b{font-family:var(--mono);margin-left:4px}.tlegend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.rivgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:10px}.rivcard{display:grid;gap:3px;padding:10px 12px;background:var(--panel-2);border-radius:8px;border-left:3px solid var(--accent)}.rivcard b{font-size:17px}
+.cbar{height:10px;border-radius:999px;background:var(--line-2);overflow:hidden;margin:10px 0 4px}.cbar i{display:block;height:100%;background:var(--accent)}
+.wrapcard{position:relative;max-width:540px;width:100%;margin:0 auto;padding:28px 24px;border-radius:16px;background:linear-gradient(160deg,#1d1030,#0d0b12 55%,#09090A);border:1px solid var(--line-2);border-top:6px solid var(--accent);overflow:hidden}
+.wrapcard h1{font:italic 900 clamp(30px,8vw,44px)/1 var(--display);text-transform:uppercase;margin:8px 0 14px;position:relative}.wtop{display:flex;justify-content:space-between;align-items:flex-start}
+.wnum{font:italic 900 72px/1 var(--display);color:rgba(180,85,247,.22);position:absolute;right:20px;top:18px}
+.wtitle{font:italic 900 28px/1.1 var(--display);color:var(--gold);text-transform:uppercase}
+.wgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0}.wst{background:var(--panel);border-left:3px solid var(--accent);padding:10px;border-radius:6px;display:grid}.wst b{font:italic 900 26px var(--display)}.wst span{font:700 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.wlines p{margin:0 0 10px;font-size:16px}.wlines span{display:block;font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.wfoot{margin-top:16px;font:500 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .prices{display:grid;grid-template-columns:repeat(3,62px);gap:4px}
 .price{display:grid;justify-items:center;gap:1px;padding:6px 2px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2);color:var(--fg);cursor:pointer;font:inherit}
 .price small{font:600 9px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.price b{font:italic 900 15px var(--display);color:var(--accent)}
@@ -559,7 +570,8 @@ function driverDetail(s){const c=S.calc,d=s.driver,rk=c.rank[d.id],pens=S.penalt
   const o=s.off;
   h+='<div class="tiles">'+tile(fmtN(s.total),"Points")+tile(s.starts,"Starts")+tile(s.wins,"Wins")+tile(s.top5,"Top 5s")+tile(s.top10,"Top 10s")+(o&&o.podiums!=null?tile(o.podiums,"Podiums"):"")+tile(s.poles,"Poles")+tile(s.led,"Laps led")+(o?tile(o.stgPts,"Stage pts")+tile(o.stgWins,"Stage wins"):"")+tile(s.avgFin?s.avgFin.toFixed(1):"–","Avg finish")+tile(s.avgStart?s.avgStart.toFixed(1):"–","Avg start")+tile(s.best??"–","Best finish")+tile(s.inc+"x","Incidents")+tile(s.starts?(s.inc/s.starts).toFixed(1)+"x":"–","Inc per race")+tile(s.dnf,"DNFs")+(o&&o.rating!=null?tile(Number(o.rating).toFixed(1),"Avg rating"):"")+
     (o?(num(o.penPts,0)?tile(fmtN(o.penPts),"Penalty pts"):""):(s.penPts?tile("−"+s.penPts,"Penalty pts"):""))+"</div>";
-  h+='<div class="panel"><div class="sechead"><div class="lt">Finishes by round</div><div class="row"><button class="btn sm" data-act="compare" data-arg="'+esc(d.id)+'">Head to head</button>'+(S.idx?'<button class="btn sm" data-act="career" data-arg="'+esc(d.id)+'">INRS career</button>':"")+"</div></div>"+finishChart([seriesFor(s,"var(--accent)")])+"</div>";
+  h+='<div class="panel"><div class="sechead"><div class="lt">Finishes by round</div><div class="row"><button class="btn sm" data-act="compare" data-arg="'+esc(d.id)+'">Head to head</button>'+(S.idx?'<button class="btn sm" data-act="career" data-arg="'+esc(d.id)+'">INRS career</button>':"")+(s.starts?'<button class="btn sm" data-act="wrapped" data-arg="'+esc(d.id)+'">'+esc(selInfo().year)+' Wrapped</button>':"")+"</div></div>"+finishChart([seriesFor(s,"var(--accent)")])+"</div>";
+  h+=rivalsPanel(d.id);
   h+='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Race log</div>'+(s.log.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Race</th><th class="n">Start</th><th>Fin</th><th class="n">Led</th><th class="n">Inc</th><th>Status</th><th class="n">Pts</th></tr></thead><tbody>'+
     s.log.map(l=>'<tr><td><button class="dl" data-act="openrace" data-arg="'+esc(l.race.id)+'">'+esc(raceLabel(l.race))+'</button></td><td class="n">'+esc(l.start??"–")+"</td><td>"+posBadge(l.fin)+'</td><td class="n">'+l.led+'</td><td class="n">'+l.inc+"x</td><td>"+esc(l.status)+'</td><td class="n"><b>'+l.pts+"</b></td></tr>").join("")+"</tbody></table></div>":empty("No races yet",""))+"</div>";
   if(pens.length)h+='<div class="panel"><div class="lt">Penalties</div>'+penTable(pens)+"</div>";
@@ -710,7 +722,7 @@ function chasePanel(full){const d=chaseData();if(!d)return"";
     '<div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">Pts</th><th class="n">Behind</th><th class="n">Needs per race</th><th>Chase finishes</th><th class="n">Chase avg</th><th>Status</th></tr></thead><tbody>'+
     d.rows.map(r=>"<tr><td>"+posBadge(r.s.off.pos)+"</td><td>"+dlink(r.s.driver.id)+'</td><td class="n"><span class="pts">'+fmtN(r.pts)+'</span></td><td class="n muted">'+(r.beh?"−"+fmtN(r.beh):"–")+'</td><td class="n">'+(r.beh&&d.remaining?"+"+r.perRace.toFixed(1):"–")+'</td><td><div class="chips">'+
       r.fins.map((f,i)=>'<span class="fchip '+(f===1?"w":f&&f<=5?"t5":"")+'" title="'+esc(raceLabel(d.chaseRaces[i]))+'">'+(f??"–")+"</span>").join("")+'</div></td><td class="n">'+(r.avg?r.avg.toFixed(1):"–")+"</td><td>"+status(r)+"</td></tr>").join("")+
-    '</tbody></table></div><p class="hint" style="margin:10px 0 0">"Needs per race" is how many more points per race than the leader a driver must score to catch up.</p></div>'+scenarioPanel(d)+"</section>";}
+    '</tbody></table></div><p class="hint" style="margin:10px 0 0">"Needs per race" is how many more points per race than the leader a driver must score to catch up.</p></div>'+titlePanel()+scenarioPanel(d)+"</section>";}
 
 /* ---------- Chase: what it takes ---------- */
 const ordinal=n=>{const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
@@ -834,8 +846,8 @@ V.odds=()=>{const c=S.calc;needSeasons();if(!S.marketKick){S.marketKick=1;setTim
   return'<section class="stack">'+top+'<div><div class="eyebrow">Sportsbook · Round '+esc(d.race.round)+" · "+fmtDate(d.race.date)+'</div><h1 class="track" style="font-size:clamp(28px,6vw,44px)">'+esc(trackOf(d.race.track).label)+"</h1>"+
     '<p class="small muted" style="margin:6px 0 0">Play money only. Tap a price to add it to your bet slip, then bet it as a single or combine picks into a parlay, including races from the other series (switch series at the top). Odds come from each driver\'s last 5 races, finishes here this season'+(d.pk?" and last season":"")+", and results on other "+esc(TTYPE_L[d.ty])+".</p>"+
     (d.live&&d.live.active?"":open?'<p class="small" style="margin:6px 0 0;color:var(--accent)">Betting closes '+esc(closeLabel(d.race.date))+" (8:30 PM Eastern) unless live timing is running, then it stays open until 10 laps to go.</p>":'<p class="small" style="color:var(--bad);margin:6px 0 0">Betting is closed for this race.</p>')+liveBanner(d.race)+"</div>"+
-    '<div class="subtabs" role="group" aria-label="Markets">'+['drivers','h2h'].map(t=>'<button class="btn sm" data-act="booktab" data-arg="'+t+'"'+((S.bookTab||"drivers")===t?' aria-current="page"':"")+">"+(t==="h2h"?"Head to head":"Driver odds")+"</button>").join("")+"</div>"+
-    (S.bookTab==="h2h"?h2hSection(d,open,picked,O):'<div class="row"><span class="small muted">Sort by</span>'+mk("win","To win")+mk("top5","Top 5")+mk("top10","Top 10")+"</div>"+
+    '<div class="subtabs" role="group" aria-label="Markets">'+['drivers','h2h'].concat(chaseData()?['title']:[]).map(t=>'<button class="btn sm" data-act="booktab" data-arg="'+t+'"'+((S.bookTab||"drivers")===t?' aria-current="page"':"")+">"+(t==="h2h"?"Head to head":t==="title"?"Championship":"Driver odds")+"</button>").join("")+"</div>"+
+    (S.bookTab==="title"?futuresSection():S.bookTab==="h2h"?h2hSection(d,open,picked,O):'<div class="row"><span class="small muted">Sort by</span>'+mk("win","To win")+mk("top5","Top 5")+mk("top10","Top 10")+"</div>"+
     '<div class="tiles">'+tile(fav?drv(fav.id).name:"–","Favorite "+(fav?oddsFmt(fav.pWin,d.VIG):""),true)+(dark?tile(drv(dark.id).name,"Dark horse "+oddsFmt(dark.pWin,d.VIG),true):"")+tile(d.rows.length,"Drivers priced")+"</div>"+trackPowerPanel(d.tk,trackOf(d.race.track).label,true)+
     '<div class="panel" style="padding:6px 8px"><div class="list">'+L.map((x,i)=>'<div class="oddrow"><span class="orank">'+(i+1)+'</span><div class="oname">'+dlink(x.id)+'<div class="whys">'+why(x)+'</div></div><div class="prices">'+price(x,"win")+price(x,"top5")+price(x,"top10")+"</div></div>").join("")+"</div></div>")+
     '<p class="hint">Odds come from simulating the race thousands of times, with a sportsbook-style margin built in. Prices update after each race. Bets settle automatically when SimRacerHub results are posted; a driver who doesn\'t start is voided (singles refunded, parlays drop that pick). When 3 or more people bet the same pick, its odds get shorter, just like a real book moving the line. Entertainment only, no real money.</p></section>';};
@@ -880,7 +892,7 @@ const slugId=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/
 function raceIsOpen(r){if(!r)return false;const lv=liveFor(r);
   if(lv&&lv.race&&lv.active){const R=lv.race;if(R.state>=5)return false;return!(R.lapsLeft!=null&&R.lapsLeft<=10);}
   if(lv&&lv.active)return true;return raceOpen(r.date);}
-function legOpen(l){const R=seasonRaces(l.k);const r=R&&R.find(x=>x.id===l.rid);return r?raceIsOpen(r):raceOpen(l.date);}
+function legOpen(l){const R=seasonRaces(l.k);if(l.m==="title"){const lr=(R||[]).filter(r=>!r.exhibition).sort((a,b)=>num(b.round,0)-num(a.round,0))[0];return!!lr&&lr.status!=="complete"&&raceOpen(lr.date);}const r=R&&R.find(x=>x.id===l.rid);return r?raceIsOpen(r):raceOpen(l.date);}
 const lapFmt=ms=>{if(!ms)return"";const s=ms/1000,m=Math.floor(s/60);return(m?m+":"+String((s%60).toFixed(3)).padStart(6,"0"):s.toFixed(3));};
 function liveBanner(r){const lv=liveFor(r);if(!lv)return"";const ago=Math.max(0,Math.round((Date.now()-lv.updated)/1000)),st=lv.session;
   const R=lv.race,what=st==="race"&&R?(R.lapsTotal?"Lap "+Math.min(R.leaderLaps,R.lapsTotal)+" of "+R.lapsTotal+(R.lapsLeft!=null&&R.lapsLeft<=10?" · betting locked (10 to go)":" · locks at 10 to go"):"Race"):st==="qualify"?"Qualifying":"Practice";
@@ -907,7 +919,7 @@ V.live=()=>{const L=S.live;if(!liveDb())return'<div class="lt">Live timing</div>
     '<p class="hint">Updates every few seconds straight from the league session. '+(race?"Running order and laps completed.":"Ranked by best lap.")+' <button class="btn sm ghost" data-act="nav" data-arg="odds">Live odds in the Sportsbook</button></p></section>';};
 
 /* ---------- sportsbook (play money, saved per browser) ---------- */
-const BK="inrs-bets",START=1000,MKT_L={win:"To win",top5:"Top 5",top10:"Top 10",h2h:"Head to head"},MKT_N={win:1,top5:5,top10:10};
+const BK="inrs-bets",START=1000,MKT_L={win:"To win",top5:"Top 5",top10:"Top 10",h2h:"Head to head",title:"Championship"},MKT_N={win:1,top5:5,top10:10};
 function book(){if(!S.book){let v=null;try{v=JSON.parse(localStorage.getItem(BK)||"null");}catch(e){}
   S.book=v&&v.v===1?v:{v:1,bets:[],refills:0,slip:[],mode:"single",stakes:{},pstake:""};}return S.book;}
 function saveBook(){try{localStorage.setItem(BK,JSON.stringify(S.book));}catch(e){}}
@@ -919,7 +931,10 @@ const CLOSE_MS=30*60e3;/* races are stored at 8:00 PM Eastern; betting closes 30
 const raceOpen=iso=>!iso||Date.now()<new Date(iso).getTime()+CLOSE_MS;
 const closeLabel=iso=>{const d=new Date(new Date(iso).getTime()+CLOSE_MS);return d.toLocaleString(undefined,{weekday:"short",hour:"numeric",minute:"2-digit",timeZoneName:"short"});};
 function seasonRaces(k){if(k===MAINKEY)return S.M.races||[];const a=S.arch[k];return a?a.races||[]:null;}
-function legStatus(l){const R=seasonRaces(l.k);if(!R)return"pending";const r=R.find(x=>x.id===l.rid);if(!r||r.status!=="complete"||!(r.results||[]).length)return"pending";
+function legStatus(l){const R=seasonRaces(l.k);if(!R)return"pending";
+  if(l.m==="title"){const nr=R.filter(r=>!r.exhibition);if(!nr.length||!nr.every(r=>r.status==="complete"&&(r.results||[]).length))return"pending";
+    const off=l.k===MAINKEY?S.M.official:(S.arch[l.k]||{}).official,last=Math.max(...nr.map(r=>num(r.round,0)));if(!off||!off.rows||num(off.afterRound,0)<last)return"pending";
+    const ch=off.rows.find(x=>x.pos===1);return ch&&ch.driverId===l.did?"won":"lost";}const r=R.find(x=>x.id===l.rid);if(!r||r.status!=="complete"||!(r.results||[]).length)return"pending";
   if(l.m==="h2h"){const[a,b]=l.did.split("~"),fa=r.results.find(y=>y.driverId===a),fb=r.results.find(y=>y.driverId===b);
     if(!fa||!fb||!int(fa.fin)||!int(fb.fin))return"void";return int(fa.fin)<int(fb.fin)?"won":"lost";}
   const x=r.results.find(y=>y.driverId===l.did);if(!x||!int(x.fin))return"void";return int(x.fin)<=MKT_N[l.m]?"won":"lost";}
@@ -936,6 +951,7 @@ function needSeasons(){const B=book(),ks=new Set();B.bets.concat([{legs:B.slip}]
     fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[k]=j;}).catch(()=>{}).finally(()=>{S.bookFetch=null;draw();});});}
 function parlayProblem(legs){if(legs.length<2)return"Add at least 2 picks for a parlay.";if(legs.length>10)return"Parlays max out at 10 picks.";
   const seen={};for(const l of legs){const rk=l.k+"|"+l.rid;
+    if(l.m==="title"){if(seen[l.k+"|title"])return"Only one driver can win the "+esc(l.label)+". Remove one.";seen[l.k+"|title"]=1;continue;}
     if(l.m==="h2h"){const[a,b]=l.did.split("~");if(seen[rk+"|h2h|"+b+"~"+a])return"Both sides of the same head-to-head can't both win. Remove one.";
       if(legs.some(o=>o.k===l.k&&o.rid===l.rid&&o.m==="win"&&o.did===b))return esc(l.name)+" can't hit if "+esc((drv(b)||{}).name||b)+" wins. Remove one.";seen[rk+"|h2h|"+l.did]=1;continue;}
     if(seen[rk+"|"+l.did])return esc(l.name)+" is in this parlay twice for the same race. Keep one pick per driver per race.";seen[rk+"|"+l.did]=1;
@@ -958,11 +974,11 @@ document.addEventListener("input",e=>{const el=e.target;if(!el.dataset||!el.data
   if(k==="__parlay"){B.pstake=v;const d=B.slip.reduce((m,l)=>m*decOdds(l.odds),1),p=document.getElementById("pay-__parlay");if(p)p.textContent=payText(parseFloat(v),d);}
   else{B.stakes[k]=v;const l=B.slip.find(x=>legKey(x)===k),p=document.getElementById("pay-"+k);if(p&&l)p.textContent=payText(parseFloat(v),decOdds(l.odds));}saveBook();});
 const BOOK_ACT={
-  pick(a){const B=book(),[k,rid,did,m,odds]=String(a).split("|"),c=S.calc,r=c.next;if(!r||r.id!==rid)return;
-    if(!raceIsOpen(r)){toast("Betting is closed for this race.",true);return;}
+  pick(a){const B=book(),[k,rid,did,m,odds]=String(a).split("|"),c=S.calc,r=m==="title"?{id:"title",round:"",track:"",date:null}:c.next;if(!r||r.id!==rid)return;
+    if(m==="title"?!legOpen({k,rid,m}):!raceIsOpen(r)){toast("Betting is closed for this race.",true);return;}
     const key=k+"|"+rid+"|"+did+"|"+m,i=B.slip.findIndex(l=>legKey(l)===key);
     if(i>=0)B.slip.splice(i,1);else{if(B.slip.length>=10){toast("Your slip is full (10 picks).",true);return;}
-      const d=drv(did),nm=m==="h2h"?did.split("~").map(x=>(drv(x)||{name:x}).name).join(" over "):(d?d.name:did);B.slip.push({k,rid,did,m,odds,name:nm,label:selInfo().year+" "+SER_L[selInfo().series]+" · Rd "+r.round+" "+trackOf(r.track).label,date:r.date});
+      const d=drv(did),nm=m==="h2h"?did.split("~").map(x=>(drv(x)||{name:x}).name).join(" over "):(d?d.name:did);B.slip.push({k,rid,did,m,odds,name:nm,label:m==="title"?selInfo().year+" "+SER_L[selInfo().series]+" championship":selInfo().year+" "+SER_L[selInfo().series]+" · Rd "+r.round+" "+trackOf(r.track).label,date:r.date});
       if(B.slip.length===2&&B.mode==="single"&&!Object.keys(B.stakes).length)B.mode="parlay";}
     saveBook();draw();},
   unpick(key){const B=book();B.slip=B.slip.filter(l=>legKey(l)!==key);delete B.stakes[key];saveBook();draw();},
@@ -972,7 +988,7 @@ const BOOK_ACT={
   placebet(){const B=book(),br=bankroll(),L=B.slip;if(!L.length)return;
     const closed=L.find(l=>!legOpen(l));if(closed){toast("Betting has closed for "+closed.label+". Remove that pick.",true);return;}
     {const d=oddsData();if(d){const vg={win:d.VIG,top5:1.12,top10:1.08},cl={win:"pWin",top5:"p5",top10:"p10"};let changed=0;
-      L.forEach(l=>{if(l.k!==S.sel||l.rid!==d.race.id)return;if(l.m==="h2h"){const[a,b]=l.did.split("~"),o=h2hPrice(d,a,b);if(o&&o!==l.odds){l.odds=o;changed++;}return;}const x=d.rows.find(y=>y.id===l.did);if(!x)return;const o=priceOf(d,x,l.m);if(o!==l.odds){l.odds=o;changed++;}});
+      L.forEach(l=>{if(l.m==="title"&&l.k===S.sel){const t=titleOdds(),x=t&&t.rows.find(y=>y.id===l.did);if(x){const o=american(Math.min(0.95,Math.max(0.004,x.p*1.12*marketMult(popCount(l.k,"title",l.did,"title")))));if(o!==l.odds){l.odds=o;changed++;}}return;}if(l.k!==S.sel||l.rid!==d.race.id)return;if(l.m==="h2h"){const[a,b]=l.did.split("~"),o=h2hPrice(d,a,b);if(o&&o!==l.odds){l.odds=o;changed++;}return;}const x=d.rows.find(y=>y.id===l.did);if(!x)return;const o=priceOf(d,x,l.m);if(o!==l.odds){l.odds=o;changed++;}});
       if(changed){saveBook();draw();toast("Odds moved on "+plural(changed,"pick")+". Check the new prices and tap Place bet again.",true);return;}}}
     const now=new Date().toISOString(),mk=(t,legs,stake)=>({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),t,legs:legs.map(l=>Object.assign({},l)),stake,placed:now});
     let bets=[];
@@ -1105,6 +1121,130 @@ function previewPanel(){const P=previewData();if(!P)return"";
     P.slice(1).map(([h,t])=>'<p class="pv"><b>'+esc(h)+"</b> "+esc(t)+"</p>").join("")+"</div>";}
 const PREVIEW_ACT={copypreview(){const P=previewData();if(!P)return;const txt="**"+P[0][1]+"**\n"+P.slice(1).map(([h,t])=>"**"+h+":** "+t).join("\n")+"\n"+(settings().hubUrl?"":"")+location.href.split("#")[0];
   (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Preview copied. Paste it into Discord."),()=>{const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("Preview copied. Paste it into Discord.");}catch(e){toast("Couldn't copy. Long-press to select the text instead.",true);}ta.remove();});}};
+
+/* ---------- championship simulation: title odds, futures, odds-over-time chart ---------- */
+S.titleCache={};
+function strengthsAt(done){const recent=done.slice(-6),field={};recent.forEach(r=>r.results.forEach(x=>{if(int(x.fin))field[x.driverId]=(field[x.driverId]||0)+1;}));
+  const out=[];Object.keys(field).forEach(id=>{if(field[id]<2)return;const fins=[];done.slice(-8).forEach((r,i,a)=>{const x=r.results.find(y=>y.driverId===id);if(x&&int(x.fin))fins.push([int(x.fin),1-0.06*(a.length-1-i)]);});
+    const all=done.map(r=>r.results.find(y=>y.driverId===id)).filter(x=>x&&int(x.fin)).map(x=>int(x.fin)),sa=all.reduce((s,v)=>s+v,0)/Math.max(1,all.length);
+    const w=fins.reduce((s,f)=>s+f[1],0),m=fins.reduce((s,f)=>s+f[0]*f[1],0)/Math.max(.001,w),E=(m*w+sa*1.5)/(w+1.5);out.push({id,E,w:Math.exp(-(E-1)/4.6)});});return out;}
+function rngSeed(str){return rng(String(str).split("").reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,7));}
+function simTitle(pts,field,nRaces,N,seed){const T=settings().points.table,P=f=>num(T[f-1],0)+Math.max(0,11-f)*0.8,rnd=rngSeed(seed),ids=Object.keys(pts),win={};ids.forEach(id=>win[id]=0);
+  if(!nRaces){const best=ids.reduce((a,b)=>pts[b]>pts[a]?b:a,ids[0]);win[best]=N;return win;}
+  const F=field.filter(f=>f.w>0);
+  /* each driver has a 1-in-8 chance of a bad night (wreck, mechanical) per race, so leads aren't treated as safer than they are */
+  for(let n=0;n<N;n++){const p=Object.assign({},pts);
+    for(let r=0;r<nRaces;r++){const W=F.map(f=>rnd()<0.125?f.w*0.04:f.w),left=F.map((_,i)=>i);let tot=W.reduce((s,v)=>s+v,0);
+      for(let pos=1;left.length;pos++){let u=rnd()*tot,j=0;for(;j<left.length-1;j++){u-=W[left[j]];if(u<=0)break;}const i=left.splice(j,1)[0];tot-=W[i];const id=F[i].id;if(id in p)p[id]+=P(pos);}}
+    let best=null;ids.forEach(id=>{if(best===null||p[id]>p[best]||(p[id]===p[best]&&rnd()<0.5))best=id;});win[best]++;}
+  return win;}
+function titleOdds(){const d=chaseData();if(!d)return null;const c=S.calc,key=S.sel+"|"+c.done.length+"|"+d.rows.map(r=>r.pts).join(",");if(S.titleCache[key])return S.titleCache[key];
+  const done=c.done.filter(r=>!r.exhibition&&(r.results||[]).length),field=strengthsAt(done),pts={};d.rows.forEach(r=>pts[r.s.driver.id]=r.pts);
+  const N=4000,win=simTitle(pts,field,d.remaining,N,key);
+  const rows=d.rows.map(r=>({id:r.s.driver.id,pts:r.pts,beh:r.beh,pos:r.s.off.pos,p:win[r.s.driver.id]/N})).sort((a,b)=>b.p-a.p||a.pos-b.pos);
+  /* history: title chances after each Chase race, rebuilt by peeling later races' points off today's totals */
+  const CR=d.chaseRaces,hist=[];
+  for(let j=0;j<=CR.length;j++){const pj={};d.rows.forEach(r=>{const id=r.s.driver.id;let v=r.pts;for(let i=j;i<CR.length;i++){const x=CR[i].results.find(y=>y.driverId===id);if(x)v-=num(x.pts,0);}pj[id]=v;});
+    const upto=j?done.indexOf(CR[j-1])+1:done.indexOf(CR[0]);const fj=strengthsAt(done.slice(0,Math.max(1,upto)));
+    const wj=j===CR.length?win:simTitle(pj,fj,d.remaining+(CR.length-j),1200,key+"|h"+j),Nj=j===CR.length?N:1200;
+    hist.push({label:j?"Rd "+CR[j-1].round:"Start",p:Object.fromEntries(Object.entries(wj).map(([k,v])=>[k,v/Nj]))});}
+  return(S.titleCache[key]={rows,hist,d});}
+function titleChart(t){const top=t.rows.slice(0,5).filter(r=>t.hist.some(h=>h.p[r.id]>0.005));if(t.hist.length<2||!top.length)return"";
+  const narrow=window.innerWidth<600,C=["#3987e5","#d95926","#199e70","#c98500","#d55181"],W=narrow?360:640,H=narrow?230:260,L=narrow?34:40,R=narrow?22:130,Tp=14,B=30,n=t.hist.length,xs=i=>L+(W-L-R)*(n===1?0:i/(n-1)),ys=v=>Tp+(H-Tp-B)*(1-v);
+  let g="";[0,.25,.5,.75,1].forEach(v=>{g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+ys(v)+'" y2="'+ys(v)+'" stroke="var(--line)" stroke-width="1"/><text x="'+(L-6)+'" y="'+(ys(v)+4)+'" text-anchor="end" class="ax">'+Math.round(v*100)+"%</text>";});
+  t.hist.forEach((h,i)=>{if((narrow?n<=6:n<=12)||i%2===0||i===n-1)g+='<text x="'+xs(i)+'" y="'+(H-10)+'" text-anchor="'+(i===n-1&&narrow?"end":i===0?"start":"middle")+'" class="ax">'+esc(h.label)+"</text>";});
+  const ends=[];top.forEach((r,k)=>{const pts=t.hist.map((h,i)=>[xs(i),ys(h.p[r.id]||0),h]);
+    g+='<polyline fill="none" stroke="'+C[k]+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="'+pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ")+'"/>';
+    pts.forEach(p=>{g+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4" fill="'+C[k]+'" stroke="var(--panel)" stroke-width="2"><title>'+esc((drv(r.id)||{name:r.id}).name+" · "+p[2].label+": "+Math.round((p[2].p[r.id]||0)*100)+"%")+"</title></circle>";});
+    ends.push({y:pts[pts.length-1][1],r,k});});
+  const lab=narrow?[]:ends.filter(e=>e.r.p>=0.01||e.k===0).slice(0,4);lab.sort((a,b)=>a.y-b.y);
+  for(let i=1;i<lab.length;i++)if(lab[i].y-lab[i-1].y<15)lab[i].y=lab[i-1].y+15;
+  const over=lab.length?lab[lab.length-1].y-(H-B):0;if(over>0)for(let i=lab.length-1;i>=0;i--){lab[i].y-=over;if(i&&lab[i].y-lab[i-1].y>=15)break;}
+  for(let i=lab.length-2;i>=0;i--)if(lab[i+1].y-lab[i].y<15)lab[i].y=lab[i+1].y-15;
+  lab.forEach(e=>{const nm=(drv(e.r.id)||{name:e.r.id}).name.split(" ").slice(-1)[0];g+='<text x="'+(W-R+8)+'" y="'+(e.y+4)+'" class="lbl"><tspan fill="'+C[e.k]+'">●</tspan> '+esc(nm)+" "+Math.round(e.r.p*100)+"%</text>";});
+  return'<div class="panel"><div class="sechead"><div class="lt">Title odds through the Chase</div><span class="hint">Chance to win the championship after each race</span></div>'+
+    '<div class="tchart"><svg viewBox="0 0 '+W+" "+H+'" role="img" aria-label="Championship chances after each Chase race">'+g+"</svg></div>"+
+    '<div class="row tlegend">'+top.map((r,k)=>'<span><i style="background:'+C[k]+'"></i>'+esc((drv(r.id)||{name:r.id}).name)+"<b>"+(r.p<0.01?"<1":Math.round(r.p*100))+"%</b></span>").join("")+"</div>"+
+    '<details class="small" style="margin-top:8px"><summary class="muted">Show as table</summary><div class="scroll"><table class="tbl"><thead><tr><th>Driver</th>'+t.hist.map(h=>'<th class="n">'+esc(h.label)+"</th>").join("")+"</tr></thead><tbody>"+
+      top.map(r=>"<tr><td>"+dlink(r.id)+"</td>"+t.hist.map(h=>'<td class="n">'+Math.round((h.p[r.id]||0)*100)+"%</td>").join("")+"</tr>").join("")+"</tbody></table></div></details></div>";}
+function titlePanel(){const t=titleOdds();if(!t)return"";
+  return'<div class="panel"><div class="sechead"><div class="lt">Championship odds</div><span class="hint">'+plural(t.d.remaining,"race")+" left · simulated 4,000 times</span></div><div class=\"list\">"+
+    t.rows.filter(r=>r.p>=0.0005||r.beh===0).slice(0,8).map(r=>'<div class="podrow">'+posBadge(r.pos)+'<div class="name">'+dlink(r.id)+'</div><span class="pts">'+(r.p>=0.995?">99%":r.p<0.01?"<1%":Math.round(r.p*100)+"%")+"</span></div>").join("")+"</div></div>"+titleChart(t);}
+function futuresSection(open){const t=titleOdds();if(!t)return'<p class="small muted">Championship futures open during the Chase.</p>';const B=book(),k=S.sel,picked=new Set(B.slip.map(legKey));
+  const R=seasonRaces(k)||[],lastR=R.filter(r=>!r.exhibition).sort((a,b)=>num(b.round,0)-num(a.round,0))[0],closed=!lastR||!raceOpen(lastR.date)||lastR.status==="complete";
+  const rows=t.rows.filter(r=>r.p>=0.001);
+  return'<p class="small muted" style="margin:0">Bet on who wins the '+esc(selInfo().year+" "+SER_L[selInfo().series])+" championship. Odds come from simulating the rest of the Chase 4,000 times and update after every race. Bets pay out when the champion is crowned."+(closed?' <b style="color:var(--bad)">Futures are closed.</b>':"")+"</p>"+
+    '<div class="panel" style="padding:6px 8px"><div class="list">'+rows.map(r=>{const o=american(Math.min(0.95,Math.max(0.004,r.p*1.12*marketMult(popCount(k,"title",r.id,"title"))))),key=k+"|title|"+r.id+"|title";
+      return'<div class="oddrow"><span class="orank">'+r.pos+'</span><div class="oname">'+dlink(r.id)+'<div class="whys"><span class="why"><b>'+fmtN(r.pts)+" pts</b> "+(r.beh?"−"+r.beh+" to the leader":"Leader")+'</span><span class="why"><b>Title chance</b> '+(r.p<0.01?"<1":Math.round(r.p*100))+'%</span></div></div><div class="prices" style="grid-template-columns:90px"><button class="price'+(picked.has(key)?" on":"")+'" '+(!closed&&open!==false?'data-act="pick" data-arg="'+esc(k+"|title|"+r.id+"|title|"+o)+'"':"disabled")+'><small>Champion</small><b>'+o+"</b></button></div></div>";}).join("")+"</div></div>";}
+
+/* ---------- rivalries (career head-to-head across every series and season) ---------- */
+function careerRaces(){if(!S.idx)return null;let missing=false;const out=[];
+  S.idx.seasons.forEach(si=>{const R=si.main?S.M.races:(S.arch[si.key]||{}).races;if(!R){missing=true;ensureSeason(si.key);return;}
+    R.forEach(r=>{if(r.status==="complete"&&!r.exhibition&&(r.results||[]).length)out.push({k:si.key,r});});});
+  return missing?null:out;}
+function careerName(id){if(drv(id))return drv(id).name;for(const k in S.arch){const d=((S.arch[k]||{}).drivers||[]).find(x=>x.id===id);if(d)return d.name;}const d=(S.M.drivers||[]).find(x=>x.id===id);return d?d.name:id;}
+function rivalsOf(id){const CR=careerRaces();if(!CR)return null;const T={};
+  CR.forEach(({r})=>{const me=r.results.find(x=>x.driverId===id);if(!me||!int(me.fin))return;const f=int(me.fin);
+    r.results.forEach(x=>{if(x.driverId===id||!int(x.fin))return;const t=T[x.driverId]=T[x.driverId]||{id:x.driverId,met:0,ahead:0};t.met++;if(f<int(x.fin))t.ahead++;});});
+  return Object.values(T);}
+function h2hCareer(a,b){const CR=careerRaces();if(!CR)return null;let met=0,ahead=0,series={};
+  CR.forEach(({k,r})=>{const x=r.results.find(y=>y.driverId===a),y=r.results.find(z=>z.driverId===b);if(!x||!y||!int(x.fin)||!int(y.fin))return;met++;if(int(x.fin)<int(y.fin))ahead++;const s=k.split("-")[0];series[s]=(series[s]||0)+1;});
+  return{met,ahead,series};}
+function rivalsPanel(id){const L=rivalsOf(id);if(!L)return'<div class="panel"><div class="lt">Rivalries</div><p class="small muted">Loading every INRS season…</p></div>';
+  const mx=Math.max(0,...L.map(t=>t.met)),q=L.filter(t=>t.met>=Math.max(8,Math.round(mx*0.15)));if(!q.length)return"";const pct=t=>t.ahead/t.met;
+  const nem=[...q].sort((a,b)=>pct(a)-pct(b)||b.met-a.met)[0],vic=[...q].sort((a,b)=>pct(b)-pct(a)||b.met-a.met)[0],
+    close=[...q].filter(t=>t.met>=12).sort((a,b)=>Math.abs(pct(a)-.5)-Math.abs(pct(b)-.5)||b.met-a.met)[0],often=[...L].sort((a,b)=>b.met-a.met).slice(0,6);
+  const nm=x=>drv(x)?dlink(x):'<button class="dl" data-act="career" data-arg="'+esc(x)+'">'+esc(careerName(x))+"</button>",rec=t=>t.ahead+"–"+(t.met-t.ahead);
+  const card=(lbl,t,sub)=>t?'<div class="rivcard"><span class="eyebrow">'+lbl+'</span><b>'+nm(t.id)+'</b><span class="small muted">'+sub(t)+"</span></div>":"";
+  return'<div class="panel"><div class="sechead"><div class="lt">Rivalries</div><span class="hint">Every INRS race since 2022 · min. '+Math.max(8,Math.round(mx*0.15))+' races together</span></div><div class="rivgrid">'+
+    card("Nemesis",nem,t=>"Beat you in "+(t.met-t.ahead)+" of "+t.met+" races")+card("Favorite victim",vic,t=>"Beat them in "+t.ahead+" of "+t.met+" races")+(close&&close.id!==nem.id&&close.id!==vic.id?card("Closest rival",close,t=>"Dead even: "+rec(t)):"")+"</div>"+
+    '<div class="scroll" style="margin-top:10px"><table class="tbl"><thead><tr><th>Most-raced opponents</th><th class="n">Races</th><th class="n">Ahead</th><th class="n">Behind</th></tr></thead><tbody>'+
+    often.map(t=>"<tr><td>"+nm(t.id)+'</td><td class="n">'+t.met+'</td><td class="n">'+t.ahead+'</td><td class="n">'+(t.met-t.ahead)+"</td></tr>").join("")+"</tbody></table></div></div>";}
+
+/* ---------- Season Wrapped (end-of-season card per driver, saveable as an image) ---------- */
+function wrappedData(id){const c=S.calc,s=c.D[id];if(!s||!s.starts)return null;const d=s.driver,log=s.log.filter(l=>l.fin);if(!log.length)return null;
+  const best=[...log].sort((a,b)=>a.fin-b.fin||(b.led||0)-(a.led||0))[0];
+  const byT={};log.forEach(l=>{const k=trackOf(l.race.track).label;(byT[k]=byT[k]||[]).push(l.fin);});
+  const bt=Object.entries(byT).map(([k,f])=>({k,avg:f.reduce((x,y)=>x+y,0)/f.length,n:f.length})).sort((a,b)=>(b.n>1)-(a.n>1)||a.avg-b.avg)[0];
+  const beat={};c.done.forEach(r=>{const me=r.results.find(x=>x.driverId===id);if(!me||!int(me.fin))return;r.results.forEach(x=>{if(x.driverId!==id&&int(x.fin)&&int(me.fin)<int(x.fin)){const b=beat[x.driverId]=beat[x.driverId]||{n:0,met:0};b.n++;}if(x.driverId!==id&&int(x.fin))(beat[x.driverId]=beat[x.driverId]||{n:0,met:0}).met++;});});
+  const riv=Object.entries(beat).filter(([k,v])=>v.met>=5&&drv(k)).sort((a,b)=>b[1].n-a[1].n)[0];
+  const ran=c.standings.filter(x=>x.starts>=Math.max(3,c.done.length/4)),incR=s.inc/s.starts,ledRank=[...ran].sort((a,b)=>b.led-a.led).findIndex(x=>x.driver.id===id),
+    incPct=ran.filter(x=>x.inc/x.starts>incR).length/Math.max(1,ran.length),half=Math.floor(log.length/2),
+    early=half>=3?log.slice(0,half).reduce((x,l)=>x+l.fin,0)/half:null,late=half>=3?log.slice(-half).reduce((x,l)=>x+l.fin,0)/half:null;
+  let title,why;
+  if(s.wins>=3){title="The Closer";why=plural(s.wins,"win")+" this season";}
+  else if(ledRank>=0&&ledRank<3&&s.led>50){title="Front Runner";why=fmtN(s.led)+" laps led, top 3 in the series";}
+  else if(early&&late&&early-late>=4){title="Late Bloomer";why="Average finish improved from "+early.toFixed(1)+" to "+late.toFixed(1);}
+  else if(incPct<0.12&&s.starts>=8){title="Chaos Agent";why=incR.toFixed(1)+" incidents a race";}
+  else if(s.avgFin&&s.avgFin<=10&&!s.wins){title="Mr. Consistent";why="Average finish of "+s.avgFin.toFixed(1)+" without a win";}
+  else if(incPct>0.85&&s.starts>=8){title="Clean Machine";why="One of the cleanest drivers in the series";}
+  else{title="The Grinder";why=plural(s.starts,"start")+", never missing a fight";}
+  return{d,s,pos:c.rank[id],best,bt,riv:riv?{id:riv[0],n:riv[1].n,met:riv[1].met}:null,title,why,season:selInfo().year+" "+SER_L[selInfo().series]};}
+V.wrapped=()=>{const w=wrappedData(S.wrapId);if(!w)return'<div class="lt">Season Wrapped</div>'+empty("No season to wrap yet","This driver needs at least one start this season.");
+  const st=(v,l)=>'<div class="wst"><b>'+esc(v)+"</b><span>"+esc(l)+"</span></div>";
+  return'<section class="stack"><div class="row"><button class="btn sm ghost" data-act="driver" data-arg="'+esc(w.d.id)+'">← '+esc(w.d.name)+'</button><button class="btn sm primary" data-act="wrapsave">Save as image</button></div>'+
+    '<div class="wrapcard" id="wrapcard"><div class="wtop"><span class="eyebrow">'+esc(w.season)+' · Wrapped</span><span class="wnum">'+(w.d.number!=null&&String(w.d.number)!==""?"#"+esc(w.d.number):"")+'</span></div><h1>'+esc(w.d.name)+'</h1>'+
+    '<div class="wtitle">'+esc(w.title)+'</div><div class="small muted">'+esc(w.why)+'</div><div class="wgrid">'+
+    st(w.pos?"P"+w.pos:"–","Points finish")+st(w.s.wins,"Wins")+st(w.s.top5,"Top 5s")+st(fmtN(w.s.led),"Laps led")+st(w.s.avgFin?w.s.avgFin.toFixed(1):"–","Avg finish")+st(w.s.starts,"Starts")+"</div>"+
+    '<div class="wlines"><p><span>Best race</span><b>P'+w.best.fin+" at "+esc(trackOf(w.best.race.track).label)+"</b>"+(w.best.led?" · led "+w.best.led:"")+"</p>"+
+    (w.bt?"<p><span>Best track</span><b>"+esc(w.bt.k)+"</b> · avg finish "+w.bt.avg.toFixed(1)+"</p>":"")+(w.riv?"<p><span>Most-beaten rival</span><b>"+esc(drv(w.riv.id).name)+"</b> · "+w.riv.n+" of "+w.riv.met+" races</p>":"")+"</div>"+
+    '<div class="wfoot">INRS League Hub · presented by '+esc(settings().sponsorName||"40XLI")+"</div></div></section>";};
+function wrapImage(){const w=wrappedData(S.wrapId);if(!w)return;const cv=document.createElement("canvas");cv.width=1080;cv.height=1350;const g=cv.getContext("2d"),F='"Inter","Arial Black",sans-serif',B='"Barlow Semi Condensed","Arial",sans-serif',M='"JetBrains Mono",monospace';
+  const grd=g.createLinearGradient(0,0,1080,1350);grd.addColorStop(0,"#1d1030");grd.addColorStop(.55,"#0d0b12");grd.addColorStop(1,"#09090A");g.fillStyle=grd;g.fillRect(0,0,1080,1350);
+  g.fillStyle="#B455F7";g.fillRect(0,0,1080,14);
+  const logo=document.querySelector(".brandlogo");const draw=()=>{
+    g.fillStyle="#B455F7";g.font="700 34px "+B;g.fillText((w.season+" · WRAPPED").toUpperCase(),80,130);
+    if(w.d.number!=null&&String(w.d.number)!==""){g.font="italic 900 200px "+F;g.fillStyle="rgba(180,85,247,.18)";g.textAlign="right";g.fillText("#"+w.d.number,1020,400);g.textAlign="left";}
+    g.fillStyle="#F5F5F6";g.font="italic 900 84px "+F;const nm=w.d.name.toUpperCase();let fs=84;while(g.measureText(nm).width>920&&fs>40){fs-=4;g.font="italic 900 "+fs+"px "+F;}g.fillText(nm,80,250);
+    g.fillStyle="#F2C14E";g.font="italic 900 64px "+F;g.fillText(w.title.toUpperCase(),80,350);g.fillStyle="#9B9BA3";g.font="500 34px "+B;g.fillText(w.why,80,400);
+    const stats=[[w.pos?"P"+w.pos:"–","POINTS"],[String(w.s.wins),"WINS"],[String(w.s.top5),"TOP 5S"],[fmtN(w.s.led),"LAPS LED"],[w.s.avgFin?w.s.avgFin.toFixed(1):"–","AVG FINISH"],[String(w.s.starts),"STARTS"]];
+    stats.forEach((s,i)=>{const x=80+(i%3)*320,y=480+Math.floor(i/3)*190;g.fillStyle="#121214";g.fillRect(x,y,290,160);g.fillStyle="#B455F7";g.fillRect(x,y,6,160);g.fillStyle="#F5F5F6";g.font="italic 900 72px "+F;g.fillText(s[0],x+28,y+92);g.fillStyle="#9B9BA3";g.font="700 26px "+B;g.fillText(s[1],x+28,y+136);});
+    const lines=[["BEST RACE","P"+w.best.fin+" at "+trackOf(w.best.race.track).label+(w.best.led?" · led "+w.best.led:"")]];if(w.bt)lines.push(["BEST TRACK",w.bt.k+" · avg "+w.bt.avg.toFixed(1)]);if(w.riv)lines.push(["MOST-BEATEN RIVAL",drv(w.riv.id).name+" · "+w.riv.n+" of "+w.riv.met]);
+    lines.forEach((l,i)=>{const y=920+i*100;g.fillStyle="#B455F7";g.font="700 26px "+B;g.fillText(l[0],80,y);g.fillStyle="#F5F5F6";g.font="600 44px "+B;g.fillText(l[1],80,y+50);});
+    g.fillStyle="#9B9BA3";g.font="500 28px "+M;g.fillText(("INRS LEAGUE HUB · PRESENTED BY "+(settings().sponsorName||"40XLI")).toUpperCase(),80,1290);
+    cv.toBlob(b=>{if(!b){toast("Couldn't create the image.",true);return;}const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=(w.d.name+" "+w.season+" Wrapped").replace(/[^a-z0-9]+/gi,"-")+".png";document.body.appendChild(a);a.click();a.remove();toast("Image saved.");},"image/png");};
+  if(logo&&logo.complete&&logo.naturalWidth){try{g.drawImage(logo,1080-80-150,40,150,150*logo.naturalHeight/logo.naturalWidth);}catch(e){}}draw();}
+const RW_ACT={wrapped(id){S.view="wrapped";S.wrapId=id;setHash();draw();window.scrollTo(0,0);},wrapsave(){wrapImage();}};
 
 V.bets=()=>{needSeasons();const B=book(),br=bankroll();
   const betCard=b=>{const r=betResult(b),nv=r.st.filter(x=>x==="void").length,d=b.t==="parlay"?b.legs.reduce((m,l,i)=>r.st[i]==="void"?m:m*decOdds(l.odds),1):decOdds(b.legs[0].odds);
@@ -1256,6 +1396,7 @@ function loadResultsForm(id){const r=S.races.find(x=>x.id===id);if(!r){S.forms.r
   S.forms.results={raceId:id,recapUrl:r.recapUrl||"",note:"",rows:[...(r.results||[])].sort((a,b)=>a.fin-b.fin).map(x=>({driverId:x.driverId,newName:"",newNumber:"",newCust:"",fin:String(x.fin??""),start:x.start==null?"":String(x.start),led:String(x.lapsLed||0),comp:x.lapsComp==null?"":String(x.lapsComp),inc:String(x.inc||0),status:x.status||"Running",bonus:String(x.bonus||0),pts:typeof x.pts==="number"?String(x.pts):"",keep:{car:x.car,stage:x.stage,pen:x.pen,rating:x.rating}}))};}
 
 const ACT={
+  ...RW_ACT,
   ...DOTR_ACT,
   ...PREVIEW_ACT,
   livesess(k){S.liveSess=k;draw();},
@@ -1382,6 +1523,11 @@ document.addEventListener("input",e=>{if(e.target.id!=="dsearch")return;SORT.q=e
 document.addEventListener("change",e=>{const el=e.target,p=el.dataset&&el.dataset.f;if(p)setPath(S.forms,p,el.value);const c=el.dataset&&el.dataset.change;if(c&&CHANGE[c])CHANGE[c](el);});
 
 /* ---------- render ---------- */
+{const _cmp=V.compare;V.compare=()=>{let h=_cmp();const c=S.calc,all=c.standings.filter(s=>s.starts>0||s.off);if(all.length<2)return h;
+  let[a,b]=S.cmp||[];if(!c.D[a])a=all[0].driver.id;if(!c.D[b]||b===a)b=(all.find(s=>s.driver.id!==a)||all[1]).driver.id;
+  const r=h2hCareer(a,b),na=c.D[a].driver.name,nb=c.D[b].driver.name;
+  const p=r?(r.met?'<div class="panel"><div class="lt">Career head to head</div><p style="margin:0"><b>'+esc(na)+"</b> has finished ahead of <b>"+esc(nb)+"</b> in <b>"+r.ahead+" of "+r.met+"</b> races they've both run ("+Object.entries(r.series).map(([k,n])=>n+" "+SER_L[k]).join(", ")+').</p><div class="cbar"><i style="width:'+(r.ahead/r.met*100).toFixed(1)+'%"></i></div><div class="row small" style="justify-content:space-between"><span>'+esc(na)+" "+r.ahead+"</span><span>"+(r.met-r.ahead)+" "+esc(nb)+"</span></div></div>":'<div class="panel"><div class="lt">Career head to head</div><p class="small muted" style="margin:0">They haven\'t finished a race together yet.</p></div>'):'<div class="panel"><div class="lt">Career head to head</div><p class="small muted" style="margin:0">Loading every INRS season…</p></div>';
+  const i=h.lastIndexOf("</section>");return i>=0?h.slice(0,i)+p+h.slice(i):h+p;};}
 function isTyping(){const a=document.activeElement;return!!(a&&a.closest&&a.closest("#main")&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&a.type!=="file");}
 function render(){if(isTyping()){S.pending=true;return;}draw();}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(S.pending&&!isTyping()){S.pending=false;draw();}},0));
@@ -1409,9 +1555,9 @@ async function loadStatic(){try{const r=await fetch("data.json",{cache:"no-store
   S.mode="live";S.admin=false;S.loaded=true;S.updated=d.updated||"";}catch(e){S.mode="offline";}draw();}
 async function loadIndex(){try{const r=await fetch("data/seasons.json",{cache:"no-store"});if(!r.ok)return;S.idx=await r.json();draw();}catch(e){}}
 window.addEventListener("hashchange",()=>{const hs=(location.hash||"").slice(1).split("/"),v=hs[0],k=hs[1]||MAINKEY;
-  if((TABS.some(t=>t[0]===v)||v==="compare"||v==="career"||v==="bets")&&v!==S.view){S.view=v;S.driverSel=null;S.trackSel=null;}
+  if((TABS.some(t=>t[0]===v)||v==="compare"||v==="career"||v==="bets"||v==="wrapped")&&v!==S.view){S.view=v;S.driverSel=null;S.trackSel=null;}
   if(k!==S.sel)selectSeason(k);else draw();});
-async function boot(){const hs=(location.hash||"").slice(1).split("/"),h=hs[0];if(TABS.some(t=>t[0]===h)||h==="compare"||h==="career"||h==="bets")S.view=h;draw();
+async function boot(){const hs=(location.hash||"").slice(1).split("/"),h=hs[0];if(TABS.some(t=>t[0]===h)||h==="compare"||h==="career"||h==="bets"||h==="wrapped")S.view=h;draw();
   loadIndex().then(()=>{if(hs[1]&&hs[1]!==MAINKEY)selectSeason(hs[1]);});
   const c=window.claude;if(!c||typeof c.use!=="function"){await loadStatic();return;}
   const [db,user]=await Promise.all([c.use("db"),c.use("user")]);
