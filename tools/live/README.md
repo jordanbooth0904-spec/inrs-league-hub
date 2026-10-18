@@ -12,3 +12,23 @@ move during race night and live betting stays open until 10 laps to go.
 
 The helper only reads iRacing's live timing (official read-only SDK) and sends a small update every
 5 seconds. If it isn't running, the site uses the pre-race odds and betting closes at 8:30 PM Eastern.
+
+## Lap times and track records
+
+While it runs, the helper also keeps every lap time from practice, qualifying and the race. About every 30
+seconds it saves the session to two places in the database:
+
+- `lapsIndex/<session>`: each driver's best lap and position (small; the Tracks page reads this for track
+  records and qualifying history).
+- `laps/<session>`: every lap for every driver (read one race at a time for the Lap times panel under results).
+
+The series (Cup, O'Reilly, Trucks) comes from the car in the session. Records only exist for sessions the
+helper was running for, so start it before practice. Laps from before the helper started show as unknown.
+
+The website reads these without signing in, so the database rules need public read on both paths
+(writing stays limited to the helper's secret). Add these two entries next to the existing `live` rule:
+
+```json
+"lapsIndex": { ".read": true, ".write": false },
+"laps": { ".read": true, ".write": false }
+```
