@@ -79,6 +79,22 @@ def ms(t):
 
 
 MEMO = {}  # best lap / laps per session, so values iRacing clears at session end are never lost
+HIST = {}  # every lap time per session -> saved to /laps so the site can build track records and lap charts
+SAVED = {}  # last time each session's lap history was uploaded
+SAVE_EVERY = 30  # seconds between lap-history uploads (each upload replaces that session's record)
+
+
+def series_of(drivers):
+    """Which INRS series this session is, from the car everyone is driving."""
+    for d in drivers.values():
+        n = (d.get('CarScreenName') or d.get('CarPath') or '').lower()
+        if 'truck' in n:
+            return 'trucks'
+        if 'xfinity' in n or 'reilly' in n:
+            return 'xfinity'
+        if n:
+            return 'cup'
+    return ''
 
 
 def snapshot(ir):
@@ -97,6 +113,7 @@ def snapshot(ir):
     laps = ir['CarIdxLapCompleted'] or []
     onlap = ir['CarIdxLap'] or []  # lap each car is on; backup when LapCompleted isn't filled in for other cars
     best = ir['CarIdxBestLapTime'] or []
+    last = ir['CarIdxLastLapTime'] or []
     res = {r['CarIdx']: r for r in (sess.get('ResultsPositions') or []) if isinstance(r, dict)}
     grid = {}
     q = ir['QualifyResultsInfo'] or {}
@@ -104,6 +121,8 @@ def snapshot(ir):
         grid[r['CarIdx']] = r['Position'] + 1
     sid = '%s-%s' % (wk.get('SubSessionID', ''), sn)
     mem = MEMO.setdefault(sid, {})
+    hist = HIST.setdefault(sid, {'track': wk.get('TrackDisplayName', ''), 'config': wk.get('TrackConfigName', ''), 'session': k,
+                                 'series': series_of(drivers), 'start': int(time.time() * 1000), 'cars': {}})
     cars = []
     for idx, d in drivers.items():
         r = res.get(idx) or {}
@@ -118,6 +137,14 @@ def snapshot(ir):
         if b and (not m['b'] or rb or b < m['b']):
             m['b'] = b
         m['l'] = max(m['l'], tl, rl)
+        h = hist['cars'].setdefault(d['UserName'], {'n': str(d.get('CarNumber', '')), 'laps': {}, 'seen': 0})
+        done = int(laps[idx]) if idx < len(laps) and laps[idx] and laps[idx] > 0 else 0
+        lt = ms(last[idx]) if idx < len(last) else 0
+        if done > h['seen'] and lt and done <= 2000:  # a new lap just finished: keep its time
+            h['laps'][done] = lt
+        elif done and done == h['seen'] and lt and h['laps'].get(done) == h['laps'].get(done - 1) and lt != h['laps'].get(done):
+            h['laps'][done] = lt  # last-lap time arrived a moment after the lap count: fix the copy of the previous lap
+        h['seen'] = max(h['seen'], done)
         p = int(pos[idx]) if idx < len(pos) and pos[idx] and pos[idx] > 0 else int(r['Position']) if r.get('Position') else 0
         cars.append([str(d.get('CarNumber', '')), d['UserName'], m['b'], p, m['l'], grid.get(idx, 0)])
     if k in ('practice', 'qualify'):  # rank by best lap; no time = no position
@@ -139,7 +166,19 @@ def snapshot(ir):
         left = None
     return k, {
         'updated': int(time.time() * 1000), 'track': wk.get('TrackDisplayName', ''), 'config': wk.get('TrackConfigName', ''),
-        'session': k, 'state': ir['SessionState'], 'lapsTotal': total, 'lapsLeft': left, 'leaderLaps': lead, 'cars': cars}
+        'session': k, 'state': ir['SessionState'], 'lapsTotal': total, 'lapsLeft': left, 'leaderLaps': lead, 'cars': cars}, sid, hist
+
+
+def lap_record(hist, cars, updated):
+    """One session's lap history: [car, name, best ms, finishing/timing position, laps done, [lap 1 ms, lap 2 ms, ...]].
+    A 0 in the lap list means that lap wasn't seen (helper started late, tow, etc.)."""
+    out = []
+    for c in cars:
+        h = hist['cars'].get(c[1]) or {'laps': {}}
+        n = max(list(h['laps'].keys()) + [0])
+        out.append([c[0], c[1], c[2], c[3], c[4], [h['laps'].get(i, 0) for i in range(1, n + 1)]])
+    return {'at': hist['start'], 'updated': updated, 'track': hist['track'], 'config': hist['config'],
+            'session': hist['session'], 'series': hist['series'], 'cars': out}
 
 
 def main():
@@ -157,8 +196,14 @@ def main():
                 print('Connected to iRacing.')
             snap = snapshot(ir)
             if snap:
-                k, data = snap
+                k, data, sid, hist = snap
                 put(url, sec, 'live', {k: data, 'meta': {'updated': data['updated'], 'track': data['track'], 'session': k}})
+                if any(c[2] for c in data['cars']) and time.time() - SAVED.get(sid, 0) >= SAVE_EVERY:
+                    rec = lap_record(hist, data['cars'], data['updated'])
+                    key = sid.replace('-', '_')
+                    put(url, sec, 'laps', {key: rec})  # full lap lists (read one session at a time)
+                    put(url, sec, 'lapsIndex', {key: dict(rec, cars=[c[:5] for c in rec['cars']])})  # small list for track records
+                    SAVED[sid] = time.time()
                 timed = sum(1 for c in data['cars'] if c[2] or c[3])
                 print('\r%s  %-9s %2d cars  %s laps left   ' % (time.strftime('%H:%M:%S'), k, timed,
                       data['lapsLeft'] if data['lapsLeft'] is not None else '-'), end='', flush=True)

@@ -458,7 +458,7 @@ V.home=()=>{const c=S.calc;let h="";
   if(last){const top=[...last.results].sort((a,b)=>a.fin-b.fin).slice(0,3);
     left+='<div class="panel"><div class="sechead"><div class="lt">Latest result</div><span class="muted small">'+esc(raceLabel(last))+" · "+fmtShort(last.date)+'</span></div><div class="podium">'+
       top.map(x=>{const d=drv(x.driverId);return'<div class="podrow">'+posBadge(x.fin)+'<div class="name">'+dlink(x.driverId)+'<div class="sub">'+(int(x.lapsLed)?esc(x.lapsLed)+" led · ":"")+esc(int(x.inc)||0)+"x</div></div>"+'<span class="pts">'+c.ptsFor(x,Math.max(0,...last.results.map(y=>int(y.lapsLed)||0)))+"</span></div>";}).join("")+
-      '</div><div class="row" style="margin-top:12px"><button class="btn sm" data-act="openrace" data-arg="'+esc(last.id)+'">Full results</button>'+(safeUrl(last.recapUrl)?'<a class="btn sm primary" href="'+esc(safeUrl(last.recapUrl))+'" target="_blank" rel="noopener">Watch recap</a>':"")+"</div></div>";}
+      '</div><div class="row" style="margin-top:12px"><button class="btn sm" data-act="openrace" data-arg="'+esc(last.id)+'">Full results</button><button class="btn sm ghost" data-act="resultimg" data-arg="'+esc(last.id)+'">Results image</button>'+(safeUrl(last.recapUrl)?'<a class="btn sm primary" href="'+esc(safeUrl(last.recapUrl))+'" target="_blank" rel="noopener">Watch recap</a>':"")+"</div></div>";}
   else left+='<div class="panel"><div class="lt">Latest result</div>'+empty("No results yet","Results appear here after the first race is posted.")+"</div>";
 
   const L=c.league;
@@ -575,8 +575,8 @@ V.schedule=()=>{const c=S.calc;if(!c.races.length)return'<div class="lt">'+esc(c
     const w=done?r.results.find(x=>int(x.fin)===1):null,rec=safeUrl(r.recapUrl);
     return'<article class="race'+(isNext?" isnext":"")+'" id="race-'+esc(r.id)+'"><div class="racehead"><div class="rnd"><small>Rnd</small><b>'+esc(r.round??"?")+'</b></div><div style="min-width:0"><div class="racetitle">'+esc(r.track||"Track TBA")+'</div><div class="racesub">'+fmtDate(r.date)+(fmtTime(r.date,r.dateOnly)?" · "+fmtTime(r.date,r.dateOnly):"")+(r.laps?" · "+esc(r.laps)+" laps":"")+"</div>"+(r.name?'<div class="small muted">'+esc(r.name)+"</div>":"")+(r.note?'<div class="small" style="color:var(--accent)">'+esc(r.note)+"</div>":"")+
       (w?'<div class="small" style="margin-top:4px">Winner: '+dlink(w.driverId)+"</div>":"")+'</div><div class="raceside">'+(r.exhibition?'<span class="pill">'+(r.duel?noStatTag(r):"Exhibition")+'</span>':"")+(done?'<span class="pill final">Final</span>':isNext?'<span class="pill next">Next</span>':'<span class="pill">Upcoming</span>')+"</div></div>"+
-      ('<div class="raceactions">'+(done?'<button class="btn sm" data-act="race" data-arg="'+esc(r.id)+'" aria-expanded="'+open+'">'+(open?"Hide results":"Results")+"</button>":"")+(rec?'<a class="btn sm primary" href="'+esc(rec)+'" target="_blank" rel="noopener">Watch recap</a>':"")+'<button class="btn sm ghost" data-act="track" data-arg="'+esc(trackOf(r.track).key)+'">Track history</button>'+(isNext?liveBtn(r):"")+"</div>")+
-      (open&&done?'<div class="racebody">'+resultsTable(r)+"</div>":"")+"</article>";}).join("")+"</div></section>";};
+      ('<div class="raceactions">'+(done?'<button class="btn sm" data-act="race" data-arg="'+esc(r.id)+'" aria-expanded="'+open+'">'+(open?"Hide results":"Results")+"</button>"+(open?'<button class="btn sm ghost" data-act="resultimg" data-arg="'+esc(r.id)+'">Results image</button>':""):"")+(rec?'<a class="btn sm primary" href="'+esc(rec)+'" target="_blank" rel="noopener">Watch recap</a>':"")+'<button class="btn sm ghost" data-act="track" data-arg="'+esc(trackOf(r.track).key)+'">Track history</button>'+(isNext?liveBtn(r):"")+"</div>")+
+      (open&&done?'<div class="racebody">'+resultsTable(r)+raceLapsPanel(r)+"</div>":"")+"</article>";}).join("")+"</div></section>";};
 
 V.drivers=()=>{const c=S.calc;if(S.driverSel&&c.D[S.driverSel])return driverDetail(c.D[S.driverSel]);
   if(!S.drivers.length)return'<div class="lt">Drivers</div>'+empty("No drivers yet","Drivers are added by the admin or from an uploaded results file.");
@@ -665,7 +665,7 @@ function trackDetail(t){const season=+settings().season;
   const cur=t.races.filter(r=>r.current&&r.done&&r.raceId);let top="";
   if(cur.length){top='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">'+season+" results here</div>"+cur.map(r=>{const race=S.races.find(x=>x.id===r.raceId);return race?'<div class="small muted" style="margin:6px 8px">'+esc(raceLabel(race))+" · "+fmtShort(race.date)+"</div>"+resultsTable(Object.assign({},race,{results:[...race.results].sort((a,b)=>a.fin-b.fin).slice(0,10)})):"";}).join("")+"</div>";}
   return'<section class="stack"><div><button class="btn sm ghost" data-act="nav" data-arg="tracks">← All tracks</button></div><div><div class="eyebrow">Track history</div><h1 class="track" style="font-size:clamp(28px,6vw,44px)">'+esc(t.label)+"</h1></div>"+
-    '<div class="tiles">'+tile(t.races.filter(r=>r.winner&&!r.exhibition).length,"INRS races")+(()=>{const mw=mostWins(t);return tile(mw?mw.who:"–","Most wins"+(mw?" ("+mw.detail+")":""),true);})()+tile(new Set(t.races.filter(r=>r.winner&&!r.exhibition).map(r=>r.winner)).size,"Different winners")+(t.next?tile("Rd "+t.next.round,"Next visit · "+t.next.date):"")+"</div>"+trackPowerPanel(t.key,t.label)+
+    '<div class="tiles">'+tile(t.races.filter(r=>r.winner&&!r.exhibition).length,"INRS races")+(()=>{const mw=mostWins(t);return tile(mw?mw.who:"–","Most wins"+(mw?" ("+mw.detail+")":""),true);})()+tile(new Set(t.races.filter(r=>r.winner&&!r.exhibition).map(r=>r.winner)).size,"Different winners")+(t.next?tile("Rd "+t.next.round,"Next visit · "+t.next.date):"")+"</div>"+trackRecordsPanel(t)+trackPowerPanel(t.key,t.label)+
     '<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Every race here</div><div class="scroll"><table class="tbl"><thead><tr><th>Season</th><th class="n">Rd</th><th>Date</th><th>Event</th><th>Pole</th><th>Winner</th></tr></thead><tbody>'+
     t.races.map(r=>"<tr><td>"+r.season+(r.current&&!r.done?' <span class="pill">Upcoming</span>':"")+(r.exhibition?' <span class="pill">'+(r.duel?noStatTag(r):"Exhibition")+'</span>':"")+'</td><td class="n">'+esc(r.round||"")+"</td><td>"+esc(r.date||"")+'</td><td class="wrapcell muted">'+esc(r.event||"")+"</td><td>"+esc(r.pole||"–")+"</td><td><b>"+(r.raceId&&r.done?'<button class="dl" data-act="openrace" data-arg="'+esc(r.raceId)+'">'+esc(r.winner||"–")+"</button>":esc(r.winner||"–"))+"</b></td></tr>").join("")+"</tbody></table></div></div>"+
     (t.wins.length?'<div class="panel"><div class="lt">Winners at '+esc(t.label)+'</div><div class="list">'+t.wins.map(([n,w],i)=>'<div class="podrow">'+posBadge(i+1)+'<div class="name">'+esc(n)+'</div><span class="pts">'+w+"</span></div>").join("")+"</div></div>":"")+top+"</section>";}
@@ -740,6 +740,23 @@ V.legacy=()=>{if(!S.idx)return loading();const k=S.legacySer||"xfinity",F=serFin
   h+='<div class="panel"><div class="lt">Every winner</div>'+Object.keys(byY).sort((a,b)=>b-a).map((y,i)=>'<details class="legyr"'+(i===0?" open":"")+"><summary><b>"+y+" "+esc(serName(k,y))+'</b> <span class="muted small">'+plural(byY[y].length,"race")+'</span></summary><div class="scroll"><table class="tbl"><thead><tr><th class="n">Rd</th><th>Date</th><th>Track</th><th>Pole</th><th>Winner</th></tr></thead><tbody>'+
     byY[y].map(x=>'<tr><td class="n">'+esc(x[1])+'</td><td class="muted">'+esc(x[2])+"</td><td>"+esc(trackOf(x[4]).label)+'</td><td class="muted">'+esc(x[5]||"–")+"</td><td><b>"+esc(x[6]||"–")+"</b></td></tr>").join("")+"</tbody></table></div></details>").join("")+"</div>";
   return h+'<p class="hint">Official SimRacerHub results for every '+esc(names.join(" and "))+" Series race.</p></section>";};
+/* ---------- career progression chart (one line per series, one point per season) ---------- */
+const CM={pos:["Points finish",l=>l.pos||null,true],avg:["Avg finish",l=>l.finN?l.finSum/l.finN:null,true],wins:["Wins",l=>l.wins,false],t5:["Top 5s",l=>l.t5,false]};
+const SER_C={cup:"#B455F7",xfinity:"#F2C14E",trucks:"#4ADE80"};
+function careerChart(c){const m=CM[S.careerMetric]?S.careerMetric:"pos",[lab,get,inv]=CM[m],yrs=[...new Set(c.seasons.map(l=>+l.si.year))].sort((a,b)=>a-b);
+  if(yrs.length<2)return"";const sers=Object.keys(SER_L).filter(k=>c.seasons.some(l=>l.si.series===k)),vals=c.seasons.map(get).filter(v=>v!=null);if(!vals.length)return"";
+  const W=760,H=250,L=40,R=16,T=16,B=30,lo=inv?1:0,hi0=Math.max(...vals),hi=inv?Math.max(5,Math.ceil(hi0/5)*5):Math.max(4,Math.ceil(hi0/2)*2);
+  const x=i=>L+i*(W-L-R)/(yrs.length-1),y=v=>inv?T+(v-lo)*(H-T-B)/(hi-lo):T+(hi-v)*(H-T-B)/(hi-lo);
+  const steps=inv?[1,5,10,15,20,25,30,40,50].filter(v=>v<=hi):Array.from({length:5},(_,i)=>Math.round(hi*i/4));let g="";
+  [...new Set(steps)].forEach(v=>{g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" class="cg"/><text x="'+(L-6)+'" y="'+(y(v)+4)+'" text-anchor="end" class="ct">'+v+"</text>";});
+  yrs.forEach((yr,i)=>{g+='<text x="'+x(i)+'" y="'+(H-8)+'" text-anchor="middle" class="ct">'+yr+"</text>";});
+  sers.forEach(k=>{const pts=yrs.map((yr,i)=>{const l=c.seasons.find(z=>z.si.series===k&&+z.si.year===yr),v=l?get(l):null;return v!=null?{i,v,l}:null;});let d="",pen=false;
+    pts.forEach(p=>{if(!p){pen=false;return;}d+=(pen?"L":"M")+x(p.i).toFixed(1)+" "+y(p.v).toFixed(1)+" ";pen=true;});g+='<path d="'+d+'" class="cl" style="stroke:'+SER_C[k]+'"/>';
+    pts.forEach(p=>{if(!p)return;const champ=p.l.done&&p.l.pos===1;g+='<circle cx="'+x(p.i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="'+(champ?6:4)+'" style="fill:'+(champ?"var(--gold)":SER_C[k])+(p.l.done?"":";fill-opacity:.45")+'"><title>'+esc(p.l.si.year+" "+serName(k,p.l.si.year)+": "+lab+" "+(m==="avg"?p.v.toFixed(1):(m==="pos"?"P":"")+p.v)+(p.l.done?"":" (season in progress)"))+"</title></circle>";});});
+  return'<div class="panel"><div class="sechead"><div class="lt">Career progression</div><div class="subtabs" style="margin:0">'+Object.entries(CM).map(([k,v])=>'<button class="btn sm" data-act="careermetric" data-arg="'+k+'"'+(k===m?' aria-current="page"':"")+">"+v[0]+"</button>").join("")+"</div></div>"+
+    '<div class="chartwrap"><svg viewBox="0 0 '+W+" "+H+'" class="chart" role="img" aria-label="'+esc(lab)+' by season">'+g+"</svg>"+
+    (sers.length>1?'<div class="legend">'+sers.map(k=>'<span><i style="background:'+SER_C[k]+'"></i>'+SER_L[k]+"</span>").join("")+"</div>":"")+
+    '<div class="hint" style="margin-top:4px">'+esc(lab)+" each season"+(inv?" (1 at the top)":"")+". Gold dots are championships; faded dots are seasons still in progress.</div></div></div>";}
 V.career=()=>{if(!S.idx)return loading();const c=careers("all")[S.careerId];if(!c)return V.records();
   const by={};c.seasons.forEach(l=>{const k=l.si.series,b=by[k]=by[k]||{k,n:0,starts:0,wins:0,t5:0,poles:0,titles:0,best:99};b.n++;b.starts+=l.starts;b.wins+=l.wins;b.t5+=l.t5;b.poles+=l.poles;if(l.done&&l.pos===1)b.titles++;if(l.pos<b.best)b.best=l.pos;});
   const sers=Object.keys(SER_L).filter(k=>by[k]);
@@ -747,7 +764,7 @@ V.career=()=>{if(!S.idx)return loading();const c=careers("all")[S.careerId];if(!
     '<div class="dhero"><span class="big">'+(String(c.number||"")!==""?"#"+esc(c.number):"—")+'</span><div><div class="eyebrow">INRS career</div><h1>'+esc(c.name)+'</h1><div class="muted">'+plural(c.seasons.length,"season")+" · "+sers.map(k=>SER_L[k]).join(", ")+"</div></div></div>";
   if(c.titles.length)h+='<div class="row">'+c.titles.map(l=>'<span class="pill final">'+l.si.year+" "+serName(l.si.series,l.si.year)+" champion</span>").join("")+"</div>";
   h+='<div class="tiles">'+tile(c.titles.length,"Championships")+tile(fmtN(c.starts),"Starts")+tile(fmtN(c.wins),"Wins")+tile(fmtN(c.t5),"Top 5s")+tile(fmtN(c.t10),"Top 10s")+tile(fmtN(c.poles),"Poles")+tile(fmtN(c.led),"Laps led")+
-    tile(c.avgFin?c.avgFin.toFixed(1):"–","Avg finish")+tile(c.incRace!=null?c.incRace.toFixed(1)+"x":"–","Inc per race")+tile(c.starts?Math.round(c.wins/c.starts*100)+"%":"–","Win rate")+"</div>";
+    tile(c.avgFin?c.avgFin.toFixed(1):"–","Avg finish")+tile(c.incRace!=null?c.incRace.toFixed(1)+"x":"–","Inc per race")+tile(c.starts?Math.round(c.wins/c.starts*100)+"%":"–","Win rate")+"</div>"+careerChart(c);
   if(sers.length>1)h+='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">By series</div><div class="scroll"><table class="tbl"><thead><tr><th>Series</th><th class="n">Seasons</th><th class="n">Titles</th><th class="n">Starts</th><th class="n">Wins</th><th class="n">Top 5s</th><th class="n">Poles</th><th class="n">Best in pts</th></tr></thead><tbody>'+
     sers.map(k=>{const b=by[k];return"<tr><td><b>"+SER_L[k]+'</b></td><td class="n">'+b.n+'</td><td class="n">'+b.titles+'</td><td class="n">'+fmtN(b.starts)+'</td><td class="n">'+b.wins+'</td><td class="n">'+b.t5+'</td><td class="n">'+b.poles+'</td><td class="n">P'+b.best+"</td></tr>";}).join("")+"</tbody></table></div></div>";
   h+='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Season by season</div><div class="scroll"><table class="tbl"><thead><tr><th>Season</th><th>Pos</th><th class="n">Pts</th><th class="n">Starts</th><th class="n">Wins</th><th class="n">T5</th><th class="n">T10</th><th class="n">Poles</th><th class="n">Led</th><th class="n">Avg fin</th><th></th></tr></thead><tbody>'+
@@ -776,7 +793,7 @@ function chasePanel(full){const d=chaseData();if(!d)return"";
     '<div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">Pts</th><th class="n">Behind</th><th class="n">Needs per race</th><th>Chase finishes</th><th class="n">Chase avg</th><th>Status</th></tr></thead><tbody>'+
     d.rows.map(r=>"<tr><td>"+posBadge(r.s.off.pos)+"</td><td>"+dlink(r.s.driver.id)+'</td><td class="n"><span class="pts">'+fmtN(r.pts)+'</span></td><td class="n muted">'+(r.beh?"−"+fmtN(r.beh):"–")+'</td><td class="n">'+(r.beh&&d.remaining?"+"+r.perRace.toFixed(1):"–")+'</td><td><div class="chips">'+
       r.fins.map((f,i)=>'<span class="fchip '+(f===1?"w":f&&f<=5?"t5":"")+'" title="'+esc(raceLabel(d.chaseRaces[i]))+'">'+(f??"–")+"</span>").join("")+'</div></td><td class="n">'+(r.avg?r.avg.toFixed(1):"–")+"</td><td>"+status(r)+"</td></tr>").join("")+
-    '</tbody></table></div><p class="hint" style="margin:10px 0 0">"Needs per race" is how many more points per race than the leader a driver must score to catch up.</p></div>'+titlePanel()+scenarioPanel(d)+"</section>";}
+    '</tbody></table></div><p class="hint" style="margin:10px 0 0">"Needs per race" is how many more points per race than the leader a driver must score to catch up.</p></div>'+titlePanel()+scenarioPanel(d)+whatIfPanel(d)+"</section>";}
 
 /* ---------- Chase: what it takes ---------- */
 const ordinal=n=>{const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
@@ -804,6 +821,33 @@ function scenarioPanel(d){const sc=chaseScenarios(d);if(!sc.length)return"";cons
     sc.map(x=>'<div class="scen"><div class="scen-h">'+posBadge(x.r.s.off.pos)+'<div class="name">'+dlink(x.r.s.driver.id)+'</div><span class="pts">'+fmtN(x.r.pts)+'</span></div><p>'+x.text+"</p></div>").join("")+"</div>"+
     (out?'<p class="hint" style="margin:10px 0 0">'+plural(out,"driver")+" can no longer catch the leader.</p>":"")+
     '<p class="hint" style="margin:6px 0 0">Points swings include stage and bonus points. Finishing examples use race points only (win '+num(settings().points.table[0],0)+"). Scenarios compare each driver with the leader.</p></div>";}
+
+/* Redraw without jumping: keep the What if panel where it was on screen. */
+function keepWhatIf(){const el=document.getElementById("whatif"),top=el?el.getBoundingClientRect().top:null;draw();const n=document.getElementById("whatif");if(n&&top!=null)window.scrollBy(0,n.getBoundingClientRect().top-top);}
+/* ---------- Chase: what if (pick finishes for the next race, see the new standings) ---------- */
+function whatIfPanel(d){if(!d||d.clinched||!d.remaining)return"";const T=settings().points.table,up=sortedRaces().filter(r=>!r.exhibition&&!(r.status==="complete"&&(r.results||[]).length)),next=up[0];
+  const W=S.whatIf=S.whatIf&&S.whatIf.key===S.sel+"|"+d.chaseRaces.length?S.whatIf:{key:S.sel+"|"+d.chaseRaces.length,p:{}};
+  const field=Math.max(T.length,...S.calc.done.map(r=>(r.results||[]).length));
+  const pick=r=>W.p[r.s.driver.id]||(W.p[r.s.driver.id]={fin:r.s.off.pos,bonus:0});
+  const ptsFor=x=>x.fin?num(T[x.fin-1],num(T[T.length-1],0)):0;
+  const rows=d.rows.map(r=>{const x=pick(r),gain=ptsFor(x)+num(x.bonus,0);return{r,x,gain,pts:r.pts+gain};}).sort((a,b)=>b.pts-a.pts||a.r.s.off.pos-b.r.s.off.pos);
+  rows.forEach((z,i)=>{z.np=i+1;});const inputs=[...rows].sort((a,b)=>a.r.s.off.pos-b.r.s.off.pos);/* inputs stay in today's order so rows don't jump while you edit */
+  const R=d.remaining-1,pool=R*d.max,lead=rows[0].pts,second=rows[1],clinch=second&&lead-second.pts>pool;
+  const used={};rows.forEach(z=>{if(z.x.fin)used[z.x.fin]=(used[z.x.fin]||0)+1;});const dup=Object.keys(used).filter(k=>used[k]>1).map(Number).sort((a,b)=>a-b);
+  const finOpts=v=>'<option value="0"'+(!v?" selected":"")+">Did not start</option>"+Array.from({length:field},(_,i)=>'<option value="'+(i+1)+'"'+(v===i+1?" selected":"")+">"+ordinal(i+1)+"</option>").join("");
+  const bonOpts=v=>Array.from({length:d.max-num(T[0],0)+1},(_,i)=>'<option value="'+i+'"'+(+v===i?" selected":"")+">+"+i+"</option>").join("");
+  const status=z=>{const beh=lead-z.pts;if(!R)return beh===0?'<span class="pill final">Champion</span>':"";if(clinch&&beh===0)return'<span class="pill final">Clinches</span>';
+    return beh===0?'<span class="pill next">Leader</span>':beh<=pool?'<span class="pill">Alive</span>':'<span class="pill" style="color:var(--bad)">Eliminated</span>';};
+  return'<div class="panel" id="whatif"><div class="sechead"><div class="lt">What if</div><span class="hint">Pick finishes for '+esc(next?raceLabel(next):"the next race")+'</span></div>'+
+    '<p class="small muted" style="margin:0 0 10px">Choose where each Chase driver finishes, plus any stage and bonus points (up to +'+(d.max-num(T[0],0))+'), and the standings update instantly. Every driver starts at their current Chase position.</p>'+
+    '<div class="scroll"><table class="tbl"><thead><tr><th>Now</th><th>Driver</th><th>Finish</th><th>Stage + bonus</th><th class="n">Gain</th><th class="n">Pts</th><th>New pos</th><th class="n">Behind</th><th>'+(R?"After this race":"Final")+'</th></tr></thead><tbody>'+
+    inputs.map(z=>{const id=esc(z.r.s.driver.id),mv=z.r.s.off.pos-z.np;return"<tr><td>"+posBadge(z.r.s.off.pos)+"</td><td>"+dlink(z.r.s.driver.id)+
+      '</td><td><select class="yearsel" data-change="wifin" data-id="'+id+'" aria-label="Finish">'+finOpts(z.x.fin)+'</select></td><td><select class="yearsel" data-change="wibon" data-id="'+id+'" aria-label="Stage and bonus points">'+bonOpts(z.x.bonus)+
+      '</select></td><td class="n">+'+z.gain+'</td><td class="n"><span class="pts">'+fmtN(z.pts)+"</span></td><td>"+posBadge(z.np)+(mv?' <span class="small" style="color:'+(mv>0?"var(--ok)":"var(--bad)")+'">'+(mv>0?"▲":"▼")+Math.abs(mv)+"</span>":"")+
+      '</td><td class="n muted">'+(lead-z.pts?"−"+fmtN(lead-z.pts):"–")+"</td><td>"+status(z)+"</td></tr>";}).join("")+
+    "</tbody></table></div>"+(dup.length?'<p class="small" style="color:var(--bad);margin:10px 0 0">Two drivers can\'t both finish '+dup.map(ordinal).join(", ")+".</p>":"")+
+    '<p class="hint" style="margin:10px 0 0">'+(R?(clinch?"<b>"+esc(rows[0].r.s.driver.name)+"</b> would clinch the title with "+plural(R,"race")+" to spare. ":"After this, "+plural(R,"race")+" left with up to "+fmtN(pool)+" pts available. "):"This is the finale, so this would be the final order (ties go to the tiebreaker). ")+
+    'Points table: win '+num(T[0],0)+", 2nd "+num(T[1],0)+", down to 1. "+'<button class="btn sm ghost" data-act="wireset">Reset</button></p></div>';}
 
 /* ---------- power rankings ---------- */
 const PW=[1,0.9,0.8,0.7,0.6];
@@ -928,6 +972,58 @@ function trackPowerPanel(tk,label,compact){const t=trackPower(tk),lbl=esc(label)
   return'<div class="panel"><div class="sechead"><div class="lt">Best at '+lbl+'</div><span class="hint">Last '+t.races.length+" races here · "+t.races.map(x=>x.yr).join(", ")+'</span></div><div class="list">'+
     t.top.map((p,i)=>'<div class="podrow">'+posBadge(i+1)+'<div class="name">'+(drv(p.id)?dlink(p.id):esc(p.name))+'<div class="chips" style="margin-top:4px">'+p.fins.map(chip).join("")+'</div></div><span class="pts" title="Average finish">'+p.avg.toFixed(1)+"</span></div>").join("")+
     '</div><p class="hint" style="margin:8px 0 0">Ranked by average finish. Drivers need 2 of the last 3 races here to qualify.</p></div>';}
+
+/* ---------- lap history: track records and lap times (recorded by the live timing helper, from Oct 2026 on) ----------
+   The helper saves each session it sees to /lapsIndex (best lap per driver) and /laps (every lap). Untrusted like /live. */
+const LAP_KINDS=["practice","qualify","race"],LAP_SERIES=["cup","xfinity","trucks"];
+function cleanLapRec(k,v,full){if(!v||typeof v!=="object")return null;const N=x=>{const n=Number(x);return x!=null&&x!==""&&isFinite(n)?n:0;},T=x=>x==null?"":String(x).slice(0,80);
+  const key=String(k).replace(/[^0-9_]/g,"").slice(0,40);if(!key||!LAP_KINDS.includes(v.session))return null;
+  return{key,at:N(v.at),updated:N(v.updated),track:T(v.track),config:T(v.config),session:v.session,series:LAP_SERIES.includes(v.series)?v.series:"",
+    cars:(Array.isArray(v.cars)?v.cars:[]).filter(Array.isArray).slice(0,80).map(c=>{const o=[T(c[0]),T(c[1]),N(c[2]),N(c[3]),N(c[4])];if(full)o.push((Array.isArray(c[5])?c[5]:[]).slice(0,2000).map(N));return o;})};}
+function loadLapIdx(){if(S.lapIdx!==undefined)return;S.lapIdx=null;const u=liveDb();if(!u)return;
+  fetch(u+"/lapsIndex.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{S.lapIdx=j&&typeof j==="object"?Object.entries(j).slice(0,3000).map(([k,v])=>cleanLapRec(k,v,false)).filter(Boolean):[];render();}).catch(()=>{});}
+function loadLapFull(key){S.lapFull=S.lapFull||{};if(key in S.lapFull)return;S.lapFull[key]=null;const u=liveDb();if(!u)return;
+  fetch(u+"/laps/"+encodeURIComponent(key)+".json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{S.lapFull[key]=cleanLapRec(key,j,true)||false;render();}).catch(()=>{S.lapFull[key]=false;render();});}
+const curSeries=()=>String(S.sel||MAINKEY).split("-")[0];
+/* who a timing row is: league driver ID by name, else by car number (same rule as live timing) */
+function lapWho(c){const id=slugId(c[1]);if(drv(id))return{id,name:drv(id).name};const d=S.drivers.find(x=>String(x.number||"")!==""&&String(x.number)===String(c[0]));return d?{id:d.id,name:d.name}:{id:"",name:c[1]};}
+const lapSessions=trackKey=>(S.lapIdx||[]).filter(s=>s.series===curSeries()&&trackOf(s.track).key===trackKey&&s.cars.some(c=>c[2]>0));
+function lapSessFor(r,kind){if(!r||!r.date||!S.lapIdx)return null;const t=new Date(r.date).getTime(),k=trackOf(r.track).key;
+  return lapSessions(k).filter(s=>s.session===kind&&s.at>t-8*3600e3&&s.at<t+8*3600e3).sort((a,b)=>b.updated-a.updated)[0]||null;}
+const lapDate=ms=>fmtShort(new Date(ms).toISOString())+", "+new Date(ms).toLocaleDateString(undefined,{timeZone:"America/New_York",year:"numeric"});
+/* green laps: skip lap 1 (start) and anything 7% slower than the fastest lap of the session (cautions, pit stops) */
+function lapStats(rec){const fast=Math.min(...rec.cars.map(c=>c[2]).filter(x=>x>0));const lim=fast*1.07;
+  return rec.cars.map(c=>{const g=(c[5]||[]).slice(1).filter(x=>x>0&&x<=lim),n=g.length,avg=n?g.reduce((a,b)=>a+b,0)/n:0,sd=n>1?Math.sqrt(g.reduce((a,b)=>a+(b-avg)*(b-avg),0)/(n-1)):0;
+    const bl=(c[5]||[]).indexOf(c[2]);return{c,who:lapWho(c),best:c[2],bestLap:bl>=0?bl+1:0,n,avg,sd};});}
+function raceLapsPanel(r){if(!liveDb())return"";loadLapIdx();const rs=lapSessFor(r,"race"),qs=lapSessFor(r,"qualify");if(!rs&&!qs)return"";
+  const pole=qs?[...qs.cars].filter(c=>c[2]>0).sort((a,b)=>a[2]-b[2])[0]:null;let body="";
+  if(rs){loadLapFull(rs.key);const full=S.lapFull[rs.key];
+    if(full===null)body='<p class="hint" style="margin:8px">Loading lap times...</p>';
+    else{const st=(full?lapStats(full):rs.cars.map(c=>({c,who:lapWho(c),best:c[2],bestLap:0,n:0,avg:0,sd:0}))).filter(x=>x.best>0);
+      const fast=Math.min(...st.map(x=>x.best)),fx=st.find(x=>x.best===fast);st.sort((a,b)=>(a.c[3]||999)-(b.c[3]||999));
+      body='<div class="tiles" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'+tile(lapFmt(fast),"Fastest lap · "+esc(fx.who.name)+(fx.bestLap?" (lap "+fx.bestLap+")":""),true)+(pole?tile(lapFmt(pole[2]),"Pole time · "+esc(lapWho(pole).name),true):"")+"</div>"+
+        '<div class="scroll"><table class="tbl"><thead><tr><th class="n">Pos</th><th>Driver</th><th class="n">Best lap</th><th class="n">Gap</th>'+(full?'<th class="n">Avg green lap</th><th class="n">Consistency</th><th class="n">Green laps</th>':"")+"</tr></thead><tbody>"+
+        st.map(x=>'<tr><td class="n">'+(x.c[3]||"–")+"</td><td>"+(x.who.id?'<button class="dl" data-act="driver" data-arg="'+esc(x.who.id)+'">'+esc(x.who.name)+"</button>":esc(x.who.name))+'</td><td class="n">'+(x.best===fast?"<b>"+lapFmt(x.best)+"</b>":lapFmt(x.best))+'</td><td class="n muted">'+(x.best===fast?"–":"+"+((x.best-fast)/1000).toFixed(3))+"</td>"+
+          (full?'<td class="n">'+(x.n?lapFmt(Math.round(x.avg)):"–")+'</td><td class="n">'+(x.n>2?"±"+(x.sd/1000).toFixed(3):"–")+'</td><td class="n muted">'+x.n+"</td>":"")+"</tr>").join("")+"</tbody></table></div>"+
+        '<p class="hint" style="margin:8px">From the live timing feed. Green laps leave out lap 1 and any lap more than 7% off the fastest lap (cautions, pit stops). Consistency is how much a driver\'s green laps vary; smaller is steadier.</p>';}}
+  else body='<div class="tiles" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'+tile(lapFmt(pole[2]),"Pole time · "+esc(lapWho(pole).name),true)+"</div>";
+  return'<div class="lt" style="margin:14px 8px 8px">Lap times</div>'+body;}
+function trackRecordsPanel(t){if(!liveDb())return"";loadLapIdx();if(!S.lapIdx)return"";const ss=lapSessions(t.key);
+  if(!ss.length)return'<div class="panel"><div class="lt">Track records</div><p class="hint">Lap records start with the first '+esc(settings().name)+" session here recorded by the live timing helper.</p></div>";
+  const rec=kind=>{let b=null;ss.filter(s=>s.session===kind).forEach(s=>s.cars.forEach(c=>{if(c[2]>0&&(!b||c[2]<b.ms))b={ms:c[2],who:lapWho(c),at:s.at};}));return b;};
+  const rl=rec("race"),ql=rec("qualify"),P={};
+  ss.forEach(s=>{if(s.session==="practice")return;s.cars.forEach(c=>{if(!(c[2]>0))return;const w=lapWho(c),k=w.id||w.name,o=P[k]=P[k]||{who:w,race:0,qual:0,n:new Set()};o.n.add(s.at);
+    if(s.session==="race"&&(!o.race||c[2]<o.race))o.race=c[2];if(s.session==="qualify"&&(!o.qual||c[2]<o.qual))o.qual=c[2];});});
+  const rows=Object.values(P).sort((a,b)=>(Math.min(a.race||9e9,a.qual||9e9))-(Math.min(b.race||9e9,b.qual||9e9))).slice(0,15);
+  const quals=ss.filter(s=>s.session==="qualify").sort((a,b)=>b.at-a.at).map(s=>{const p=[...s.cars].filter(c=>c[2]>0).sort((a,b)=>a[2]-b[2])[0];return p?{at:s.at,who:lapWho(p),ms:p[2]}:null;}).filter(Boolean);
+  const nm=w=>w.id?'<button class="dl" data-act="driver" data-arg="'+esc(w.id)+'">'+esc(w.name)+"</button>":esc(w.name);
+  return'<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Track records</div><div class="tiles" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'+
+    (rl?tile(lapFmt(rl.ms),"Race lap record · "+esc(rl.who.name)+" · "+lapDate(rl.at),true):"")+(ql?tile(lapFmt(ql.ms),"Qualifying record · "+esc(ql.who.name)+" · "+lapDate(ql.at),true):"")+"</div>"+
+    (rows.length?'<div class="scroll"><table class="tbl"><thead><tr><th class="n">#</th><th>Driver</th><th class="n">Best race lap</th><th class="n">Best qualifying lap</th></tr></thead><tbody>'+
+      rows.map((o,i)=>'<tr><td class="n">'+(i+1)+"</td><td>"+nm(o.who)+'</td><td class="n">'+(o.race?(rl&&o.race===rl.ms?"<b>"+lapFmt(o.race)+"</b>":lapFmt(o.race)):"–")+'</td><td class="n">'+(o.qual?(ql&&o.qual===ql.ms?"<b>"+lapFmt(o.qual)+"</b>":lapFmt(o.qual)):"–")+"</td></tr>").join("")+"</tbody></table></div>":"")+
+    (quals.length?'<div class="lt" style="margin:14px 8px 8px">Qualifying history</div><div class="list">'+quals.map(q=>'<div class="podrow"><div class="name">'+nm(q.who)+' <span class="muted small">'+lapDate(q.at)+'</span></div><span class="pts">'+lapFmt(q.ms)+"</span></div>").join("")+"</div>":"")+
+    '<p class="hint" style="margin:8px">Recorded by the live timing helper, so records only include sessions it was running for.</p></div>';}
+
 
 /* ---------- live timing (race night: practice, qualifying, race) ---------- */
 const liveDb=()=>safeUrl(((S.M&&S.M.settingsRaw)||{}).liveDb||"").replace(/\/$/,"");
@@ -1063,6 +1159,7 @@ const BOOK_ACT={
   slip(a){S.slipOpen=a==="open";draw();},
   slipmode(m){book().mode=m;saveBook();draw();},
   slipclear(){const B=book();B.slip=[];B.stakes={};B.pstake="";saveBook();draw();},
+  wireset(){S.whatIf=null;keepWhatIf();},
   placebet(){const B=book(),br=bankroll(),L=B.slip;if(!L.length)return;
     const closed=L.find(l=>!legOpen(l));if(closed){toast("Betting has closed for "+closed.label+". Remove that pick.",true);return;}
     {const d=oddsData();if(d){const vg={win:d.VIG,top5:1.12,top10:1.08},cl={win:"pWin",top5:"p5",top10:"p10"};let changed=0;const mv=(l,o)=>{if(o===l.odds)return;const worse=decOdds(o)<decOdds(l.odds);l.odds=o;if(worse)changed++;};/* better prices are applied silently; only a worse price stops the bet */
@@ -1383,7 +1480,41 @@ function wrapImage(){const w=wrappedData(S.wrapId);if(!w)return;const cv=documen
     g.fillStyle="#9B9BA3";g.font="500 28px "+M;g.fillText(("INRS LEAGUE HUB · PRESENTED BY "+(settings().sponsorName||"40XLI")).toUpperCase(),80,1290);
     cv.toBlob(b=>{if(!b){toast("Couldn't create the image.",true);return;}const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=(w.d.name+" "+w.season+" Wrapped").replace(/[^a-z0-9]+/gi,"-")+".png";document.body.appendChild(a);a.click();a.remove();toast("Image saved.");},"image/png");};
   if(logo&&logo.complete&&logo.naturalWidth){try{g.drawImage(logo,1080-80-150,40,150,150*logo.naturalHeight/logo.naturalWidth);}catch(e){}}draw();}
-const RW_ACT={wrapgo(){const v=(document.getElementById("wrappick")||{}).value;if(!v){toast("Pick a driver first.",true);return;}RW_ACT.wrapped(v);},wrapped(id){S.view="wrapped";S.wrapId=id;setHash();draw();window.scrollTo(0,0);},wrapsave(){wrapImage();}};
+/* ---------- results image for Discord (1080x1350 PNG, same look as Wrapped) ---------- */
+function resultImage(rid){const c=S.calc,r=S.races.find(x=>x.id===rid);if(!r||!(r.results||[]).length){toast("No results for that race yet.",true);return;}
+  const res=[...r.results].filter(x=>int(x.fin)).sort((a,b)=>int(a.fin)-int(b.fin)),maxLed=Math.max(0,...r.results.map(x=>int(x.lapsLed)||0)),st=settings();
+  const latest=c.done.length&&c.done[c.done.length-1].id===r.id&&c.off&&num(c.off.afterRound,0)>=num(r.round,0),cd=latest?chaseData():null;
+  const stand=latest?c.standings.filter(x=>x.off).sort((a,b)=>a.off.pos-b.off.pos).slice(0,10):[],lead=stand.length?num(stand[0].off.pts,0):0;
+  const alive=id=>{if(!cd)return true;const z=cd.rows.find(x=>x.s.driver.id===id);return z?z.alive:true;};
+  const cv=document.createElement("canvas");cv.width=1080;cv.height=1350;const g=cv.getContext("2d"),F='"Inter","Arial Black",sans-serif',B='"Barlow Semi Condensed","Arial",sans-serif',M='"JetBrains Mono",monospace';
+  const fit=(t,w,size,font)=>{let fs=size;g.font=font.replace("{s}",fs);while(g.measureText(t).width>w&&fs>14){fs-=2;g.font=font.replace("{s}",fs);}return t;};
+  const nm=id=>(drv(id)||{name:id}).name,no=id=>{const d=drv(id);return d&&String(d.number||"")!==""?"#"+d.number:"";};
+  const grd=g.createLinearGradient(0,0,1080,1350);grd.addColorStop(0,"#1d1030");grd.addColorStop(.55,"#0d0b12");grd.addColorStop(1,"#09090A");g.fillStyle=grd;g.fillRect(0,0,1080,1350);
+  g.fillStyle="#B455F7";g.fillRect(0,0,1080,14);const logo=document.querySelector(".brandlogo");
+  const paint=()=>{g.textAlign="left";g.fillStyle="#B455F7";g.font="700 34px "+B;g.fillText(((st.season||"")+" · ROUND "+(r.round||"")+" · "+(r.exhibition?"NON-POINTS RACE":"RESULTS")).toUpperCase(),80,120);
+    g.fillStyle="#F5F5F6";fit(trackOf(r.track).label.toUpperCase(),760,84,"italic 900 {s}px "+F);g.fillText(trackOf(r.track).label.toUpperCase(),80,215);
+    g.fillStyle="#9B9BA3";const sub=[r.name,fmtDate(r.date),r.laps?r.laps+" laps":""].filter(Boolean).join(" · ");fit(sub,920,32,"500 {s}px "+B);g.fillText(sub,80,265);
+    const COL=["#F2C14E","#CFC8DC","#D58B5A"];
+    res.slice(0,3).forEach((x,i)=>{const X=80+i*313,Y=310,W=293,H=230;g.fillStyle="#121214";g.fillRect(X,Y,W,H);g.fillStyle=COL[i];g.fillRect(X,Y,W,8);
+      g.font="italic 900 76px "+F;g.fillText("P"+(i+1),X+24,Y+98);g.fillStyle="#9B9BA3";g.font="700 30px "+M;g.textAlign="right";g.fillText(no(x.driverId),X+W-22,Y+60);g.textAlign="left";
+      g.fillStyle="#F5F5F6";const n=nm(x.driverId).toUpperCase();fit(n,W-44,38,"italic 900 {s}px "+F);g.fillText(n,X+24,Y+160);
+      g.fillStyle="#9B9BA3";g.font="500 26px "+B;g.fillText([int(x.lapsLed)?x.lapsLed+" led":"",r.exhibition?(int(x.inc)||0)+"x inc":c.ptsFor(x,maxLed)+" pts"].filter(Boolean).join(" · "),X+24,Y+202);});
+    const rowH=50,top=620,list=(X,W,title,rows)=>{g.fillStyle="#B455F7";g.font="700 28px "+B;g.fillText(title,X,top);
+      rows.forEach((z,i)=>{const y=top+30+i*rowH;g.fillStyle=i%2?"rgba(255,255,255,.02)":"rgba(255,255,255,.05)";g.fillRect(X,y,W,rowH-6);
+        g.fillStyle=z.dim?"#6B6B73":"#F5F5F6";g.font="700 26px "+M;g.fillText(z.a,X+14,y+31);g.font="600 28px "+B;const t=z.b;fit(t,W-190,28,"600 {s}px "+B);g.fillText(t,X+78,y+31);
+        g.textAlign="right";g.font="700 24px "+M;g.fillStyle=z.dim?"#6B6B73":z.hl?"#F2C14E":"#9B9BA3";g.fillText(z.c,X+W-14,y+31);g.textAlign="left";});};
+    const fin=res.slice(3,stand.length?13:21).map(x=>({a:String(x.fin),b:nm(x.driverId),c:r.exhibition?(int(x.lapsLed)?x.lapsLed+" led":""):c.ptsFor(x,maxLed)+" pts"}));
+    if(stand.length){list(80,440,"P4 – P"+(3+fin.length),fin);
+      list(560,440,(cd?"CHASE STANDINGS":"STANDINGS")+" AFTER RD "+r.round,stand.map((x,i)=>{const gap=lead-num(x.off.pts,0),out=!alive(x.driver.id);return{a:String(x.off.pos),b:x.driver.name,c:i?(out?"OUT":"−"+fmtN(gap)):fmtN(x.off.pts),hl:!i,dim:out};}));}
+    else{list(80,440,"P4 – P"+(3+Math.min(10,fin.length)),fin.slice(0,10));if(fin.length>10)list(560,440,"P14 – P"+(3+fin.length),fin.slice(10));}
+    const ml=r.results.find(x=>maxLed&&int(x.lapsLed)===maxLed);
+    const foot=[ml?"MOST LAPS LED: "+nm(ml.driverId).toUpperCase()+" ("+maxLed+")":"",cd&&cd.remaining?plural(cd.remaining,"race").toUpperCase()+" LEFT IN THE CHASE":""].filter(Boolean).join("   ·   ");
+    g.fillStyle="#F5F5F6";fit(foot,920,26,"700 {s}px "+B);g.fillText(foot,80,1225);
+    g.fillStyle="#9B9BA3";g.font="500 26px "+M;g.fillText(("INRS LEAGUE HUB · PRESENTED BY "+(st.sponsorName||"40XLI")).toUpperCase(),80,1290);
+    cv.toBlob(b=>{if(!b){toast("Couldn't create the image.",true);return;}const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=((st.season||"")+" Rd "+r.round+" "+trackOf(r.track).label+" results").replace(/[^a-z0-9]+/gi,"-")+".png";
+      document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);toast("Results image saved. Drop it in Discord.");},"image/png");};
+  if(logo&&logo.complete&&logo.naturalWidth){try{g.drawImage(logo,1080-80-150,40,150,150*logo.naturalHeight/logo.naturalWidth);}catch(e){}}paint();}
+const RW_ACT={careermetric(m){S.careerMetric=m;draw();},resultimg(id){resultImage(id);},wrapgo(){const v=(document.getElementById("wrappick")||{}).value;if(!v){toast("Pick a driver first.",true);return;}RW_ACT.wrapped(v);},wrapped(id){S.view="wrapped";S.wrapId=id;setHash();draw();window.scrollTo(0,0);},wrapsave(){wrapImage();}};
 
 V.bets=()=>{needSeasons();const B=book(),br=bankroll();
   const betCard=b=>{const r=betResult(b),nv=r.st.filter(x=>x==="void").length,d=b.t==="parlay"?b.legs.reduce((m,l,i)=>r.st[i]==="void"?m:m*decOdds(l.odds),1):decOdds(b.legs[0].odds);
@@ -1446,10 +1577,30 @@ V.compare=()=>{const c=S.calc,all=c.standings.filter(s=>s.starts>0||s.off);if(al
       common.slice().reverse().map(z=>'<tr><td><button class="dl" data-act="openrace" data-arg="'+esc(z.r.id)+'">'+esc(raceLabel(z.r))+'</button></td><td class="n'+(z.fa<z.fb?" win":"")+'">P'+z.fa+'</td><td class="n'+(z.fb<z.fa?" win":"")+'">P'+z.fb+"</td></tr>").join("")+"</tbody></table></div></div>":"")+"</section>";};
 
 V.standings=()=>{const hasChase=!!chaseData(),hasTeams=!!(S.calc.off&&(S.calc.off.teams||[]).length),hasPower=!!powerData();
-  if(!hasChase&&!hasTeams&&!hasPower)return stdDrivers();if((S.stdView==="chase"&&!hasChase)||(S.stdView==="teams"&&!hasTeams)||(S.stdView==="power"&&!hasPower))S.stdView="drivers";
+  if(S.stdView==="clean"){}else if((S.stdView==="chase"&&!hasChase)||(S.stdView==="teams"&&!hasTeams)||(S.stdView==="power"&&!hasPower))S.stdView="drivers";
   const b=(k,l)=>'<button class="btn sm" data-act="stdview" data-arg="'+k+'"'+(S.stdView===k?' aria-current="page"':"")+">"+l+"</button>";
-  const seg='<div class="subtabs" style="margin-bottom:14px" role="group" aria-label="Standings view">'+b("drivers","Drivers")+(hasChase?b("chase","The Chase"):"")+(hasPower?b("power","Power rankings"):"")+(hasTeams?b("teams","Teams"):"")+"</div>";
-  return seg+(S.stdView==="chase"?chasePanel(true):S.stdView==="power"?powerView():S.stdView==="teams"?'<section><div class="lt">Team standings</div>'+hubBar()+teamsView()+"</section>":stdDrivers());};
+  const seg='<div class="subtabs" style="margin-bottom:14px" role="group" aria-label="Standings view">'+b("drivers","Drivers")+(hasChase?b("chase","The Chase"):"")+(hasPower?b("power","Power rankings"):"")+(hasTeams?b("teams","Teams"):"")+b("clean","Clean racing")+"</div>";
+  return seg+(S.stdView==="chase"?chasePanel(true):S.stdView==="power"?powerView():S.stdView==="teams"?'<section><div class="lt">Team standings</div>'+hubBar()+teamsView()+"</section>":S.stdView==="clean"?cleanView():stdDrivers());};
+/* ---------- clean racing (incidents per race, clean races, penalties) ---------- */
+/* SimRacerHub records 0 incidents for everyone at some road courses (COTA, Watkins Glen, Sonoma...). A race where every
+   finisher shows 0x has no incident data, so it's left out instead of counting as a perfectly clean race. */
+function cleanData(){const c=S.calc,has=new Set(c.done.filter(r=>(r.results||[]).some(x=>int(x.inc)>0)).map(r=>r.id)),run=has.size;if(!run)return null;const min=Math.max(1,Math.ceil(run/2));
+  const rows=c.standings.map(s=>({s,L:s.log.filter(l=>has.has(l.race.id))})).filter(z=>z.L.length).map(({s,L})=>{const inc=L.reduce((a,l)=>a+(int(l.inc)||0),0),n=L.length,l5=L.slice(-5),i5=l5.reduce((a,l)=>a+(int(l.inc)||0),0)/l5.length;
+    const pens=S.penalties.filter(p=>p.driverId===s.driver.id);return{s,n,inc,ipr:inc/n,clean:L.filter(l=>!int(l.inc)).length,i5,trend:i5-inc/n,pens:pens.length,penPts:pens.reduce((a,p)=>a+num(p.points,0),0),ok:n>=min};});
+  const q=rows.filter(r=>r.ok).sort((a,b)=>a.ipr-b.ipr||b.clean-a.clean||b.n-a.n),all=rows.reduce((a,r)=>a+r.inc,0),st=rows.reduce((a,r)=>a+r.n,0);
+  const perRace=c.done.filter(r=>has.has(r.id)).map(r=>{const res=(r.results||[]).filter(x=>int(x.fin));return{r,avg:res.length?res.reduce((a,x)=>a+(int(x.inc)||0),0)/res.length:0};});
+  return{q,min,run,avg:st?all/st:0,perRace,others:rows.filter(r=>!r.ok).length,skipped:c.done.filter(r=>!has.has(r.id))};}
+function cleanView(){const d=cleanData();if(!d)return empty("No races yet","Clean racing stats appear after the first race.");const top=d.q[0];
+  const best=[...d.perRace].sort((a,b)=>a.avg-b.avg)[0],worst=[...d.perRace].sort((a,b)=>b.avg-a.avg)[0];
+  const ar=t=>Math.abs(t)<0.25?'<span class="muted">–</span>':t<0?'<span style="color:var(--ok)">▼'+Math.abs(t).toFixed(1)+"</span>":'<span style="color:var(--bad)">▲'+t.toFixed(1)+"</span>";
+  return'<section class="stack"><div class="tiles">'+tile(top?top.s.driver.name:"–","Cleanest driver"+(top?" ("+top.ipr.toFixed(1)+"x a race)":""),true)+tile(d.avg.toFixed(1)+"x","League average per start")+
+    tile(best?trackOf(best.r.track).label:"–","Cleanest race"+(best?" ("+best.avg.toFixed(1)+"x avg)":""),true)+tile(worst?trackOf(worst.r.track).label:"–","Wildest race"+(worst?" ("+worst.avg.toFixed(1)+"x avg)":""),true)+"</div>"+
+    '<div class="panel" style="padding:6px 8px"><div class="sechead" style="margin:8px"><div class="lt">Cleanest drivers</div><span class="hint">Fewest incidents per race · at least '+plural(d.min,"start")+'</span></div><div class="scroll"><table class="tbl"><thead><tr><th>Rank</th><th>Driver</th><th class="n">Starts</th><th class="n">Inc</th><th class="n">Per race</th><th class="n">Clean races</th><th class="n">Last 5</th><th class="n">Trend</th><th class="n">Penalties</th></tr></thead><tbody>'+
+    d.q.map((r,i)=>"<tr><td>"+posBadge(i+1)+"</td><td>"+dlink(r.s.driver.id)+'</td><td class="n">'+r.n+'</td><td class="n">'+r.inc+'x</td><td class="n"><span class="pts">'+r.ipr.toFixed(1)+'x</span></td><td class="n">'+r.clean+'</td><td class="n">'+r.i5.toFixed(1)+'x</td><td class="n">'+ar(r.trend)+'</td><td class="n">'+(r.pens?r.pens+" (−"+r.penPts+" pts)":"–")+"</td></tr>").join("")+
+    '</tbody></table></div><p class="hint" style="margin:10px 8px">Counts every race this season with incident data'+(d.skipped.length?" (no incidents were recorded at "+esc(d.skipped.map(r=>trackOf(r.track).label).join(", "))+", so those races are left out)":"")+'. Clean races are races with 0 incidents. Trend compares the last 5 races with the season average (▼ is cleaner). '+(d.others?plural(d.others,"driver")+" with fewer starts are not ranked.":"")+"</p></div>"+
+    '<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Incidents by race</div><div class="list">'+d.perRace.slice().reverse().map(z=>{const w=Math.min(100,z.avg/Math.max(1,worst.avg)*100);
+      return'<div class="podrow"><span class="small muted" style="min-width:34px">Rd '+esc(z.r.round)+'</span><div class="name">'+esc(trackOf(z.r.track).label)+'<div style="height:6px;background:var(--line);border-radius:3px;margin-top:4px"><div style="height:6px;width:'+w.toFixed(0)+'%;background:var(--accent);border-radius:3px"></div></div></div><span class="pts">'+z.avg.toFixed(1)+"x</span></div>";}).join("")+
+    '</div><p class="hint" style="margin:10px 8px">Average incidents per finisher in each race.</p></div></section>';}
 /* ---------- admin ---------- */
 const blankDriver=()=>({id:"",name:"",number:"",custId:"",team:""});
 function blankRace(){const m=Math.max(0,...S.races.map(r=>num(r.round,0)));return{id:"",round:String(m+1),name:"",track:"",date:"",laps:""};}
@@ -1611,6 +1762,8 @@ const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false
     await write(()=>root().set(data),"Settings saved");}
 };
 const CHANGE={
+  wifin(el){const W=S.whatIf;if(!W)return;const x=W.p[el.dataset.id]=W.p[el.dataset.id]||{fin:0,bonus:0};x.fin=int(el.value)||0;keepWhatIf();},
+  wibon(el){const W=S.whatIf;if(!W)return;const x=W.p[el.dataset.id]=W.p[el.dataset.id]||{fin:0,bonus:0};x.bonus=int(el.value)||0;keepWhatIf();},
   h2ha(el){S.h2hA=el.value;draw();},
   h2hb(el){S.h2hB=el.value;draw();},
   season(el){selectSeason(el.value);},
