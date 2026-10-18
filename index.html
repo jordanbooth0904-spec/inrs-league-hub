@@ -340,6 +340,11 @@ const SER_RENAME={xfinity:[[2026,"O'Reilly"]]},SER_FINAL={xfinity:2026};
 function serName(k,y){const r=(SER_RENAME[k]||[]).filter(x=>+y>=x[0]).pop();return r?r[1]:({cup:"Cup",xfinity:"Xfinity",trucks:"Trucks"}[k]||k);}
 function serFinalInfo(k){const y=SER_FINAL[k];if(!y||!S.idx)return null;const si=S.idx.seasons.find(x=>x.series===k&&+x.year===y);if(!si)return null;
   const yrs=S.idx.seasons.filter(x=>x.series===k).map(x=>+x.year);return{year:y,si,ended:!!si.done,first:Math.min(...yrs),last:y,lastRace:si.lastRace||null};}
+/* The Daytona Duels are qualifying races: results are shown, but they don't count toward any stats (season, career,
+   records, track history, odds, power rankings). They're treated like exhibitions everywhere the site counts races. */
+const isDuel=r=>/\bduels?\b/i.test(String((r&&r.name)||""));
+function markDuels(races){(races||[]).forEach(r=>{if(r&&isDuel(r)){r.exhibition=true;r.duel=true;}});return races||[];}
+const duelFix=j=>{if(j)markDuels(j.races);return j;};
 const isMain=()=>S.sel===MAINKEY;
 const selInfo=()=>(S.idx&&S.idx.seasons.find(x=>x.key===S.sel))||{key:MAINKEY,series:"cup",year:2026,main:true};
 function applySel(){const M=S.M,a=isMain()?null:S.arch[S.sel];
@@ -363,7 +368,7 @@ async function route(){if(hashFor()===location.hash)return;const h=readHash();S.
 async function selectSeason(key){if(!S.idx)return;const i=S.idx.seasons.find(x=>x.key===key);if(!i)return;
   S.sel=key;S.driverSel=null;S.trackSel=null;S.raceOpen=null;S.cmp=null;S.confirm=null;if(S.view==="admin"&&!isMain())S.view="home";setHash();
   if(!i.main&&!S.arch[key]){S.selLoading=true;draw();
-    try{const r=await fetch(i.file,{cache:"no-store"});if(!r.ok)throw 0;S.arch[key]=await r.json();}catch(e){S.selLoading=false;S.sel=MAINKEY;applySel();setHash(true);draw();toast("Couldn't load that season. Try again.");return;}
+    try{const r=await fetch(i.file,{cache:"no-store"});if(!r.ok)throw 0;S.arch[key]=duelFix(await r.json());}catch(e){S.selLoading=false;S.sel=MAINKEY;applySel();setHash(true);draw();toast("Couldn't load that season. Try again.");return;}
     if(S.sel!==key)return;S.selLoading=false;}
   applySel();draw();}
 function switcher(){if(!S.idx)return"";const i=selInfo(),L=S.idx.seasons;
@@ -397,12 +402,6 @@ function isDnf(s){return s&&!/^running$/i.test(String(s).trim());}
 const root=()=>S.db.doc("league/main");
 
 /* ---------- stats ---------- */
-/* Official SimRacerHub rows decide points and positions. SimRacerHub leaves races such as the Daytona Duels out of
-   its counting stats, but the league counts them as races, so starts, wins, top 5s, top 10s, poles, laps led and
-   incidents use whichever is higher: SimRacerHub's number or the count from the race results. */
-function offMerge(o,r){const mx=(a,b)=>Math.max(num(a,0),num(b,0)),m=Object.assign({},o);
-  ["starts","wins","t5","t10","poles","led","inc"].forEach(k=>{m[k]=mx(o[k],r[k]);});
-  if(m.starts!==num(o.starts,0)||m.inc!==num(o.inc,0))m.incPerRace=m.starts?m.inc/m.starts:null;return m;}
 function compute(){
   const st=settings(),P=st.points,races=sortedRaces();
   const done=races.filter(r=>r.status==="complete"&&Array.isArray(r.results)&&r.results.length&&!r.exhibition);
@@ -418,8 +417,7 @@ function compute(){
   S.penalties.forEach(p=>{const s=D[p.driverId];if(s&&!p.included)s.penPts+=num(p.points,0);});
   Object.values(D).forEach(s=>{s.total=s.racePts-s.penPts;s.avgFin=s.starts?s.finSum/s.starts:null;s.avgStart=s.startN?s.startSum/s.startN:null;});
   const off=S.official&&Array.isArray(S.official.rows)&&S.official.rows.length?S.official:null;
-  if(off)off.rows.forEach(o=>{const s=D[o.driverId];if(s){const m=offMerge(o,{starts:s.starts,wins:s.wins,t5:s.top5,t10:s.top10,poles:s.poles,led:s.led,inc:s.inc});
-    s.off=m;s.total=num(m.pts,0);s.starts=m.starts;s.wins=m.wins;s.top5=m.t5;s.top10=m.t10;s.poles=m.poles;s.led=m.led;s.inc=m.inc;}});
+  if(off)off.rows.forEach(o=>{const s=D[o.driverId];if(s){s.off=o;s.total=num(o.pts,0);s.starts=num(o.starts,s.starts);s.wins=num(o.wins,s.wins);s.top5=num(o.t5,s.top5);s.top10=num(o.t10,s.top10);s.poles=num(o.poles,s.poles);s.led=num(o.led,s.led);s.inc=num(o.inc,s.inc);}});
   const standings=Object.values(D).filter(s=>s.starts>0||s.off||s.driver.active!==false)
     .sort(off?((a,b)=>((a.off?a.off.pos:9999)-(b.off?b.off.pos:9999))||String(a.driver.name).localeCompare(String(b.driver.name)))
       :((a,b)=>(b.total-a.total)||(b.wins-a.wins)||((a.best||99)-(b.best||99))||(b.starts-a.starts)||String(a.driver.name).localeCompare(String(b.driver.name))));
@@ -534,7 +532,7 @@ function officialStandings(c){const o=c.off,cut=num(o.chaseCutoff,0),st=SORT.std
     '<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr>'+cols.slice(0,cols.length-1).map(cc=>th(cc,st,"std")).join("")+"<th>Last 5</th>"+th(cols[cols.length-1],st,"std")+"</tr></thead><tbody>"+
     rows.map(s=>(showCut&&R(s).pos===cut+1?'<tr><td colspan="'+n+'" style="padding:4px 8px;border-bottom:2px solid var(--accent);font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)">Chase cutoff · top '+cut+"</td></tr>":"")+
       "<tr>"+cols.slice(0,cols.length-1).map(cc=>cell(cc,s)).join("")+"<td>"+last5(s)+"</td>"+cell(cols[cols.length-1],s)+"</tr>").join("")+
-    '</tbody></table></div></div><p class="hint">Points include stage points, bonuses, penalties, drop races and the Chase reset, exactly as SimRacerHub scores them. Starts, wins and other counts include the Daytona Duels, which the league counts as races.</p></section>';}
+    '</tbody></table></div></div><p class="hint">Points include stage points, bonuses, penalties, drop races and the Chase reset, exactly as SimRacerHub scores them. The Daytona Duels do not count toward any stats.</p></section>';}
 
 const stdDrivers=()=>{const c=S.calc;if(c.off)return officialStandings(c);const base=c.standings.filter(s=>s.starts>0);
   if(!base.length)return'<div class="lt">Championship standings</div>'+hubBar()+empty("No races run yet","Standings appear after the first results are posted.");
@@ -574,7 +572,7 @@ V.schedule=()=>{const c=S.calc;if(!c.races.length)return'<div class="lt">'+esc(c
     const done=r.status==="complete"&&(r.results||[]).length,isNext=c.next&&c.next.id===r.id,open=S.raceOpen===r.id;
     const w=done?r.results.find(x=>int(x.fin)===1):null,rec=safeUrl(r.recapUrl);
     return'<article class="race'+(isNext?" isnext":"")+'" id="race-'+esc(r.id)+'"><div class="racehead"><div class="rnd"><small>Rnd</small><b>'+esc(r.round??"?")+'</b></div><div style="min-width:0"><div class="racetitle">'+esc(r.track||"Track TBA")+'</div><div class="racesub">'+fmtDate(r.date)+(fmtTime(r.date,r.dateOnly)?" · "+fmtTime(r.date,r.dateOnly):"")+(r.laps?" · "+esc(r.laps)+" laps":"")+"</div>"+(r.name?'<div class="small muted">'+esc(r.name)+"</div>":"")+(r.note?'<div class="small" style="color:var(--accent)">'+esc(r.note)+"</div>":"")+
-      (w?'<div class="small" style="margin-top:4px">Winner: '+dlink(w.driverId)+"</div>":"")+'</div><div class="raceside">'+(r.exhibition?'<span class="pill">Exhibition</span>':"")+(done?'<span class="pill final">Final</span>':isNext?'<span class="pill next">Next</span>':'<span class="pill">Upcoming</span>')+"</div></div>"+
+      (w?'<div class="small" style="margin-top:4px">Winner: '+dlink(w.driverId)+"</div>":"")+'</div><div class="raceside">'+(r.exhibition?'<span class="pill">'+(r.duel?"Duel · no stats":"Exhibition")+'</span>':"")+(done?'<span class="pill final">Final</span>':isNext?'<span class="pill next">Next</span>':'<span class="pill">Upcoming</span>')+"</div></div>"+
       ('<div class="raceactions">'+(done?'<button class="btn sm" data-act="race" data-arg="'+esc(r.id)+'" aria-expanded="'+open+'">'+(open?"Hide results":"Results")+"</button>":"")+(rec?'<a class="btn sm primary" href="'+esc(rec)+'" target="_blank" rel="noopener">Watch recap</a>':"")+'<button class="btn sm ghost" data-act="track" data-arg="'+esc(trackOf(r.track).key)+'">Track history</button>'+(isNext?liveBtn(r):"")+"</div>")+
       (open&&done?'<div class="racebody">'+resultsTable(r)+"</div>":"")+"</article>";}).join("")+"</div></section>";};
 
@@ -638,10 +636,10 @@ const TRACKS=[[/Raceway Park|\bIRP\b/i,"irp","Lucas Oil Raceway (IRP)"],[/Milwau
  [/North Wilkesboro/i,"north-wilkesboro","North Wilkesboro"],[/Chicago Street/i,"chicago-street","Chicago Street Course"],[/Chicagoland/i,"chicagoland","Chicagoland"],[/Iowa/i,"iowa","Iowa"],[/Coronado|San Diego/i,"san-diego","San Diego Street Course"]];
 function trackOf(name){const s=String(name||"");for(const[re,k,l]of TRACKS)if(re.test(s))return{key:k,label:l};const l=s.replace(/\[Retired\]\s*/g,"").trim()||"Unknown";return{key:l.toLowerCase().replace(/[^a-z0-9]+/g,"-"),label:l};}
 function buildTracks(){const T={};const add=(name,o)=>{const t=trackOf(name);(T[t.key]=T[t.key]||{key:t.key,label:t.label,races:[]}).races.push(o);return t.key;};
-  (S.history||[]).forEach(h=>add(h[4],{season:+h[0],round:h[1],date:h[2],event:h[3],pole:h[5],winner:h[6]}));
+  (S.history||[]).forEach(h=>{const du=isDuel({name:h[3]});add(h[4],{season:+h[0],round:h[1],date:h[2],event:h[3],pole:h[5],winner:h[6],exhibition:du,duel:du});});
   const season=+settings().season||new Date().getFullYear();
   sortedRaces().forEach(r=>{const res=r.results||[],w=res.find(x=>int(x.fin)===1),p=res.find(x=>int(x.start)===1);
-    add(r.track,{season,round:r.round,date:fmtShort(r.date),event:r.name||"",pole:p&&drv(p.driverId)?drv(p.driverId).name:"",winner:w&&drv(w.driverId)?drv(w.driverId).name:"",raceId:r.id,current:true,done:r.status==="complete"&&res.length,exhibition:!!r.exhibition});});
+    add(r.track,{season,round:r.round,date:fmtShort(r.date),event:r.name||"",pole:p&&drv(p.driverId)?drv(p.driverId).name:"",winner:w&&drv(w.driverId)?drv(w.driverId).name:"",raceId:r.id,current:true,done:r.status==="complete"&&res.length,exhibition:!!r.exhibition,duel:!!r.duel});});
   Object.values(T).forEach(t=>{t.races.sort((a,b)=>b.season-a.season||(int(b.round)||0)-(int(a.round)||0));
     const wins={};t.races.forEach(r=>{if(r.winner&&!r.exhibition)wins[r.winner]=(wins[r.winner]||0)+1;});t.wins=Object.entries(wins).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
     t.onSchedule=t.races.some(r=>r.current);t.next=t.races.filter(r=>r.current&&!r.done).sort((a,b)=>(int(a.round)||0)-(int(b.round)||0))[0]||null;});
@@ -656,7 +654,7 @@ V.tracks=()=>{const T=buildTracks();if(S.trackSel&&T[S.trackSel])return trackDet
   const list=Object.values(T).sort((a,b)=>(b.onSchedule-a.onSchedule)||((a.next?int(a.next.round):999)-(b.next?int(b.next.round):999))||a.label.localeCompare(b.label));
   if(!list.length)return'<div class="lt">Tracks</div>'+empty("No track history yet","");
   const card=t=>{const lw=t.races.find(r=>r.winner&&!r.exhibition),mw=mostWins(t);
-    return'<button class="dcard tcard" data-act="track" data-arg="'+esc(t.key)+'"><span class="nm">'+esc(t.label)+'</span><span class="st">'+plural(t.races.filter(r=>r.winner).length,"race")+(t.next?" · Next: Rd "+esc(t.next.round):"")+"</span>"+
+    return'<button class="dcard tcard" data-act="track" data-arg="'+esc(t.key)+'"><span class="nm">'+esc(t.label)+'</span><span class="st">'+plural(t.races.filter(r=>r.winner&&!r.exhibition).length,"race")+(t.next?" · Next: Rd "+esc(t.next.round):"")+"</span>"+
       (lw?'<span class="small">Last winner: <b>'+esc(lw.winner)+'</b> <span class="muted">'+lw.season+"</span></span>":"")+(mw&&(mw.n>1||mw.tied)?'<span class="small muted">Most wins: '+esc(mw.who)+" ("+mw.detail+")</span>":"")+"</button>";};
   const on=list.filter(t=>t.onSchedule),off=list.filter(t=>!t.onSchedule);
   return'<section class="stack"><div><div class="lt">'+esc(settings().season)+' tracks</div><div class="dgrid">'+on.map(card).join("")+"</div></div>"+(off.length?'<div><div class="lt">Past tracks</div><div class="dgrid">'+off.map(card).join("")+"</div></div>":"")+
@@ -665,19 +663,17 @@ function trackDetail(t){const season=+settings().season;
   const cur=t.races.filter(r=>r.current&&r.done&&r.raceId);let top="";
   if(cur.length){top='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">'+season+" results here</div>"+cur.map(r=>{const race=S.races.find(x=>x.id===r.raceId);return race?'<div class="small muted" style="margin:6px 8px">'+esc(raceLabel(race))+" · "+fmtShort(race.date)+"</div>"+resultsTable(Object.assign({},race,{results:[...race.results].sort((a,b)=>a.fin-b.fin).slice(0,10)})):"";}).join("")+"</div>";}
   return'<section class="stack"><div><button class="btn sm ghost" data-act="nav" data-arg="tracks">← All tracks</button></div><div><div class="eyebrow">Track history</div><h1 class="track" style="font-size:clamp(28px,6vw,44px)">'+esc(t.label)+"</h1></div>"+
-    '<div class="tiles">'+tile(t.races.filter(r=>r.winner&&!r.exhibition).length,"INRS races")+(()=>{const mw=mostWins(t);return tile(mw?mw.who:"–","Most wins"+(mw?" ("+mw.detail+")":""),true);})()+tile(new Set(t.races.filter(r=>r.winner).map(r=>r.winner)).size,"Different winners")+(t.next?tile("Rd "+t.next.round,"Next visit · "+t.next.date):"")+"</div>"+trackPowerPanel(t.key,t.label)+
+    '<div class="tiles">'+tile(t.races.filter(r=>r.winner&&!r.exhibition).length,"INRS races")+(()=>{const mw=mostWins(t);return tile(mw?mw.who:"–","Most wins"+(mw?" ("+mw.detail+")":""),true);})()+tile(new Set(t.races.filter(r=>r.winner&&!r.exhibition).map(r=>r.winner)).size,"Different winners")+(t.next?tile("Rd "+t.next.round,"Next visit · "+t.next.date):"")+"</div>"+trackPowerPanel(t.key,t.label)+
     '<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Every race here</div><div class="scroll"><table class="tbl"><thead><tr><th>Season</th><th class="n">Rd</th><th>Date</th><th>Event</th><th>Pole</th><th>Winner</th></tr></thead><tbody>'+
-    t.races.map(r=>"<tr><td>"+r.season+(r.current&&!r.done?' <span class="pill">Upcoming</span>':"")+(r.exhibition?' <span class="pill">Exhibition</span>':"")+'</td><td class="n">'+esc(r.round||"")+"</td><td>"+esc(r.date||"")+'</td><td class="wrapcell muted">'+esc(r.event||"")+"</td><td>"+esc(r.pole||"–")+"</td><td><b>"+(r.raceId&&r.done?'<button class="dl" data-act="openrace" data-arg="'+esc(r.raceId)+'">'+esc(r.winner||"–")+"</button>":esc(r.winner||"–"))+"</b></td></tr>").join("")+"</tbody></table></div></div>"+
+    t.races.map(r=>"<tr><td>"+r.season+(r.current&&!r.done?' <span class="pill">Upcoming</span>':"")+(r.exhibition?' <span class="pill">'+(r.duel?"Duel · no stats":"Exhibition")+'</span>':"")+'</td><td class="n">'+esc(r.round||"")+"</td><td>"+esc(r.date||"")+'</td><td class="wrapcell muted">'+esc(r.event||"")+"</td><td>"+esc(r.pole||"–")+"</td><td><b>"+(r.raceId&&r.done?'<button class="dl" data-act="openrace" data-arg="'+esc(r.raceId)+'">'+esc(r.winner||"–")+"</button>":esc(r.winner||"–"))+"</b></td></tr>").join("")+"</tbody></table></div></div>"+
     (t.wins.length?'<div class="panel"><div class="lt">Winners at '+esc(t.label)+'</div><div class="list">'+t.wins.map(([n,w],i)=>'<div class="podrow">'+posBadge(i+1)+'<div class="name">'+esc(n)+'</div><span class="pts">'+w+"</span></div>").join("")+"</div></div>":"")+top+"</section>";}
 
 /* ---------- careers & records (all series, all seasons) ---------- */
 const SER_L={cup:"Cup",xfinity:"O'Reilly/Xfinity",trucks:"Trucks"};
-function mainLines(){const M=S.M,o=M.official;if(!o||!Array.isArray(o.rows))return[];const fin={},cnt={};
-  (M.races||[]).forEach(r=>{if(r.status!=="complete"||r.exhibition)return;(r.results||[]).forEach(x=>{const f=int(x.fin),c=cnt[x.driverId]=cnt[x.driverId]||{starts:0,wins:0,t5:0,t10:0,poles:0,led:0,inc:0};
-    c.starts++;if(f===1)c.wins++;if(f&&f<=5)c.t5++;if(f&&f<=10)c.t10++;if(int(x.start)===1)c.poles++;c.led+=int(x.lapsLed)||0;c.inc+=int(x.inc)||0;
-    if(!f)return;const a=fin[x.driverId]=fin[x.driverId]||[0,0];a[0]+=f;a[1]++;});});
+function mainLines(){const M=S.M,o=M.official;if(!o||!Array.isArray(o.rows))return[];const fin={};
+  (M.races||[]).forEach(r=>{if(r.status!=="complete"||r.exhibition)return;(r.results||[]).forEach(x=>{const f=int(x.fin);if(!f)return;const a=fin[x.driverId]=fin[x.driverId]||[0,0];a[0]+=f;a[1]++;});});
   const D={};(M.drivers||[]).forEach(d=>D[d.id]=d);
-  return o.rows.map(r0=>{const r=offMerge(r0,cnt[r0.driverId]||{}),d=D[r.driverId]||{name:r.driverId},f=fin[r.driverId]||[0,0];
+  return o.rows.map(r=>{const d=D[r.driverId]||{name:r.driverId},f=fin[r.driverId]||[0,0];
     return[r.driverId,d.name,d.number||"",r.pos,r.pts,num(r.starts),num(r.wins),num(r.t5),num(r.t10),num(r.poles),num(r.led),num(r.inc),f[0],f[1],r.team||""];});}
 function seasonDone(si){if(!si.main)return!!si.done;const R=(S.M.races||[]).filter(r=>!r.exhibition);return R.length>0&&R.every(r=>r.status==="complete");}
 function allLines(){if(!S.idx)return[];const out=[];
@@ -842,7 +838,7 @@ function rng(seed){let s=seed>>>0||1;return()=>{s^=s<<13;s>>>=0;s^=s>>17;s^=s<<5
 function prevSeasonKey(){const i=selInfo();const p=S.idx&&S.idx.seasons.find(x=>x.series===i.series&&+x.year===+i.year-1);return p?p.key:null;}
 function oddsData(noLive){const c=S.calc,r=c.next;if(!r)return null;const tk=trackOf(r.track).key,ty=typeOf(r.track);
   const done=c.done.filter(x=>!x.exhibition&&(x.results||[]).length);if(done.length<3)return null;
-  const pk=prevSeasonKey(),prev=pk&&S.arch[pk]?S.arch[pk].races.filter(x=>x.status==="complete"&&(x.results||[]).length):[];
+  const pk=prevSeasonKey(),prev=pk&&S.arch[pk]?S.arch[pk].races.filter(x=>x.status==="complete"&&!x.exhibition&&(x.results||[]).length):[];
   const recent=done.slice(-6),field=new Set();recent.forEach(x=>x.results.forEach(y=>field.add(y.driverId)));
   const fin=(races,id)=>races.map(x=>{const y=x.results.find(z=>z.driverId===id);return y?{f:int(y.fin),race:x}:null;}).filter(v=>v&&v.f);
   const mean=a=>a.length?a.reduce((s,v)=>s+v.f,0)/a.length:null;
@@ -882,7 +878,7 @@ V.odds=()=>{const c=S.calc;needSeasons();if(!S.marketKick){S.marketKick=1;setTim
   if(!c.next&&isMain()&&champInfo())return top+bookFinal(B,br);
   if(!c.next)return top+'<div class="lt">Sportsbook</div>'+empty("No upcoming race","Pick another series in the header, or check back when the next race is on the schedule.");
   S.oddsFail=S.oddsFail||{};const pk=prevSeasonKey();if(pk&&!S.arch[pk]&&!S.oddsFail[pk]){if(!S.oddsFetching){S.oddsFetching=true;const i=S.idx.seasons.find(x=>x.key===pk);
-      fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[pk]=j;}).catch(()=>{}).finally(()=>{S.oddsFetching=false;if(!S.arch[pk])S.oddsFail[pk]=true;draw();});}return loading();}
+      fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[pk]=duelFix(j);}).catch(()=>{}).finally(()=>{S.oddsFetching=false;if(!S.arch[pk])S.oddsFail[pk]=true;draw();});}return loading();}
   const d=oddsData();if(!d)return top+'<div class="lt">Sportsbook</div>'+empty("Not enough races yet","Odds need at least three results this season.");
   const m=S.oddsMkt||"win",col={win:"pWin",top5:"p5",top10:"p10"},vig={win:d.VIG,top5:1.12,top10:1.08},open=raceIsOpen(d.race),k=S.sel,picked=new Set(B.slip.map(legKey));
   const L=[...d.rows].sort((a,b)=>b[col[m]]-a[col[m]]||a.E-b.E);const od=oddsData(true),O={};if(od)od.rows.forEach(x=>O[x.id]=x);
@@ -912,7 +908,7 @@ V.odds=()=>{const c=S.calc;needSeasons();if(!S.marketKick){S.marketKick=1;setTim
 /* ---------- track power rankings (top 3, last 3 races at the track, 2+ starts) ---------- */
 S.fetching={};
 function ensureSeason(k){if(k===MAINKEY||S.arch[k]||S.fetching[k]||!S.idx)return;const i=S.idx.seasons.find(x=>x.key===k);if(!i)return;S.fetching[k]=1;
-  fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[k]=j;}).catch(()=>{}).finally(()=>{delete S.fetching[k];if(!S.arch[k])S.arch[k]={races:[],drivers:[],failed:true};draw();});}
+  fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[k]=duelFix(j);}).catch(()=>{}).finally(()=>{delete S.fetching[k];if(!S.arch[k])S.arch[k]={races:[],drivers:[],failed:true};draw();});}
 function trackPower(tk){if(!S.idx)return{loading:true};const i=selInfo(),keys=S.idx.seasons.filter(x=>x.series===i.series&&+x.year<=+i.year).sort((a,b)=>b.year-a.year).map(x=>x.key);
   const found=[],names={};
   for(const k of keys){const R=k===S.sel?S.races:seasonRaces(k),D=k===S.sel?S.drivers:k===MAINKEY?S.M.drivers:(S.arch[k]||{}).drivers;
@@ -1028,7 +1024,7 @@ function bankroll(){const B=book();let bal=START*(1+B.refills),open=0,w=0,l=0,st
   return{bal,open,w,l,profit:ret-staked};}
 function needSeasons(){const B=book(),ks=new Set();B.bets.concat([{legs:B.slip}]).forEach(b=>b.legs.forEach(l=>{if(l.k!==MAINKEY&&!S.arch[l.k])ks.add(l.k);}));
   ks.forEach(k=>{const i=S.idx&&S.idx.seasons.find(x=>x.key===k);if(!i||S.bookFetch===k)return;S.bookFetch=k;
-    fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[k]=j;}).catch(()=>{}).finally(()=>{S.bookFetch=null;draw();});});}
+    fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[k]=duelFix(j);}).catch(()=>{}).finally(()=>{S.bookFetch=null;draw();});});}
 function parlayProblem(legs){if(legs.length<2)return"Add at least 2 picks for a parlay.";if(legs.length>10)return"Parlays max out at 10 picks.";
   const seen={};for(const l of legs){const rk=l.k+"|"+l.rid;
     if(l.m==="title"){if(seen[l.k+"|title"])return"Only one driver can win the "+esc(l.label)+". Remove one.";seen[l.k+"|title"]=1;continue;}
@@ -1692,7 +1688,7 @@ function draw(){S.calc=compute();if(S.mode!=="loading")setHash();const st=S.calc
 function markReady(k){S.ready[k]=true;S.loaded=S.ready.s&&S.ready.d&&S.ready.r&&S.ready.p&&S.ready.o;render();}
 function onErr(e){if(e&&e.code==="revoked"){S.mode="nodb";}render();}
 async function loadStatic(){try{const r=await fetch("data.json",{cache:"no-store"});if(!r.ok)throw 0;const d=await r.json();
-  S.static=true;Object.assign(S.M,{history:d.history||[],settingsRaw:d.settings||null,drivers:d.drivers||[],races:d.races||[],penalties:d.penalties||[],official:d.official||null});applySel();
+  S.static=true;Object.assign(S.M,{history:d.history||[],settingsRaw:d.settings||null,drivers:d.drivers||[],races:markDuels(d.races),penalties:d.penalties||[],official:d.official||null});applySel();
   S.mode="live";S.admin=false;S.loaded=true;S.updated=d.updated||"";}catch(e){S.mode="offline";}draw();}
 async function loadIndex(){try{const r=await fetch("data/seasons.json",{cache:"no-store"});if(!r.ok)return;S.idx=await r.json();applySel();draw();}catch(e){}}
 window.addEventListener("popstate",route);window.addEventListener("hashchange",route);
@@ -1705,7 +1701,7 @@ async function boot(){const h=readHash();if(VIEWS(h.v))S.view=h.v;applySub(h.sub
   S.db=db;S.mode="live";const r=root();
   r.onSnapshot(s=>{S.M.settingsRaw=s.exists?s.data():null;applySel();markReady("s");},onErr);
   r.collection("drivers").onSnapshot(q=>{S.M.drivers=q.docs.map(d=>Object.assign({id:d.id},d.data()));applySel();markReady("d");},onErr);
-  r.collection("races").onSnapshot(q=>{S.M.races=q.docs.map(d=>Object.assign({id:d.id},d.data()));applySel();markReady("r");},onErr);
+  r.collection("races").onSnapshot(q=>{S.M.races=markDuels(q.docs.map(d=>Object.assign({id:d.id},d.data())));applySel();markReady("r");},onErr);
   r.collection("penalties").onSnapshot(q=>{S.M.penalties=q.docs.map(d=>Object.assign({id:d.id},d.data()));applySel();markReady("p");},onErr);
   r.collection("official").doc("standings").onSnapshot(s=>{S.M.official=s.exists?s.data():null;applySel();markReady("o");},onErr);
   r.collection("history").doc("all").onSnapshot(s=>{const v=s.exists?s.data():null;S.M.history=v&&Array.isArray(v.rows)?v.rows:[];applySel();render();},()=>{});
