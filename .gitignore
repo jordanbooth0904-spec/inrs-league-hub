@@ -1,2 +1,3 @@
 tools/sync/out/
 __pycache__/
+tools/live/inrs_live_config.local.json

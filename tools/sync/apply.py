@@ -17,7 +17,10 @@ DATA = os.path.join(ROOT, 'data.json')
 OUT = os.path.join(os.path.dirname(__file__), 'out')
 TZ = ZoneInfo('America/Indiana/Indianapolis')
 
-TRACKS = [(r'Daytona', 'daytona'), (r'Charlotte.*Roval', 'charlotte-roval'), (r'Charlotte', 'charlotte'), (r'Gateway|World Wide Technology', 'gateway'),
+# Keep in step with TRACKS in index.html. Specific names come first so they win over broader ones
+# (for example, Raceway Park before Indianapolis).
+TRACKS = [(r'Raceway Park|\bIRP\b', 'irp'), (r'Milwaukee', 'milwaukee'), (r'Rockingham', 'rockingham'), (r'Lime Rock', 'lime-rock'),
+          (r'Portland', 'portland'), (r'Gilles Villeneuve|Montreal', 'montreal'), (r'Daytona', 'daytona'), (r'Charlotte.*Roval', 'charlotte-roval'), (r'Charlotte', 'charlotte'), (r'Gateway|World Wide Technology', 'gateway'),
           (r'Sonoma', 'sonoma'), (r'Nashville', 'nashville'), (r'Road America', 'road-america'), (r'Atlanta', 'atlanta'), (r'New Hampshire', 'new-hampshire'),
           (r'Pocono', 'pocono'), (r'Indianapolis.*Road', 'indy-road'), (r'Indianapolis', 'indianapolis'), (r'Michigan', 'michigan'), (r'Richmond', 'richmond'),
           (r'Watkins Glen', 'watkins-glen'), (r'Darlington', 'darlington'), (r'Kansas', 'kansas'), (r'Bristol.*Dirt', 'bristol-dirt'), (r'Bristol', 'bristol'),
