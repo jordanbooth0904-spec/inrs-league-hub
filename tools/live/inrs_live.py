@@ -5,12 +5,14 @@ broadcasting). Every few seconds it reads iRacing's live timing (read-only, thro
 telemetry SDK) and sends practice, qualifying and race positions to the INRS website's live database,
 so the Sportsbook odds can move. Close the window to stop it.
 
-Setup once: put the database URL and secret in inrs_live_config.json (same folder).
+Setup once: put the database URL and secret in inrs_live_config.local.json (same folder). That file is
+ignored by git, so the secret never ends up on GitHub. inrs_live_config.json is only the blank template.
 """
 import json, os, sys, time, urllib.request, urllib.error
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CFG_FILE = os.path.join(HERE, 'inrs_live_config.json')
+CFG_FILE = os.path.join(HERE, 'inrs_live_config.local.json')  # real settings, ignored by git
+TEMPLATE = os.path.join(HERE, 'inrs_live_config.json')  # committed blank template
 EVERY = 5  # seconds between updates
 
 try:
@@ -19,16 +21,35 @@ except ImportError:
     sys.exit('pyirsdk is missing. Run START_INRS_LIVE.bat (it installs it), or: py -m pip install pyirsdk')
 
 
+def filled(c):
+    sec = (c or {}).get('secret') or ''
+    return bool(sec) and 'PASTE' not in sec
+
+
 def load_cfg():
+    """Read the private settings file. If the secret was typed into the committed template instead,
+    move it into the private file and blank the template, so a later commit can't publish it."""
+    try:
+        tpl = json.load(open(TEMPLATE, encoding='utf-8'))
+    except Exception:
+        tpl = None
+    if filled(tpl):
+        if not os.path.exists(CFG_FILE):
+            json.dump(tpl, open(CFG_FILE, 'w', encoding='utf-8'), indent=2)
+        json.dump({'databaseURL': 'PASTE the Realtime Database URL here, like https://inrs-league-hub-default-rtdb.firebaseio.com',
+                   'secret': 'PASTE the database secret here'}, open(TEMPLATE, 'w', encoding='utf-8'), indent=2)
+        print('Moved your secret from inrs_live_config.json into inrs_live_config.local.json (kept off GitHub).')
     try:
         c = json.load(open(CFG_FILE, encoding='utf-8'))
+    except FileNotFoundError:
+        sys.exit('Create inrs_live_config.local.json next to this script: copy inrs_live_config.json, '
+                 'rename the copy, then fill in databaseURL and secret.')
     except Exception as e:
         sys.exit('Could not read %s: %s' % (CFG_FILE, e))
     url = (c.get('databaseURL') or '').rstrip('/')
-    sec = c.get('secret') or ''
-    if not url.startswith('https://') or not sec or 'PASTE' in sec:
-        sys.exit('Fill in databaseURL and secret in inrs_live_config.json first.')
-    return url, sec
+    if not url.startswith('https://') or not filled(c):
+        sys.exit('Fill in databaseURL and secret in inrs_live_config.local.json first.')
+    return url, c['secret']
 
 
 def put(url, sec, path, data):
@@ -74,6 +95,7 @@ def snapshot(ir):
     drivers = {d['CarIdx']: d for d in (di.get('Drivers') or []) if not d.get('CarIsPaceCar') and not d.get('IsSpectator') and d.get('UserName')}
     pos = ir['CarIdxPosition'] or []
     laps = ir['CarIdxLapCompleted'] or []
+    onlap = ir['CarIdxLap'] or []  # lap each car is on; backup when LapCompleted isn't filled in for other cars
     best = ir['CarIdxBestLapTime'] or []
     res = {r['CarIdx']: r for r in (sess.get('ResultsPositions') or []) if isinstance(r, dict)}
     grid = {}
@@ -89,6 +111,8 @@ def snapshot(ir):
         rb = ms(r.get('FastestTime'))
         b = rb or tb  # official session best when iRacing has it, else live telemetry
         tl = int(laps[idx]) if idx < len(laps) and laps[idx] and laps[idx] > 0 else 0
+        if idx < len(onlap) and onlap[idx] and onlap[idx] > 1:
+            tl = max(tl, int(onlap[idx]) - 1)
         rl = int(r.get('LapsComplete') or 0) if r else 0
         m = mem.setdefault(d['UserName'], {'b': 0, 'l': 0})
         if b and (not m['b'] or rb or b < m['b']):
@@ -140,7 +164,8 @@ def main():
                       data['lapsLeft'] if data['lapsLeft'] is not None else '-'), end='', flush=True)
                 last_err = ''
         except urllib.error.HTTPError as e:
-            msg = 'Database refused the update (%s). Check the secret in inrs_live_config.json.' % e.code
+            msg = ('Database refused the update (%s). Check the secret in inrs_live_config.local.json.' % e.code if e.code in (401, 403)
+                   else 'Database error %s. Retrying.' % e.code)
             if msg != last_err:
                 print('\n' + msg)
                 last_err = msg

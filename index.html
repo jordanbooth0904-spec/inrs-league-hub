@@ -343,14 +343,27 @@ function serFinalInfo(k){const y=SER_FINAL[k];if(!y||!S.idx)return null;const si
 const isMain=()=>S.sel===MAINKEY;
 const selInfo=()=>(S.idx&&S.idx.seasons.find(x=>x.key===S.sel))||{key:MAINKEY,series:"cup",year:2026,main:true};
 function applySel(){const M=S.M,a=isMain()?null:S.arch[S.sel];
-  if(!a){S.drivers=M.drivers;S.races=M.races;S.penalties=M.penalties;S.official=M.official;S.history=M.history;S.settingsRaw=M.settingsRaw;return;}
-  const i=selInfo();S.drivers=a.drivers||[];S.races=a.races||[];S.penalties=a.penalties||[];S.official=a.official||null;
-  S.history=(((S.idx||{}).history||{})[i.series]||[]).filter(h=>+h[0]<+i.year);S.settingsRaw=Object.assign({},M.settingsRaw||{},a.settings||{});}
-function setHash(){try{history.replaceState(null,"","#"+S.view+(isMain()?"":"/"+S.sel));}catch(e){}}
+  const i=selInfo(),ih=((S.idx||{}).history||{})[i.series];
+  /* Track history comes from seasons.json for every season (built from the season files), so the current season and the archives always agree.
+     The copy in data.json / the Claude database is only a fallback for when seasons.json can't load. */
+  if(!a){S.drivers=M.drivers;S.races=M.races;S.penalties=M.penalties;S.official=M.official;S.history=ih?ih.filter(h=>+h[0]<+i.year):M.history;S.settingsRaw=M.settingsRaw;return;}
+S.drivers=a.drivers||[];S.races=a.races||[];S.penalties=a.penalties||[];S.official=a.official||null;
+  S.history=(ih||[]).filter(h=>+h[0]<+i.year);S.settingsRaw=Object.assign({},M.settingsRaw||{},a.settings||{});}
+/* The address bar mirrors the page: #view, #view/season, or #view/season/item for a driver, career, Wrapped card or track.
+   Every move to a new page adds a browser history entry, so Back and Forward work and pages can be shared as links. */
+const VIEWS=v=>TABS.some(t=>t[0]===v)||["compare","career","bets","wrapped","legacy","awards"].includes(v);
+function hashFor(){const sub=S.view==="drivers"?S.driverSel:S.view==="career"?S.careerId:S.view==="wrapped"?S.wrapId:S.view==="tracks"?S.trackSel:null;
+  return"#"+S.view+(sub?"/"+S.sel+"/"+encodeURIComponent(sub):isMain()?"":"/"+S.sel);}
+function setHash(replace){if(S.routing)return;try{const h=hashFor();if(h===location.hash)return;if(replace||!location.hash)history.replaceState(null,"",h);else history.pushState(null,"",h);}catch(e){}}
+function readHash(){const hs=(location.hash||"").slice(1).split("/");let sub=null;try{sub=hs[2]?decodeURIComponent(hs[2]):null;}catch(e){}return{v:hs[0],k:hs[1]||MAINKEY,sub};}
+function applySub(sub){S.driverSel=S.view==="drivers"?sub:null;S.trackSel=S.view==="tracks"?sub:null;if(S.view==="career")S.careerId=sub;if(S.view==="wrapped")S.wrapId=sub;}
+async function route(){if(hashFor()===location.hash)return;const h=readHash();S.routing=true;
+  try{if(h.k!==S.sel&&S.idx)await selectSeason(h.k);S.view=VIEWS(h.v)?h.v:"home";applySub(h.sub);}finally{S.routing=false;}
+  setHash(true);draw();window.scrollTo(0,0);}
 async function selectSeason(key){if(!S.idx)return;const i=S.idx.seasons.find(x=>x.key===key);if(!i)return;
   S.sel=key;S.driverSel=null;S.trackSel=null;S.raceOpen=null;S.cmp=null;S.confirm=null;if(S.view==="admin"&&!isMain())S.view="home";setHash();
   if(!i.main&&!S.arch[key]){S.selLoading=true;draw();
-    try{const r=await fetch(i.file,{cache:"no-store"});if(!r.ok)throw 0;S.arch[key]=await r.json();}catch(e){S.selLoading=false;S.sel=MAINKEY;applySel();setHash();draw();toast("Couldn't load that season. Try again.");return;}
+    try{const r=await fetch(i.file,{cache:"no-store"});if(!r.ok)throw 0;S.arch[key]=await r.json();}catch(e){S.selLoading=false;S.sel=MAINKEY;applySel();setHash(true);draw();toast("Couldn't load that season. Try again.");return;}
     if(S.sel!==key)return;S.selLoading=false;}
   applySel();draw();}
 function switcher(){if(!S.idx)return"";const i=selInfo(),L=S.idx.seasons;
@@ -384,6 +397,12 @@ function isDnf(s){return s&&!/^running$/i.test(String(s).trim());}
 const root=()=>S.db.doc("league/main");
 
 /* ---------- stats ---------- */
+/* Official SimRacerHub rows decide points and positions. SimRacerHub leaves races such as the Daytona Duels out of
+   its counting stats, but the league counts them as races, so starts, wins, top 5s, top 10s, poles, laps led and
+   incidents use whichever is higher: SimRacerHub's number or the count from the race results. */
+function offMerge(o,r){const mx=(a,b)=>Math.max(num(a,0),num(b,0)),m=Object.assign({},o);
+  ["starts","wins","t5","t10","poles","led","inc"].forEach(k=>{m[k]=mx(o[k],r[k]);});
+  if(m.starts!==num(o.starts,0)||m.inc!==num(o.inc,0))m.incPerRace=m.starts?m.inc/m.starts:null;return m;}
 function compute(){
   const st=settings(),P=st.points,races=sortedRaces();
   const done=races.filter(r=>r.status==="complete"&&Array.isArray(r.results)&&r.results.length&&!r.exhibition);
@@ -399,7 +418,8 @@ function compute(){
   S.penalties.forEach(p=>{const s=D[p.driverId];if(s&&!p.included)s.penPts+=num(p.points,0);});
   Object.values(D).forEach(s=>{s.total=s.racePts-s.penPts;s.avgFin=s.starts?s.finSum/s.starts:null;s.avgStart=s.startN?s.startSum/s.startN:null;});
   const off=S.official&&Array.isArray(S.official.rows)&&S.official.rows.length?S.official:null;
-  if(off)off.rows.forEach(o=>{const s=D[o.driverId];if(s){s.off=o;s.total=num(o.pts,0);s.starts=num(o.starts,s.starts);s.wins=num(o.wins,s.wins);s.top5=num(o.t5,s.top5);s.top10=num(o.t10,s.top10);s.poles=num(o.poles,s.poles);s.led=num(o.led,s.led);s.inc=num(o.inc,s.inc);}});
+  if(off)off.rows.forEach(o=>{const s=D[o.driverId];if(s){const m=offMerge(o,{starts:s.starts,wins:s.wins,t5:s.top5,t10:s.top10,poles:s.poles,led:s.led,inc:s.inc});
+    s.off=m;s.total=num(m.pts,0);s.starts=m.starts;s.wins=m.wins;s.top5=m.t5;s.top10=m.t10;s.poles=m.poles;s.led=m.led;s.inc=m.inc;}});
   const standings=Object.values(D).filter(s=>s.starts>0||s.off||s.driver.active!==false)
     .sort(off?((a,b)=>((a.off?a.off.pos:9999)-(b.off?b.off.pos:9999))||String(a.driver.name).localeCompare(String(b.driver.name)))
       :((a,b)=>(b.total-a.total)||(b.wins-a.wins)||((a.best||99)-(b.best||99))||(b.starts-a.starts)||String(a.driver.name).localeCompare(String(b.driver.name))));
@@ -421,7 +441,7 @@ const V={};
 function empty(t,s){return'<div class="empty"><b>'+esc(t)+"</b>"+esc(s||"")+"</div>";}
 function loading(){return'<div class="skel"></div><div class="skel" style="height:220px"></div>';}
 function notice(){
-  if(S.mode==="nodb")return'<div class="notice">Sign in to Claude to see the standings, results and recaps for this league.</div>';
+  if(S.mode==="nodb")return'<div class="notice">The league database is not available here. The public site has the latest standings, results and recaps: <a href="https://jordanbooth0904-spec.github.io/inrs-league-hub/" target="_blank" rel="noopener">open INRS League Hub</a>.</div>';
   if(S.mode==="offline")return'<div class="notice">League data could not be loaded. Refresh the page to try again.</div>';
   return"";}
 
@@ -514,7 +534,7 @@ function officialStandings(c){const o=c.off,cut=num(o.chaseCutoff,0),st=SORT.std
     '<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr>'+cols.slice(0,cols.length-1).map(cc=>th(cc,st,"std")).join("")+"<th>Last 5</th>"+th(cols[cols.length-1],st,"std")+"</tr></thead><tbody>"+
     rows.map(s=>(showCut&&R(s).pos===cut+1?'<tr><td colspan="'+n+'" style="padding:4px 8px;border-bottom:2px solid var(--accent);font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)">Chase cutoff · top '+cut+"</td></tr>":"")+
       "<tr>"+cols.slice(0,cols.length-1).map(cc=>cell(cc,s)).join("")+"<td>"+last5(s)+"</td>"+cell(cols[cols.length-1],s)+"</tr>").join("")+
-    '</tbody></table></div></div><p class="hint">Points include stage points, bonuses, penalties, drop races and the Chase reset, exactly as SimRacerHub scores them.</p></section>';}
+    '</tbody></table></div></div><p class="hint">Points include stage points, bonuses, penalties, drop races and the Chase reset, exactly as SimRacerHub scores them. Starts, wins and other counts include the Daytona Duels, which the league counts as races.</p></section>';}
 
 const stdDrivers=()=>{const c=S.calc;if(c.off)return officialStandings(c);const base=c.standings.filter(s=>s.starts>0);
   if(!base.length)return'<div class="lt">Championship standings</div>'+hubBar()+empty("No races run yet","Standings appear after the first results are posted.");
@@ -609,7 +629,7 @@ function isRaceDay(r){if(!r||!r.date)return false;const a=new Date(r.date),b=new
 function liveBtn(r){const tw=safeUrl(settings().liveUrl);return tw&&isRaceDay(r)?'<a class="btn live" href="'+esc(tw)+'" target="_blank" rel="noopener"><span class="dot"></span>Watch live on YouTube</a>':"";}
 
 /* ---------- tracks ---------- */
-const TRACKS=[[/Raceway Park/i,"irp","Lucas Oil Raceway (IRP)"],[/Milwaukee/i,"milwaukee","Milwaukee Mile"],[/Rockingham/i,"rockingham","Rockingham"],[/Lime Rock/i,"lime-rock","Lime Rock"],[/Portland/i,"portland","Portland"],[/Gilles Villeneuve/i,"montreal","Montreal"],[/Daytona/i,"daytona","Daytona"],[/Charlotte.*Roval/i,"charlotte-roval","Charlotte Roval"],[/Charlotte/i,"charlotte","Charlotte"],[/Gateway|World Wide Technology/i,"gateway","Gateway"],
+const TRACKS=[[/Raceway Park|\bIRP\b/i,"irp","Lucas Oil Raceway (IRP)"],[/Milwaukee/i,"milwaukee","Milwaukee Mile"],[/Rockingham/i,"rockingham","Rockingham"],[/Lime Rock/i,"lime-rock","Lime Rock"],[/Portland/i,"portland","Portland"],[/Gilles Villeneuve|Montreal/i,"montreal","Montreal"],[/Daytona/i,"daytona","Daytona"],[/Charlotte.*Roval/i,"charlotte-roval","Charlotte Roval"],[/Charlotte/i,"charlotte","Charlotte"],[/Gateway|World Wide Technology/i,"gateway","Gateway"],
  [/Sonoma/i,"sonoma","Sonoma"],[/Nashville/i,"nashville","Nashville"],[/Road America/i,"road-america","Road America"],[/Atlanta/i,"atlanta","Atlanta"],[/New Hampshire/i,"new-hampshire","New Hampshire"],
  [/Pocono/i,"pocono","Pocono"],[/Indianapolis.*Road/i,"indy-road","Indianapolis Road Course"],[/Indianapolis/i,"indianapolis","Indianapolis"],[/Michigan/i,"michigan","Michigan"],[/Richmond/i,"richmond","Richmond"],
  [/Watkins Glen/i,"watkins-glen","Watkins Glen"],[/Darlington/i,"darlington","Darlington"],[/Kansas/i,"kansas","Kansas"],[/Bristol.*Dirt/i,"bristol-dirt","Bristol Dirt"],[/Bristol/i,"bristol","Bristol"],
@@ -652,10 +672,12 @@ function trackDetail(t){const season=+settings().season;
 
 /* ---------- careers & records (all series, all seasons) ---------- */
 const SER_L={cup:"Cup",xfinity:"O'Reilly/Xfinity",trucks:"Trucks"};
-function mainLines(){const M=S.M,o=M.official;if(!o||!Array.isArray(o.rows))return[];const fin={};
-  (M.races||[]).forEach(r=>{if(r.status!=="complete"||r.exhibition)return;(r.results||[]).forEach(x=>{const f=int(x.fin);if(!f)return;const a=fin[x.driverId]=fin[x.driverId]||[0,0];a[0]+=f;a[1]++;});});
+function mainLines(){const M=S.M,o=M.official;if(!o||!Array.isArray(o.rows))return[];const fin={},cnt={};
+  (M.races||[]).forEach(r=>{if(r.status!=="complete"||r.exhibition)return;(r.results||[]).forEach(x=>{const f=int(x.fin),c=cnt[x.driverId]=cnt[x.driverId]||{starts:0,wins:0,t5:0,t10:0,poles:0,led:0,inc:0};
+    c.starts++;if(f===1)c.wins++;if(f&&f<=5)c.t5++;if(f&&f<=10)c.t10++;if(int(x.start)===1)c.poles++;c.led+=int(x.lapsLed)||0;c.inc+=int(x.inc)||0;
+    if(!f)return;const a=fin[x.driverId]=fin[x.driverId]||[0,0];a[0]+=f;a[1]++;});});
   const D={};(M.drivers||[]).forEach(d=>D[d.id]=d);
-  return o.rows.map(r=>{const d=D[r.driverId]||{name:r.driverId},f=fin[r.driverId]||[0,0];
+  return o.rows.map(r0=>{const r=offMerge(r0,cnt[r0.driverId]||{}),d=D[r.driverId]||{name:r.driverId},f=fin[r.driverId]||[0,0];
     return[r.driverId,d.name,d.number||"",r.pos,r.pts,num(r.starts),num(r.wins),num(r.t5),num(r.t10),num(r.poles),num(r.led),num(r.inc),f[0],f[1],r.team||""];});}
 function seasonDone(si){if(!si.main)return!!si.done;const R=(S.M.races||[]).filter(r=>!r.exhibition);return R.length>0&&R.every(r=>r.status==="complete");}
 function allLines(){if(!S.idx)return[];const out=[];
@@ -912,9 +934,16 @@ function trackPowerPanel(tk,label,compact){const t=trackPower(tk),lbl=esc(label)
 /* ---------- live timing (race night: practice, qualifying, race) ---------- */
 const liveDb=()=>safeUrl(((S.M&&S.M.settingsRaw)||{}).liveDb||"").replace(/\/$/,"");
 function inWindow(r){if(!r||!r.date)return false;const t=new Date(r.date).getTime(),n=Date.now();return n>t-3*3600e3&&n<t+6*3600e3;}
+/* Live data comes from the database, so treat it as untrusted: force every field to the type the page expects
+   before anything is drawn (numbers stay numbers, text stays text and is escaped where it's shown). */
+function cleanLive(j){if(!j||typeof j!=="object")return null;const N=v=>{const n=Number(v);return v!=null&&v!==""&&isFinite(n)?n:null;},T=v=>v==null?"":String(v).slice(0,80);
+  const sess=x=>x&&typeof x==="object"?{updated:N(x.updated)||0,track:T(x.track),config:T(x.config),session:T(x.session),state:N(x.state),lapsTotal:N(x.lapsTotal),lapsLeft:N(x.lapsLeft),leaderLaps:N(x.leaderLaps)||0,
+    cars:Array.isArray(x.cars)?x.cars.filter(Array.isArray).slice(0,80).map(c=>[T(c[0]),T(c[1]),N(c[2])||0,N(c[3])||0,N(c[4])||0,N(c[5])||0]):[]}:null;
+  const o={};["practice","qualify","race"].forEach(k=>{const v=sess(j[k]);if(v)o[k]=v;});const m=j.meta;
+  if(m&&typeof m==="object")o.meta={updated:N(m.updated)||0,track:T(m.track),session:["practice","qualify","race"].includes(m.session)?m.session:""};return o;}
 async function pollLive(force,quiet){const u=liveDb();if(!u||document.hidden)return;const r=S.calc&&S.calc.next;
   if(!force&&!inWindow(r))return;
-  try{const res=await fetch(u+"/live.json",{cache:"no-store"});if(!res.ok)return;const j=await res.json();const sig=JSON.stringify(j&&j.meta)+JSON.stringify(j&&j.race&&j.race.cars);
+  try{const res=await fetch(u+"/live.json",{cache:"no-store"});if(!res.ok)return;const j=cleanLive(await res.json());const sig=JSON.stringify(j&&j.meta)+JSON.stringify(j&&j.race&&j.race.cars);
     const was=liveActive();if(sig!==S.liveSig||(S.view==="live"&&!quiet)){S.liveSig=sig;S.live=j;if(S.view==="odds"||S.view==="home"||S.view==="bets"||S.view==="live"||was!==liveActive())render();}}catch(e){}}
 setInterval(pollLive,10000);setTimeout(()=>pollLive(true,true),1500);
 function liveFor(r){const L=S.live;if(!L||!L.meta||!r)return null;if(trackOf(L.meta.track).key!==trackOf(r.track).key)return null;
@@ -924,6 +953,8 @@ function liveFor(r){const L=S.live;if(!L||!L.meta||!r)return null;if(trackOf(L.m
 function liveMap(cars){const M={},byNum={};S.drivers.forEach(d=>{if(String(d.number||"")!=="")byNum[String(d.number)]=d.id;});
   (cars||[]).forEach(c=>{const id=slugId(c[1]);const did=drv(id)?id:byNum[String(c[0])];if(did)M[did]={num:c[0],best:c[2],pos:c[3],laps:c[4],grid:c[5]};});return M;}
 const slugId=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+/* New drivers get the same name-based ID the weekly sync uses (jordan-m-booth), so the sync and live timing find them. */
+function newDriverId(name,taken){const used=new Set(S.drivers.map(d=>d.id).concat([...(taken||[])])),base=slugId(name)||"driver";let id=base,i=2;while(used.has(id))id=base+"-"+i++;if(taken)taken.add(id);return id;}
 function raceIsOpen(r){if(!r)return false;const lv=liveFor(r);
   if(lv&&lv.race&&lv.active){const R=lv.race;if(R.state>=5)return false;return!(R.lapsLeft!=null&&R.lapsLeft<=10);}
   if(lv&&lv.active)return true;return raceOpen(r.date);}
@@ -936,7 +967,10 @@ function liveBanner(r){const lv=liveFor(r);if(!lv)return"";const ago=Math.max(0,
 /* ---------- Live tab: race-night timing from the helper on the broadcast PC ---------- */
 const liveActive=()=>!!(S.live&&S.live.meta&&Date.now()-S.live.meta.updated<180e3);
 setInterval(()=>{if(S.view==="live")pollLive(true);},5000);
-setInterval(()=>{if(S.view!=="live")pollLive(true,true);},60000);
+/* Background check for a live session in any series. League races run at 8 PM Eastern, so only look between 3 PM and 2 AM Eastern
+   instead of every minute all day for every open page. */
+const etHour=()=>{try{return+new Intl.DateTimeFormat("en-US",{hour:"numeric",hourCycle:"h23",timeZone:"America/New_York"}).format(new Date());}catch(e){return 20;}};
+setInterval(()=>{const h=etHour();if(S.view!=="live"&&(h>=15||h<2))pollLive(true,true);},60000);
 /* the Live tab only shows while the live helper is sending data; redraw when that flips */
 setInterval(()=>{if(!!S.liveTabShown!==liveActive())render();if(!S.awFlip&&awRevealed()){S.awFlip=1;if(S.view==="home"||S.view==="awards")render();}},15000);
 V.live=()=>{const L=S.live;if(!liveDb())return'<div class="lt">Live timing</div>'+empty("Live timing isn't set up","");
@@ -1033,9 +1067,9 @@ const BOOK_ACT={
   slipclear(){const B=book();B.slip=[];B.stakes={};B.pstake="";saveBook();draw();},
   placebet(){const B=book(),br=bankroll(),L=B.slip;if(!L.length)return;
     const closed=L.find(l=>!legOpen(l));if(closed){toast("Betting has closed for "+closed.label+". Remove that pick.",true);return;}
-    {const d=oddsData();if(d){const vg={win:d.VIG,top5:1.12,top10:1.08},cl={win:"pWin",top5:"p5",top10:"p10"};let changed=0;
-      L.forEach(l=>{if(l.m==="title"&&l.k===S.sel){const t=titleOdds(),x=t&&t.rows.find(y=>y.id===l.did);if(x){const o=american(Math.min(0.95,Math.max(0.004,x.p*1.12*marketMult(popCount(l.k,"title",l.did,"title")))));if(o!==l.odds){l.odds=o;changed++;}}return;}if(l.k!==S.sel||l.rid!==d.race.id)return;if(l.m==="h2h"){const[a,b]=l.did.split("~"),o=h2hPrice(d,a,b);if(o&&o!==l.odds){l.odds=o;changed++;}return;}const x=d.rows.find(y=>y.id===l.did);if(!x)return;const o=priceOf(d,x,l.m);if(o!==l.odds){l.odds=o;changed++;}});
-      if(changed){saveBook();draw();toast("Odds moved on "+plural(changed,"pick")+". Check the new prices and tap Place bet again.",true);return;}}}
+    {const d=oddsData();if(d){const vg={win:d.VIG,top5:1.12,top10:1.08},cl={win:"pWin",top5:"p5",top10:"p10"};let changed=0;const mv=(l,o)=>{if(o===l.odds)return;const worse=decOdds(o)<decOdds(l.odds);l.odds=o;if(worse)changed++;};/* better prices are applied silently; only a worse price stops the bet */
+      L.forEach(l=>{if(l.m==="title"&&l.k===S.sel){const t=titleOdds(),x=t&&t.rows.find(y=>y.id===l.did);if(x){const o=american(Math.min(0.95,Math.max(0.004,x.p*1.12*marketMult(popCount(l.k,"title",l.did,"title")))));mv(l,o);}return;}if(l.k!==S.sel||l.rid!==d.race.id)return;if(l.m==="h2h"){const[a,b]=l.did.split("~"),o=h2hPrice(d,a,b);if(o)mv(l,o);return;}const x=d.rows.find(y=>y.id===l.did);if(!x)return;const o=priceOf(d,x,l.m);mv(l,o);});
+      if(changed){saveBook();draw();toast("Odds got worse on "+plural(changed,"pick")+". Check the new prices and tap Place bet again.",true);return;}}}
     const now=new Date().toISOString(),mk=(t,legs,stake)=>({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),t,legs:legs.map(l=>Object.assign({},l)),stake,placed:now});
     let bets=[];
     if(B.mode==="parlay"){const prob=parlayProblem(L);if(prob){toast(prob.replace(/<[^>]+>/g,""),true);return;}const st=parseFloat(B.pstake);if(!(st>0)){toast("Enter a stake for the parlay.",true);return;}bets=[mk("parlay",L,st)];}
@@ -1434,7 +1468,7 @@ function raceOptions(sel,placeholder){return'<option value="">'+esc(placeholder|
 
 V.admin=()=>{if(!S.admin)return empty("Admins only","Only the league admin can change league data.");initForms();
   const tabs=[["results","Results"],["schedule","Schedule"],["drivers","Drivers"],["penalties","Penalties"],["rules","Rules"],["settings","Settings"]];
-  return'<section class="stack"><div class="sechead"><div class="lt">Admin</div><span class="hint">Only you can see this tab.</span></div><div class="subtabs">'+tabs.map(t=>'<button class="btn sm" data-act="atab" data-arg="'+t[0]+'"'+(S.adminTab===t[0]?' aria-current="page"':"")+">"+t[1]+"</button>").join("")+"</div>"+(A[S.adminTab]||A.results)()+"</section>";};
+  return'<section class="stack"><div class="sechead"><div class="lt">Admin</div><span class="hint">Only you can see this tab.</span></div><div class="notice">Changes here update this Claude app only. The public website reads data.json on GitHub, and the next weekly sync replaces any race, driver or standings record it updates. For anything permanent, make the change in data.json (or ask for it in the sync) too.</div><div class="subtabs">'+tabs.map(t=>'<button class="btn sm" data-act="atab" data-arg="'+t[0]+'"'+(S.adminTab===t[0]?' aria-current="page"':"")+">"+t[1]+"</button>").join("")+"</div>"+(A[S.adminTab]||A.results)()+"</section>";};
 const A={};
 A.results=()=>{const f=S.forms.results;
   let h='<div class="panel stack"><div class="fgrid">'+field("Race",'<select id="f-resrace" data-change="pickrace">'+raceOptions(f?f.raceId:"","Pick a race to enter results…")+"</select>","wide")+"</div>";
@@ -1513,15 +1547,15 @@ const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false
   oddsmkt(k){S.oddsMkt=k;draw();},
   career(id){S.view="career";S.careerId=id;setHash();draw();window.scrollTo(0,0);},
   recser(k){S.recSeries=k;draw();},
-  seasondrv(a){const[k,id]=String(a).split("|");selectSeason(k).then(()=>{S.view="drivers";S.driverSel=id;setHash();draw();window.scrollTo(0,0);});},
+  seasondrv(a){const[k,id]=String(a).split("|");selectSeason(k).then(()=>{S.view="drivers";S.driverSel=id;setHash(true);draw();window.scrollTo(0,0);});},
   series(k){if(!S.idx)return;const cur=selInfo(),L=S.idx.seasons.filter(x=>x.series===k);const t=L.find(x=>x.year===cur.year)||L[0];if(t)selectSeason(t.key);},
   season(k){selectSeason(k);},
   nav(v){S.view=v;S.driverSel=null;S.trackSel=null;S.confirm=null;setHash();draw();window.scrollTo(0,0);},
-  driver(id){S.view="drivers";S.driverSel=id;draw();window.scrollTo(0,0);},
+  driver(id){S.view="drivers";S.driverSel=id;setHash();draw();window.scrollTo(0,0);},
   race(id){S.raceOpen=S.raceOpen===id?null:id;draw();},
   openrace(id){S.view="schedule";S.driverSel=null;S.raceOpen=id;draw();const el=document.getElementById("race-"+id);if(el)el.scrollIntoView({block:"start"});},
   atab(t){S.adminTab=t;S.confirm=null;draw();},
-  track(k){S.view="tracks";S.trackSel=k;S.driverSel=null;draw();window.scrollTo(0,0);},
+  track(k){S.view="tracks";S.trackSel=k;S.driverSel=null;setHash();draw();window.scrollTo(0,0);},
   stdview(v){S.view="standings";S.stdView=v;draw();window.scrollTo(0,0);},
   compare(id){S.view="compare";S.cmp=[id||(S.cmp&&S.cmp[0]),S.cmp&&S.cmp[1]!==id?S.cmp[1]:null];S.driverSel=null;draw();window.scrollTo(0,0);},
   sort(arg){const[w,k]=arg.split(":");const st=SORT[w];const col=(S.stdCols||[]).find(c=>c.k===k);
@@ -1541,7 +1575,7 @@ const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false
       if(fins.has(fin))return toast("Two drivers are listed in P"+fin+".",true);fins.add(fin);}
     const url=String(f.recapUrl||"").trim();if(url&&!safeUrl(url))return toast("The recap link should start with https://",true);
     const ok=await write(async()=>{const dcol=root().collection("drivers");
-      for(const r of rows){if(r.driverId==="__new"){const ref=dcol.doc();await ref.set({name:r.newName.trim(),number:String(r.newNumber||"").trim(),custId:String(r.newCust||"").trim(),team:"",active:true});r.driverId=ref.id;r.newName="";}}
+      const taken=new Set();for(const r of rows){if(r.driverId==="__new"){const ref=dcol.doc(newDriverId(r.newName,taken));await ref.set({name:r.newName.trim(),number:String(r.newNumber||"").trim(),custId:String(r.newCust||"").trim(),team:"",active:true});r.driverId=ref.id;r.newName="";}}
       const results=rows.map(r=>Object.assign({driverId:r.driverId,fin:int(r.fin),start:int(r.start),lapsLed:int(r.led)||0,lapsComp:int(r.comp),inc:int(r.inc)||0,status:String(r.status||"").trim()||"Running",bonus:num(r.bonus,0)},r.keep||{},String(r.pts??"").trim()!==""&&isFinite(Number(r.pts))?{pts:Number(r.pts)}:{})).map(o=>{Object.keys(o).forEach(k=>{if(o[k]===undefined)delete o[k];});return o;}).sort((a,b)=>a.fin-b.fin);
       await root().collection("races").doc(f.raceId).update({results,status:results.length?"complete":"scheduled",recapUrl:url});},"Results saved");
     if(ok)f.note="";},
@@ -1556,7 +1590,7 @@ const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false
   resfor(id){S.adminTab="results";loadResultsForm(id);draw();window.scrollTo(0,0);},
   async savedriver(){const f=S.forms.driver;if(!f.name.trim())return toast("Add the driver's name.",true);
     const data={name:f.name.trim(),number:String(f.number).trim(),custId:String(f.custId).trim(),team:f.team.trim()};const col=root().collection("drivers");
-    const ok=await write(()=>f.id?col.doc(f.id).update(data):col.doc().set(Object.assign(data,{active:true})),f.id?"Driver updated":"Driver added");if(ok){S.forms.driver=blankDriver();draw();}},
+    const ok=await write(()=>f.id?col.doc(f.id).update(data):col.doc(newDriverId(data.name)).set(Object.assign(data,{active:true})),f.id?"Driver updated":"Driver added");if(ok){S.forms.driver=blankDriver();draw();}},
   editdriver(id){const d=drv(id);if(!d)return;S.forms.driver={id,name:d.name||"",number:d.number==null?"":String(d.number),custId:d.custId||"",team:d.team||""};draw();window.scrollTo(0,0);},
   canceldriver(){S.forms.driver=blankDriver();draw();},
   async deldriver(id){S.confirm=null;await write(()=>root().collection("drivers").doc(id).delete(),"Driver deleted");},
@@ -1645,7 +1679,7 @@ function gcTrack(){try{const g=window.goatcounter;if(!S.static||!g||typeof g.cou
   const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="legacy"?"Series legacy":S.view==="awards"?"Awards":S.view==="compare"?"Head to head":S.view])[1];
   g.count({path:key,title:tab+(isMain()?"":" · "+S.sel)});}catch(e){}}
 window.__gcReady=()=>{gcLast=null;gcTrack();};
-function draw(){S.calc=compute();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
+function draw(){S.calc=compute();if(S.mode!=="loading")setHash();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
   document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
   S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy"||S.view==="awards")&&t[0]==="records")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
   if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
@@ -1660,12 +1694,10 @@ function onErr(e){if(e&&e.code==="revoked"){S.mode="nodb";}render();}
 async function loadStatic(){try{const r=await fetch("data.json",{cache:"no-store"});if(!r.ok)throw 0;const d=await r.json();
   S.static=true;Object.assign(S.M,{history:d.history||[],settingsRaw:d.settings||null,drivers:d.drivers||[],races:d.races||[],penalties:d.penalties||[],official:d.official||null});applySel();
   S.mode="live";S.admin=false;S.loaded=true;S.updated=d.updated||"";}catch(e){S.mode="offline";}draw();}
-async function loadIndex(){try{const r=await fetch("data/seasons.json",{cache:"no-store"});if(!r.ok)return;S.idx=await r.json();draw();}catch(e){}}
-window.addEventListener("hashchange",()=>{const hs=(location.hash||"").slice(1).split("/"),v=hs[0],k=hs[1]||MAINKEY;
-  if((TABS.some(t=>t[0]===v)||v==="compare"||v==="career"||v==="bets"||v==="wrapped"||v==="legacy"||v==="awards")&&v!==S.view){S.view=v;S.driverSel=null;S.trackSel=null;}
-  if(k!==S.sel)selectSeason(k);else draw();});
-async function boot(){const hs=(location.hash||"").slice(1).split("/"),h=hs[0];if(TABS.some(t=>t[0]===h)||h==="compare"||h==="career"||h==="bets"||h==="wrapped"||h==="legacy"||h==="awards")S.view=h;draw();
-  loadIndex().then(()=>{if(hs[1]&&hs[1]!==MAINKEY)selectSeason(hs[1]);});
+async function loadIndex(){try{const r=await fetch("data/seasons.json",{cache:"no-store"});if(!r.ok)return;S.idx=await r.json();applySel();draw();}catch(e){}}
+window.addEventListener("popstate",route);window.addEventListener("hashchange",route);
+async function boot(){const h=readHash();if(VIEWS(h.v))S.view=h.v;applySub(h.sub);const arch=h.k!==MAINKEY;if(arch)S.routing=true;draw();
+  loadIndex().then(async()=>{if(arch){try{await selectSeason(h.k);if(VIEWS(h.v))S.view=h.v;applySub(h.sub);}finally{S.routing=false;}draw();}});
   const c=window.claude;if(!c||typeof c.use!=="function"){await loadStatic();return;}
   const [db,user]=await Promise.all([c.use("db"),c.use("user")]);
   try{S.admin=user?await user.canEdit():false;}catch(e){S.admin=false;}

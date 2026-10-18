@@ -139,19 +139,35 @@ def convert(e):
 def lines(s):
     """One row per driver for the career and records pages:
     [id, name, number, pos, pts, starts, wins, t5, t10, poles, led, inc, finSum, finN, team]"""
-    fin = {}
+    fin, cnt = {}, {}
     for r in s['races']:
+        if r.get('exhibition'):
+            continue
         for x in r['results']:
-            a = fin.setdefault(x['driverId'], [0, 0])
-            a[0] += x['fin']
-            a[1] += 1
+            c = cnt.setdefault(x['driverId'], dict(starts=0, wins=0, t5=0, t10=0, poles=0, led=0, inc=0))
+            f = x.get('fin') or 0
+            c['starts'] += 1
+            c['wins'] += f == 1
+            c['t5'] += 0 < f <= 5
+            c['t10'] += 0 < f <= 10
+            c['poles'] += x.get('start') == 1
+            c['led'] += x.get('lapsLed') or 0
+            c['inc'] += x.get('inc') or 0
+            if f:
+                a = fin.setdefault(x['driverId'], [0, 0])
+                a[0] += f
+                a[1] += 1
     D = {d['id']: d for d in s['drivers']}
     out = []
     for o in s['official']['rows']:
         d = D[o['driverId']]
         f = fin.get(o['driverId'], [0, 0])
-        out.append([o['driverId'], d['name'], d.get('number', ''), o['pos'], o['pts'], o['starts'] or 0, o['wins'] or 0, o['t5'] or 0,
-                    o['t10'] or 0, o['poles'] or 0, o['led'] or 0, o['inc'] or 0, f[0], f[1], o.get('team') or ''])
+        c = cnt.get(o['driverId'], {})
+        # SimRacerHub leaves races like the Daytona Duels out of its counts; the league counts them, so take the
+        # higher of SimRacerHub's number and the count from the results (same rule as offMerge in index.html).
+        m = {k: max(o.get(k) or 0, c.get(k, 0)) for k in ('starts', 'wins', 't5', 't10', 'poles', 'led', 'inc')}
+        out.append([o['driverId'], d['name'], d.get('number', ''), o['pos'], o['pts'], m['starts'], m['wins'], m['t5'],
+                    m['t10'], m['poles'], m['led'], m['inc'], f[0], f[1], o.get('team') or ''])
     return out
 
 
