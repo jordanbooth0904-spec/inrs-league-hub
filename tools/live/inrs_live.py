@@ -164,6 +164,8 @@ def snapshot(ir):
         left = max(0, total - lead)
     elif not isinstance(left, int) or left > 10000:
         left = None
+    if k == 'race' and left is not None and left <= 10 and lead > 0 and not hist.get('closeAt'):
+        hist['closeAt'] = int(time.time() * 1000)  # live betting closes at 10 to go; the Sportsbook leaderboard checks bets against this
     return k, {
         'updated': int(time.time() * 1000), 'track': wk.get('TrackDisplayName', ''), 'config': wk.get('TrackConfigName', ''),
         'session': k, 'state': ir['SessionState'], 'lapsTotal': total, 'lapsLeft': left, 'leaderLaps': lead, 'cars': cars}, sid, hist
@@ -177,8 +179,11 @@ def lap_record(hist, cars, updated):
         h = hist['cars'].get(c[1]) or {'laps': {}}
         n = max(list(h['laps'].keys()) + [0])
         out.append([c[0], c[1], c[2], c[3], c[4], [h['laps'].get(i, 0) for i in range(1, n + 1)]])
-    return {'at': hist['start'], 'updated': updated, 'track': hist['track'], 'config': hist['config'],
-            'session': hist['session'], 'series': hist['series'], 'cars': out}
+    rec = {'at': hist['start'], 'updated': updated, 'track': hist['track'], 'config': hist['config'],
+           'session': hist['session'], 'series': hist['series'], 'cars': out}
+    if hist.get('closeAt'):
+        rec['closeAt'] = hist['closeAt']
+    return rec
 
 
 def main():

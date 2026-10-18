@@ -357,13 +357,13 @@ S.drivers=a.drivers||[];S.races=a.races||[];S.penalties=a.penalties||[];S.offici
   S.history=(ih||[]).filter(h=>+h[0]<+i.year);S.settingsRaw=Object.assign({},M.settingsRaw||{},a.settings||{});}
 /* The address bar mirrors the page: #view, #view/season, or #view/season/item for a driver, career, Wrapped card or track.
    Every move to a new page adds a browser history entry, so Back and Forward work and pages can be shared as links. */
-const VIEWS=v=>TABS.some(t=>t[0]===v)||["compare","career","bets","wrapped","legacy","awards"].includes(v);
+const VIEWS=v=>TABS.some(t=>t[0]===v)||["compare","career","bets","board","wrapped","legacy","awards"].includes(v);
 function hashFor(){const sub=S.view==="drivers"?S.driverSel:S.view==="career"?S.careerId:S.view==="wrapped"?S.wrapId:S.view==="tracks"?S.trackSel:null;
   return"#"+S.view+(sub?"/"+S.sel+"/"+encodeURIComponent(sub):isMain()?"":"/"+S.sel);}
 function setHash(replace){if(S.routing)return;try{const h=hashFor();if(h===location.hash)return;if(replace||!location.hash)history.replaceState(null,"",h);else history.pushState(null,"",h);}catch(e){}}
 function readHash(){const hs=(location.hash||"").slice(1).split("/");let sub=null;try{sub=hs[2]?decodeURIComponent(hs[2]):null;}catch(e){}return{v:hs[0],k:hs[1]||MAINKEY,sub};}
 function applySub(sub){S.driverSel=S.view==="drivers"?sub:null;S.trackSel=S.view==="tracks"?sub:null;if(S.view==="career")S.careerId=sub;if(S.view==="wrapped")S.wrapId=sub;}
-async function route(){if(hashFor()===location.hash)return;const h=readHash();S.routing=true;
+async function route(){if((location.hash||"").indexOf("#signin")===0){await finishSignIn();if(S.authMsg)toast(S.authMsg,!me());S.authMsg="";}if(hashFor()===location.hash)return;const h=readHash();S.routing=true;
   try{if(h.k!==S.sel&&S.idx)await selectSeason(h.k);S.view=VIEWS(h.v)?h.v:"home";applySub(h.sub);}finally{S.routing=false;}
   setHash(true);draw();window.scrollTo(0,0);}
 async function selectSeason(key){if(!S.idx)return;const i=S.idx.seasons.find(x=>x.key===key);if(!i)return;
@@ -920,7 +920,7 @@ function oddsData(noLive){const c=S.calc,r=c.next;if(!r)return null;const tk=tra
   return{race:r,tk,ty,rows,VIG,prevLoaded:!pk||!!S.arch[pk],pk,live:lv};}
 const oddsFmt=(p,vig)=>american(Math.min(0.92,Math.max(0.0035,p*vig)));
 V.odds=()=>{const c=S.calc;needSeasons();if(!S.marketKick){S.marketKick=1;setTimeout(()=>{S.marketKick=0;pollMarket();},300);}const B=book(),br=bankroll();
-  const top='<div class="row bookbar"><span>Balance <b>'+bucks(br.bal)+'</b></span><button class="btn sm" data-act="nav" data-arg="bets">My bets'+(br.open?" ("+br.open+" open)":"")+"</button></div>";
+  const top='<div class="row bookbar"><span>Balance <b>'+bucks(br.bal)+'</b></span><button class="btn sm" data-act="nav" data-arg="bets">My bets'+(br.open?" ("+br.open+" open)":"")+"</button>"+(authOn()?'<button class="btn sm ghost" data-act="nav" data-arg="board">Leaderboard</button><span style="margin-left:auto">'+authBar()+"</span>":"")+"</div>";
   if(!c.next&&isMain()&&champInfo())return top+bookFinal(B,br);
   if(!c.next)return top+'<div class="lt">Sportsbook</div>'+empty("No upcoming race","Pick another series in the header, or check back when the next race is on the schedule.");
   S.oddsFail=S.oddsFail||{};const pk=prevSeasonKey();if(pk&&!S.arch[pk]&&!S.oddsFail[pk]){if(!S.oddsFetching){S.oddsFetching=true;const i=S.idx.seasons.find(x=>x.key===pk);
@@ -1085,9 +1085,10 @@ V.live=()=>{const L=S.live;if(!liveDb())return'<div class="lt">Live timing</div>
 
 /* ---------- sportsbook (play money, saved per browser) ---------- */
 const BK="inrs-bets",START=1000,MKT_L={win:"To win",top5:"Top 5",top10:"Top 10",h2h:"Head to head",title:"Championship"},MKT_N={win:1,top5:5,top10:10};
-function book(){if(!S.book){let v=null;try{v=JSON.parse(localStorage.getItem(BK)||"null");}catch(e){}
+const bkKey=()=>me()?BK+"-"+me().uid:BK;/* signed in: its own book, filled from the database */
+function book(){if(!S.book){let v=null;try{v=JSON.parse(localStorage.getItem(bkKey())||"null");}catch(e){}
   S.book=v&&v.v===1?v:{v:1,bets:[],refills:0,slip:[],mode:"single",stakes:{},pstake:""};}return S.book;}
-function saveBook(){try{localStorage.setItem(BK,JSON.stringify(S.book));}catch(e){}}
+function saveBook(){try{localStorage.setItem(bkKey(),JSON.stringify(S.book));}catch(e){}}
 const decOdds=a=>{const n=parseFloat(String(a).replace("−","-"));return n>0?1+n/100:1+100/Math.abs(n);};
 const amOdds=d=>d>=2?"+"+Math.round((d-1)*100):"−"+Math.round(100/(d-1));
 const bucks=v=>"Ⓑ"+(Math.round(v*100)/100).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:2});
@@ -1117,7 +1118,7 @@ function bookFinal(B,br){const C=champInfo(),nm=id=>(drv(id)||{name:id}).name;
     (fut.length?'<div class="list" style="margin-top:12px">'+fut.map(({b,r})=>'<div class="podrow"><div class="name">'+b.legs.map(l=>esc(l.name)).join(" + ")+'<div class="small muted">'+(b.t==="single"?"Futures bet":"Parlay")+" · staked "+bucks(b.stake)+'</div></div><span class="pill'+(r.s==="won"?" final":"")+'">'+(r.s==="won"?"Won "+bucks(r.pay):r.s==="void"?"Refunded":r.s==="pending"?"Open":"Lost")+"</span></div>").join("")+"</div>":'<p class="small muted" style="margin:12px 0 0">You didn\'t place a championship futures bet this season.</p>')+
     (best?'<p class="small" style="margin:12px 0 0">Best hit: <b>'+best.b.legs.map(l=>esc(l.name)).join(" + ")+"</b> paid "+bucks(best.r.pay)+" on a "+bucks(best.b.stake)+" stake.</p>":"")+
     '<div class="row" style="margin-top:12px"><button class="btn sm" data-act="nav" data-arg="bets">All my bets</button></div></section>';}
-function bankroll(){const B=book();let bal=START*(1+B.refills),open=0,w=0,l=0,staked=0,ret=0;
+function bankroll(){const B=book();if(me()){loadLapIdx();if(!S.sbMine)loadMine();else{const r=sbReplay(B.bets,S.sbMine.refills);if(r)return r;}}let bal=START*(1+B.refills),open=0,w=0,l=0,staked=0,ret=0;
   B.bets.forEach(b=>{bal-=b.stake;const r=betResult(b);if(r.s==="pending"){open++;return;}bal+=r.pay;staked+=b.stake;ret+=r.pay;if(r.s==="won")w++;else if(r.s==="lost")l++;});
   return{bal,open,w,l,profit:ret-staked};}
 function needSeasons(){const B=book(),ks=new Set();B.bets.concat([{legs:B.slip}]).forEach(b=>b.legs.forEach(l=>{if(l.k!==MAINKEY&&!S.arch[l.k])ks.add(l.k);}));
@@ -1170,9 +1171,102 @@ const BOOK_ACT={
     if(B.mode==="parlay"){const prob=parlayProblem(L);if(prob){toast(prob.replace(/<[^>]+>/g,""),true);return;}const st=parseFloat(B.pstake);if(!(st>0)){toast("Enter a stake for the parlay.",true);return;}bets=[mk("parlay",L,st)];}
     else{for(const l of L){const st=parseFloat(B.stakes[legKey(l)]);if(st>0)bets.push(mk("single",[l],st));}if(!bets.length){toast("Enter a stake on at least one pick.",true);return;}}
     const tot=bets.reduce((s,b)=>s+b.stake,0);if(tot>br.bal+1e-9){toast("That's "+bucks(tot)+" but your balance is "+bucks(br.bal)+".",true);return;}
-    B.bets.push(...bets);recordMarket(bets);const placed=new Set(bets.flatMap(b=>b.legs.map(legKey)));B.slip=B.mode==="parlay"?[]:B.slip.filter(l=>!placed.has(legKey(l)));
-    placed.forEach(k=>delete B.stakes[k]);B.pstake="";saveBook();S.slipOpen=!!B.slip.length;draw();toast(plural(bets.length,"bet")+" placed · "+bucks(tot)+" staked");},
-  refill(){const B=book();if(bankroll().bal>=10){toast("Refills unlock when your balance drops under Ⓑ10.",true);return;}B.refills++;saveBook();draw();toast("Added "+bucks(START)+". Good luck.");}};
+    const done=()=>{B.bets.push(...bets);recordMarket(bets);const placed=new Set(bets.flatMap(b=>b.legs.map(legKey)));B.slip=B.mode==="parlay"?[]:B.slip.filter(l=>!placed.has(legKey(l)));
+      placed.forEach(k=>delete B.stakes[k]);B.pstake="";saveBook();S.slipOpen=!!B.slip.length;draw();toast(plural(bets.length,"bet")+" placed · "+bucks(tot)+" staked");};
+    if(!me()){done();return;}if(S.placing)return;S.placing=1;const uid=encodeURIComponent(me().uid);
+    Promise.all(bets.map(b=>authPut("sb/"+uid+"/bets/"+b.id,Object.assign({},b,{at:{".sv":"timestamp"}})).then(v=>{if(!v)throw 0;b.at=Number(v.at)||Date.now();})))
+      .then(()=>{if(S.sbMine)S.sbMine.bets=B.bets.concat(bets);done();},()=>{toast("Couldn't save your bet to your account. Check your connection and try again.",true);loadMine();})
+      .finally(()=>{S.placing=0;});},
+  refill(){const B=book();if(bankroll().bal>=10){toast("Refills unlock when your balance drops under Ⓑ10.",true);return;}
+    if(me()){authPut("sb/"+encodeURIComponent(me().uid)+"/refills/"+Date.now().toString(36),{at:{".sv":"timestamp"}}).then(v=>{if(!v){toast("Couldn't reload. Try again.",true);return;}S.sbMine=null;loadMine();toast("Added "+bucks(START)+". Good luck.");});return;}B.refills++;saveBook();draw();toast("Added "+bucks(START)+". Good luck.");}};
+
+/* ---------- Discord sign-in (optional; everything works signed out) ----------
+   The sign-in helper (tools/signin/worker.js on Cloudflare) handles Discord and hands back a one-time Firebase token
+   in the URL. We swap it for a Firebase ID token, which proves who you are to the database rules. */
+const AUTH_K="inrs-auth";
+/* Fill these in after setting up the helper (see tools/signin/README.md). Both are public values, not secrets. */
+const AUTH_URL="",FB_KEY="";
+const authCfg=()=>({url:safeUrl(AUTH_URL).replace(/\/$/,""),key:String(FB_KEY).replace(/[^A-Za-z0-9_-]/g,"")});
+const authOn=()=>{const c=authCfg();return!!(c.url&&c.key&&liveDb());};
+function me(){if(S.me===undefined){let v=null;try{v=JSON.parse(localStorage.getItem(AUTH_K)||"null");}catch(e){}S.me=v&&v.uid&&v.refresh?v:null;}return S.me;}
+function saveMe(v){S.me=v;S.book=null;S.sbMine=null;try{v?localStorage.setItem(AUTH_K,JSON.stringify(v)):localStorage.removeItem(AUTH_K);}catch(e){}}
+const jwtBody=t=>{try{const b=String(t).split(".")[1].replace(/-/g,"+").replace(/_/g,"/");return JSON.parse(decodeURIComponent(escape(atob(b))));}catch(e){return null;}};
+function meFrom(id,refresh,exp){const p=jwtBody(id);if(!p||!p.user_id)return null;
+  return{uid:String(p.user_id),name:String(p.dname||"Driver").slice(0,40),avatar:safeUrl(p.davatar||""),tok:id,refresh:String(refresh),exp:Date.now()+(+exp||3600)*1000-60e3};}
+function signIn(){if(!authOn())return;const st=Math.random().toString(36).slice(2)+Date.now().toString(36);
+  try{sessionStorage.setItem("inrs-auth-state",st);sessionStorage.setItem("inrs-auth-back",location.hash.indexOf("#signin")===0?"":location.hash);}catch(e){}
+  location.href=authCfg().url+"/login?state="+encodeURIComponent(st);}
+/* runs once at startup, before routing reads the hash */
+async function finishSignIn(){const h=location.hash||"";if(h.indexOf("#signin=")!==0&&h.indexOf("#signin-error")!==0)return;
+  const q=new URLSearchParams(h.slice(1));let st="",back="";try{st=sessionStorage.getItem("inrs-auth-state")||"";back=sessionStorage.getItem("inrs-auth-back")||"";sessionStorage.removeItem("inrs-auth-state");}catch(e){}
+  history.replaceState(null,"",location.pathname+location.search+(back||"#odds"));
+  if(h.indexOf("#signin-error")===0){S.authMsg="Discord sign-in was cancelled.";return;}
+  if(!st||q.get("state")!==st){S.authMsg="Sign-in didn't match this browser tab. Try again.";return;}
+  try{const r=await fetch("https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key="+authCfg().key,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:q.get("signin"),returnSecureToken:true})});
+    const j=await r.json();const m=r.ok&&meFrom(j.idToken,j.refreshToken,j.expiresIn);if(!m)throw 0;saveMe(m);S.authMsg="Signed in as "+m.name+".";}
+  catch(e){S.authMsg="Couldn't finish signing in. Try again.";}}
+async function idToken(){const m=me();if(!m)return"";if(Date.now()<m.exp)return m.tok;
+  try{const r=await fetch("https://securetoken.googleapis.com/v1/token?key="+authCfg().key,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=refresh_token&refresh_token="+encodeURIComponent(m.refresh)});
+    const j=await r.json();const n=r.ok&&meFrom(j.id_token,j.refresh_token,j.expires_in);if(!n)throw 0;const keep=S.book;saveMe(Object.assign(n,{avatar:n.avatar||m.avatar}));S.book=keep;return n.tok;}
+  catch(e){return"";}}
+/* write to the database as the signed-in user; returns the saved value or null */
+async function authPut(path,val){const t=await idToken();if(!t)return null;
+  try{const r=await fetch(liveDb()+"/"+path+".json?auth="+encodeURIComponent(t),{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(val)});return r.ok?await r.json():null;}catch(e){return null;}}
+const avatarImg=(u,sz)=>u?'<img src="'+esc(u)+'" alt="" width="'+sz+'" height="'+sz+'" style="border-radius:50%;vertical-align:middle;flex:none" loading="lazy" referrerpolicy="no-referrer">':"";
+function authBar(){if(!authOn())return"";const m=me();
+  return m?'<span class="row" style="gap:6px;align-items:center">'+avatarImg(m.avatar,22)+'<span class="small">Signed in as <b>'+esc(m.name)+'</b></span><button class="btn sm ghost" data-act="signout">Sign out</button></span>'
+    :'<button class="btn sm" data-act="signin">Sign in with Discord</button>';}
+
+/* ---------- Sportsbook leaderboard ----------
+   Signed-in bets live at /sb/<uid>/bets with a server timestamp. Everyone's browser replays each player's bets the
+   same way: start at 1,000, a bet only counts if it was placed before betting closed and the player could afford it,
+   and a reload only counts if the balance was under 10 at the time. So nobody can backdate a bet or fake a balance. */
+const SB_MAXODDS=1501;
+function legClose(l){const R=seasonRaces(l.k);if(!R)return null;
+  if(l.m==="title"){const lr=R.filter(r=>!r.exhibition).sort((a,b)=>num(b.round,0)-num(a.round,0))[0];return lr&&lr.date?new Date(lr.date).getTime()+CLOSE_MS:null;}
+  const r=R.find(x=>x.id===l.rid);if(!r||!r.date)return null;const t=new Date(r.date).getTime();
+  const ls=(S.lapIdx||[]).find(s=>s.session==="race"&&s.closeAt&&s.series===String(l.k).split("-")[0]&&trackOf(s.track).key===trackOf(r.track).key&&s.at>t-8*3600e3&&s.at<t+8*3600e3);
+  return ls?Math.max(t+CLOSE_MS,ls.closeAt):t+CLOSE_MS;}
+function legSettle(l){const R=seasonRaces(l.k)||[];if(l.m==="title"){const lr=R.filter(r=>!r.exhibition).sort((a,b)=>num(b.round,0)-num(a.round,0))[0];return lr&&lr.date?new Date(lr.date).getTime()+4*3600e3:0;}
+  const r=R.find(x=>x.id===l.rid);return r&&r.date?new Date(r.date).getTime()+4*3600e3:0;}
+function cleanSbBet(id,b){if(!b||typeof b!=="object"||!Array.isArray(b.legs)||!b.legs.length||b.legs.length>10)return null;const at=Number(b.at),stake=Number(b.stake);if(!(at>0)||!(stake>0)||!isFinite(stake))return null;
+  const legs=b.legs.slice(0,10).map(l=>l&&typeof l==="object"?{k:String(l.k||"").slice(0,30),rid:String(l.rid||"").slice(0,30),did:String(l.did||"").slice(0,90),m:MKT_L[l.m]?l.m:"",odds:String(l.odds||"").slice(0,10),name:String(l.name||"").slice(0,90),label:String(l.label||"").slice(0,90),date:l.date?String(l.date).slice(0,40):null}:null);
+  if(legs.some(l=>!l||!l.m||!(decOdds(l.odds)>1)))return null;return{id:String(id).slice(0,30),t:b.t==="parlay"?"parlay":"single",legs,stake:Math.round(stake*100)/100,placed:new Date(at).toISOString(),at};}
+/* returns null while season data for some bet is still loading */
+function sbReplay(bets,refills){const ev=[];let need=false;
+  bets.forEach(b=>{if(b.legs.some(l=>!seasonRaces(l.k))){need=true;return;}ev.push({t:b.at,k:1,b});});(refills||[]).forEach(t=>ev.push({t,k:0}));if(need)return null;
+  ev.sort((a,b)=>a.t-b.t||a.k-b.k);let bal=START,n=0,open=0,w=0,l=0,staked=0,ret=0;const ok=new Set(),pend=[];
+  const settleTo=t=>{for(let i=pend.length-1;i>=0;i--){if(pend[i].s<=t){bal+=pend[i].pay;pend.splice(i,1);}}};
+  ev.forEach(e=>{settleTo(e.t);if(!e.k){if(bal<10){bal+=START;n++;}return;}const b=e.b;
+    if(b.legs.some(x=>{const c=legClose(x);return!c||b.at>c||decOdds(x.odds)>SB_MAXODDS;})||b.stake>bal+1e-9)return;
+    bal-=b.stake;ok.add(b.id);const r=betResult(b);if(r.s==="pending"){open++;return;}staked+=b.stake;ret+=r.pay;if(r.s==="won")w++;else if(r.s==="lost")l++;
+    pend.push({s:Math.max(...b.legs.map(legSettle)),pay:r.pay});});
+  settleTo(Infinity);return{bal,open,w,l,profit:ret-staked,refills:n,net:bal-START*n,ok};}
+function sbParse(u){const o={profile:{},bets:[],refills:[]};if(!u||typeof u!=="object")return o;const p=u.profile||{};o.profile={name:String(p.name||"Driver").slice(0,40),avatar:safeUrl(p.avatar||"")};
+  Object.entries(u.bets&&typeof u.bets==="object"?u.bets:{}).slice(0,3000).forEach(([k,v])=>{const b=cleanSbBet(k,v);if(b)o.bets.push(b);});
+  Object.values(u.refills&&typeof u.refills==="object"?u.refills:{}).slice(0,500).forEach(v=>{const t=Number(v&&v.at);if(t>0)o.refills.push(t);});o.bets.sort((a,b)=>a.at-b.at);return o;}
+async function loadMine(){const m=me();if(!m||!liveDb()||S.sbMineLoading)return;S.sbMineLoading=1;
+  try{if(!S.profSaved){S.profSaved=1;authPut("sb/"+encodeURIComponent(m.uid)+"/profile",{name:m.name,avatar:m.avatar});}const r=await fetch(liveDb()+"/sb/"+encodeURIComponent(m.uid)+".json",{cache:"no-store"});if(r.ok){S.sbMine=sbParse(await r.json());const B=book();B.bets=S.sbMine.bets;saveBook();draw();}}catch(e){}finally{S.sbMineLoading=0;}}
+async function loadBoard(){if(!liveDb()||S.boardLoading)return;S.boardLoading=1;S.boardAt=Date.now();
+  try{const r=await fetch(liveDb()+"/sb.json",{cache:"no-store"});if(r.ok){const j=await r.json()||{};S.board=Object.entries(j&&typeof j==="object"?j:{}).slice(0,1000).map(([uid,u])=>Object.assign({uid},sbParse(u)));}else S.board=S.board||[];}catch(e){S.board=S.board||[];}finally{S.boardLoading=0;draw();}}
+function needKeys(keys){keys.forEach(k=>{if(k===MAINKEY||S.arch[k])return;const i=S.idx&&S.idx.seasons.find(x=>x.key===k);if(!i||(S.keyFetch||{})[k])return;(S.keyFetch=S.keyFetch||{})[k]=1;
+  fetch(i.file).then(r=>r.ok?r.json():null).then(j=>{if(j)S.arch[k]=duelFix(j);}).catch(()=>{}).finally(()=>draw());});}
+V.board=()=>{if(liveDb())loadLapIdx();if(!S.board||Date.now()-(S.boardAt||0)>60e3)loadBoard();const m=me();
+  const head='<section class="stack"><div class="row"><button class="btn sm ghost" data-act="nav" data-arg="odds">← Sportsbook</button><span style="margin-left:auto">'+authBar()+'</span></div><div><div class="lt">Sportsbook leaderboard</div>'+
+    '<p class="small muted" style="margin:0">Players signed in with Discord, ranked by balance minus any reloads. Everyone starts at '+bucks(START)+". Play money only.</p></div>";
+  if(!authOn())return head+empty("Leaderboard isn't switched on yet","Sign-in hasn't been set up for this site.")+"</section>";
+  if(!S.board)return head+'<p class="hint">Loading the leaderboard...</p></section>';
+  needKeys([...new Set(S.board.flatMap(u=>u.bets.flatMap(b=>b.legs.map(l=>l.k))))]);
+  const rows=S.board.map(u=>({u,r:sbReplay(u.bets,u.refills)}));if(rows.some(x=>!x.r))return head+'<p class="hint">Loading past seasons...</p></section>';
+  const list=rows.filter(x=>x.u.bets.length).sort((a,b)=>b.r.net-a.r.net||b.r.w-a.r.w);
+  const join=m?"":'<div class="panel"><p class="small" style="margin:0 0 8px">Sign in with Discord to get on the board. Your bets will follow you to any device. Bets you placed while signed out stay in this browser and do not count here.</p>'+authBar()+"</div>";
+  if(!list.length)return head+join+empty("No bets yet","Be the first: sign in and place a bet on the next race.")+"</section>";
+  return head+join+'<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th class="n">#</th><th>Player</th><th class="n">Score</th><th class="n">Balance</th><th class="n">Won-lost</th><th class="n">Open</th><th class="n">Reloads</th></tr></thead><tbody>'+
+    list.map((x,i)=>'<tr'+(m&&x.u.uid===m.uid?' style="background:var(--panel2,rgba(180,85,247,.12))"':"")+'><td class="n">'+(i<3?posBadge(i+1):i+1)+'</td><td><span class="row" style="gap:8px;flex-wrap:nowrap;align-items:center">'+avatarImg(x.u.profile.avatar,24)+"<b>"+esc(x.u.profile.name)+"</b>"+(m&&x.u.uid===m.uid?' <span class="pill">You</span>':"")+"</span></td>"+
+      '<td class="n"><b>'+(x.r.net>=0?"":"−")+bucks(Math.abs(x.r.net))+'</b></td><td class="n">'+bucks(x.r.bal)+'</td><td class="n">'+x.r.w+"-"+x.r.l+'</td><td class="n">'+x.r.open+'</td><td class="n muted">'+x.r.refills+"</td></tr>").join("")+
+    '</tbody></table></div><p class="hint" style="margin:8px">Score is balance minus '+bucks(START)+' for each reload. A bet only counts if it was placed before betting closed and the player had the balance for it.</p></div></section>';};
+const AUTH_ACT={signin(){signIn();},signout(){saveMe(null);draw();toast("Signed out. Your signed-out bets in this browser are back.");}};
+
 /* ---------- betting market: popular picks get worse odds (shared through the live database) ---------- */
 S.market={};S.marketSig={};
 const mkey=(k,rid)=>k+"_"+rid,skey=(did,m)=>did+"_"+m;
@@ -1324,9 +1418,10 @@ const DOTR_ACT={
   async dotrvote(){const c=S.calc,last=c.done[c.done.length-1];if(!isMain()||!last||!S.dotrSel)return;
     if(Date.now()>=dotrCloses(S.M.races,last)){toast("Voting for this race has closed.",true);draw();return;}const key=dotrKey(S.sel,last.id);
     if(dotrMine(key)){toast("You've already voted for this race.",true);return;}
-    try{const r=await fetch(liveDb()+"/dotr/"+key+"/"+clientId()+".json",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(S.dotrSel)});
+    const voter=me()?me().uid:clientId(),tk=me()?await idToken():"";
+    try{const r=await fetch(liveDb()+"/dotr/"+key+"/"+encodeURIComponent(voter)+".json"+(tk?"?auth="+encodeURIComponent(tk):""),{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(S.dotrSel)});
       if(!r.ok){toast(r.status===401||r.status===403?"Voting isn't accepting votes right now. Try again later.":"Couldn't save your vote. Try again.",true);return;}
-      try{localStorage.setItem("inrs-dotr-"+key,S.dotrSel);}catch(e){}S.dotr=S.dotr||{};(S.dotr[key]=S.dotr[key]||{})[clientId()]=S.dotrSel;S.dotrSel=null;draw();toast("Vote counted. Thanks!");loadDotr();}
+      try{localStorage.setItem("inrs-dotr-"+key,S.dotrSel);}catch(e){}S.dotr=S.dotr||{};(S.dotr[key]=S.dotr[key]||{})[voter]=S.dotrSel;S.dotrSel=null;draw();toast("Vote counted. Thanks!");loadDotr();}
     catch(e){toast("Couldn't save your vote. Check your connection.",true);}}};
 
 /* ---------- auto race preview ---------- */
@@ -1523,7 +1618,7 @@ V.bets=()=>{needSeasons();const B=book(),br=bankroll();
       b.legs.map((l,i)=>'<div class="bleg"><span class="dot '+r.st[i]+'"></span><div><b>'+esc(l.name)+"</b> "+MKT_L[l.m]+' <span class="muted">'+esc(l.odds)+'</span><div class="small muted">'+esc(l.label)+(r.st[i]==="void"?' · <b style="color:var(--fg)">did not start, '+(b.t==="parlay"?"leg voided":"bet pushed")+"</b>":"")+"</div></div></div>").join("")+(b.t==="parlay"&&nv&&r.s!=="void"?'<div class="small muted" style="margin-top:4px">'+plural(nv,"leg")+" voided · parlay now pays "+amOdds(d)+"</div>":"")+
       '<div class="small muted" style="margin-top:6px">Stake '+bucks(b.stake)+" · "+(r.s==="pending"?"To win "+bucks(b.stake*(d-1)):r.s==="won"?"<b style=\"color:var(--ok)\">Paid "+bucks(r.pay)+"</b>":r.s==="void"?"Refunded "+bucks(r.pay):"Lost")+" · placed "+fmtShort(b.placed)+"</div></div>";};
   const open=B.bets.filter(b=>betResult(b).s==="pending").reverse(),done=B.bets.filter(b=>betResult(b).s!=="pending").reverse();
-  return'<section class="stack"><div class="row"><button class="btn sm ghost" data-act="nav" data-arg="odds">← Sportsbook</button></div><div><div class="lt">My bets</div><p class="small muted" style="margin:0">Play money only. Your bets are saved in this browser on this device.</p></div>'+
+  return'<section class="stack"><div class="row"><button class="btn sm ghost" data-act="nav" data-arg="odds">← Sportsbook</button></div><div><div class="lt">My bets</div><p class="small muted" style="margin:0">Play money only. '+(me()?"Signed in as <b>"+esc(me().name)+"</b>, so your bets are saved to your account and count on the leaderboard.":"Your bets are saved in this browser on this device."+(authOn()?" Sign in with Discord to use the leaderboard and keep your bets on any device.":""))+'</p></div>'+
     '<div class="tiles">'+tile(bucks(br.bal),"Balance")+tile(br.open,"Open bets")+tile(br.w+"-"+br.l,"Won-lost")+tile((br.profit>=0?"+":"−")+bucks(Math.abs(br.profit)),"Profit")+"</div>"+
     (br.bal<10?'<div class="row"><button class="btn primary" data-act="refill">Reload '+bucks(START)+"</button></div>":"")+
     '<div><div class="lt">Open</div>'+(open.length?'<div class="betgrid">'+open.map(betCard).join("")+"</div>":empty("No open bets","Pick some prices on the Sportsbook tab."))+"</div>"+
@@ -1693,6 +1788,7 @@ const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false
   ...AW_ACT,
   booktab(t){S.bookTab=t;draw();},
   ...BOOK_ACT,
+  ...AUTH_ACT,
   oddsmkt(k){S.oddsMkt=k;draw();},
   career(id){S.view="career";S.careerId=id;setHash();draw();window.scrollTo(0,0);},
   recser(k){S.recSeries=k;draw();},
@@ -1847,7 +1943,7 @@ async function loadStatic(){try{const r=await fetch("data.json",{cache:"no-store
   S.mode="live";S.admin=false;S.loaded=true;S.updated=d.updated||"";}catch(e){S.mode="offline";}draw();}
 async function loadIndex(){try{const r=await fetch("data/seasons.json",{cache:"no-store"});if(!r.ok)return;S.idx=await r.json();applySel();draw();}catch(e){}}
 window.addEventListener("popstate",route);window.addEventListener("hashchange",route);
-async function boot(){const h=readHash();if(VIEWS(h.v))S.view=h.v;applySub(h.sub);const arch=h.k!==MAINKEY;if(arch)S.routing=true;draw();
+async function boot(){await finishSignIn();if(S.authMsg)setTimeout(()=>toast(S.authMsg,!me()),900);const h=readHash();if(VIEWS(h.v))S.view=h.v;applySub(h.sub);const arch=h.k!==MAINKEY;if(arch)S.routing=true;draw();
   loadIndex().then(async()=>{if(arch){try{await selectSeason(h.k);if(VIEWS(h.v))S.view=h.v;applySub(h.sub);}finally{S.routing=false;}draw();}});
   const c=window.claude;if(!c||typeof c.use!=="function"){await loadStatic();return;}
   const [db,user]=await Promise.all([c.use("db"),c.use("user")]);
