@@ -1,0 +1,14 @@
+{"rules":{".read":false,".write":false,
+ "live":{".read":true},
+ "lapsIndex":{".read":true},
+ "laps":{".read":true},
+ "market":{".read":true,"$race":{"$sel":{"$who":{".write":"!data.exists()",".validate":"newData.isBoolean() && $who.length < 40"}}}},
+ "awards":{"$year":{".read":"$year === '2026' && now >= 1793926800000",
+   "$voter":{".write":"!data.exists() && now < 1793926800000",".validate":"newData.hasChildren(['t']) && $voter.length < 40"}}},
+ "dotr":{".read":true,"$race":{"$voter":{".write":"!data.exists() && (!$voter.beginsWith('discord:') || (auth != null && auth.uid === $voter))",".validate":"newData.isString() && newData.val().length < 60 && $voter.length < 40"}}},
+ "sb":{".read":true,"$uid":{
+   "profile":{".write":"auth != null && auth.uid === $uid",
+     ".validate":"newData.child('name').val() === auth.token.dname && (!newData.child('avatar').exists() || newData.child('avatar').val() === auth.token.davatar)"},
+   "bets":{"$bet":{".write":"auth != null && auth.uid === $uid && !data.exists()",
+     ".validate":"$bet.length < 30 && newData.child('at').val() === now && newData.child('stake').isNumber() && newData.child('stake').val() > 0 && newData.hasChildren(['t','legs'])"}},
+   "refills":{"$r":{".write":"auth != null && auth.uid === $uid && !data.exists()",".validate":"$r.length < 30 && newData.child('at').val() === now"}}}}}}
