@@ -340,9 +340,10 @@ const SER_RENAME={xfinity:[[2026,"O'Reilly"]]},SER_FINAL={xfinity:2026};
 function serName(k,y){const r=(SER_RENAME[k]||[]).filter(x=>+y>=x[0]).pop();return r?r[1]:({cup:"Cup",xfinity:"Xfinity",trucks:"Trucks"}[k]||k);}
 function serFinalInfo(k){const y=SER_FINAL[k];if(!y||!S.idx)return null;const si=S.idx.seasons.find(x=>x.series===k&&+x.year===y);if(!si)return null;
   const yrs=S.idx.seasons.filter(x=>x.series===k).map(x=>+x.year);return{year:y,si,ended:!!si.done,first:Math.min(...yrs),last:y,lastRace:si.lastRace||null};}
-/* The Daytona Duels are qualifying races: results are shown, but they don't count toward any stats (season, career,
-   records, track history, odds, power rankings). They're treated like exhibitions everywhere the site counts races. */
-const isDuel=r=>/\bduels?\b/i.test(String((r&&r.name)||""));
+/* The Daytona Duels and the Clash are non-points races: results are shown, but they don't count toward any stats (season,
+   career, records, track history, odds, power rankings). They're treated like exhibitions everywhere the site counts races. */
+const isDuel=r=>/\bduels?\b|\bclash\b/i.test(String((r&&r.name)||""));
+const noStatTag=r=>(/clash/i.test(String((r&&(r.name||r.event))||""))?"Clash":"Duel")+" · no stats";
 function markDuels(races){(races||[]).forEach(r=>{if(r&&isDuel(r)){r.exhibition=true;r.duel=true;}});return races||[];}
 const duelFix=j=>{if(j)markDuels(j.races);return j;};
 const isMain=()=>S.sel===MAINKEY;
@@ -532,7 +533,7 @@ function officialStandings(c){const o=c.off,cut=num(o.chaseCutoff,0),st=SORT.std
     '<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr>'+cols.slice(0,cols.length-1).map(cc=>th(cc,st,"std")).join("")+"<th>Last 5</th>"+th(cols[cols.length-1],st,"std")+"</tr></thead><tbody>"+
     rows.map(s=>(showCut&&R(s).pos===cut+1?'<tr><td colspan="'+n+'" style="padding:4px 8px;border-bottom:2px solid var(--accent);font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)">Chase cutoff · top '+cut+"</td></tr>":"")+
       "<tr>"+cols.slice(0,cols.length-1).map(cc=>cell(cc,s)).join("")+"<td>"+last5(s)+"</td>"+cell(cols[cols.length-1],s)+"</tr>").join("")+
-    '</tbody></table></div></div><p class="hint">Points include stage points, bonuses, penalties, drop races and the Chase reset, exactly as SimRacerHub scores them. The Daytona Duels do not count toward any stats.</p></section>';}
+    '</tbody></table></div></div><p class="hint">Points include stage points, bonuses, penalties, drop races and the Chase reset, exactly as SimRacerHub scores them. The Daytona Duels and the Clash do not count toward any stats.</p></section>';}
 
 const stdDrivers=()=>{const c=S.calc;if(c.off)return officialStandings(c);const base=c.standings.filter(s=>s.starts>0);
   if(!base.length)return'<div class="lt">Championship standings</div>'+hubBar()+empty("No races run yet","Standings appear after the first results are posted.");
@@ -572,7 +573,7 @@ V.schedule=()=>{const c=S.calc;if(!c.races.length)return'<div class="lt">'+esc(c
     const done=r.status==="complete"&&(r.results||[]).length,isNext=c.next&&c.next.id===r.id,open=S.raceOpen===r.id;
     const w=done?r.results.find(x=>int(x.fin)===1):null,rec=safeUrl(r.recapUrl);
     return'<article class="race'+(isNext?" isnext":"")+'" id="race-'+esc(r.id)+'"><div class="racehead"><div class="rnd"><small>Rnd</small><b>'+esc(r.round??"?")+'</b></div><div style="min-width:0"><div class="racetitle">'+esc(r.track||"Track TBA")+'</div><div class="racesub">'+fmtDate(r.date)+(fmtTime(r.date,r.dateOnly)?" · "+fmtTime(r.date,r.dateOnly):"")+(r.laps?" · "+esc(r.laps)+" laps":"")+"</div>"+(r.name?'<div class="small muted">'+esc(r.name)+"</div>":"")+(r.note?'<div class="small" style="color:var(--accent)">'+esc(r.note)+"</div>":"")+
-      (w?'<div class="small" style="margin-top:4px">Winner: '+dlink(w.driverId)+"</div>":"")+'</div><div class="raceside">'+(r.exhibition?'<span class="pill">'+(r.duel?"Duel · no stats":"Exhibition")+'</span>':"")+(done?'<span class="pill final">Final</span>':isNext?'<span class="pill next">Next</span>':'<span class="pill">Upcoming</span>')+"</div></div>"+
+      (w?'<div class="small" style="margin-top:4px">Winner: '+dlink(w.driverId)+"</div>":"")+'</div><div class="raceside">'+(r.exhibition?'<span class="pill">'+(r.duel?noStatTag(r):"Exhibition")+'</span>':"")+(done?'<span class="pill final">Final</span>':isNext?'<span class="pill next">Next</span>':'<span class="pill">Upcoming</span>')+"</div></div>"+
       ('<div class="raceactions">'+(done?'<button class="btn sm" data-act="race" data-arg="'+esc(r.id)+'" aria-expanded="'+open+'">'+(open?"Hide results":"Results")+"</button>":"")+(rec?'<a class="btn sm primary" href="'+esc(rec)+'" target="_blank" rel="noopener">Watch recap</a>':"")+'<button class="btn sm ghost" data-act="track" data-arg="'+esc(trackOf(r.track).key)+'">Track history</button>'+(isNext?liveBtn(r):"")+"</div>")+
       (open&&done?'<div class="racebody">'+resultsTable(r)+"</div>":"")+"</article>";}).join("")+"</div></section>";};
 
@@ -665,7 +666,7 @@ function trackDetail(t){const season=+settings().season;
   return'<section class="stack"><div><button class="btn sm ghost" data-act="nav" data-arg="tracks">← All tracks</button></div><div><div class="eyebrow">Track history</div><h1 class="track" style="font-size:clamp(28px,6vw,44px)">'+esc(t.label)+"</h1></div>"+
     '<div class="tiles">'+tile(t.races.filter(r=>r.winner&&!r.exhibition).length,"INRS races")+(()=>{const mw=mostWins(t);return tile(mw?mw.who:"–","Most wins"+(mw?" ("+mw.detail+")":""),true);})()+tile(new Set(t.races.filter(r=>r.winner&&!r.exhibition).map(r=>r.winner)).size,"Different winners")+(t.next?tile("Rd "+t.next.round,"Next visit · "+t.next.date):"")+"</div>"+trackPowerPanel(t.key,t.label)+
     '<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Every race here</div><div class="scroll"><table class="tbl"><thead><tr><th>Season</th><th class="n">Rd</th><th>Date</th><th>Event</th><th>Pole</th><th>Winner</th></tr></thead><tbody>'+
-    t.races.map(r=>"<tr><td>"+r.season+(r.current&&!r.done?' <span class="pill">Upcoming</span>':"")+(r.exhibition?' <span class="pill">'+(r.duel?"Duel · no stats":"Exhibition")+'</span>':"")+'</td><td class="n">'+esc(r.round||"")+"</td><td>"+esc(r.date||"")+'</td><td class="wrapcell muted">'+esc(r.event||"")+"</td><td>"+esc(r.pole||"–")+"</td><td><b>"+(r.raceId&&r.done?'<button class="dl" data-act="openrace" data-arg="'+esc(r.raceId)+'">'+esc(r.winner||"–")+"</button>":esc(r.winner||"–"))+"</b></td></tr>").join("")+"</tbody></table></div></div>"+
+    t.races.map(r=>"<tr><td>"+r.season+(r.current&&!r.done?' <span class="pill">Upcoming</span>':"")+(r.exhibition?' <span class="pill">'+(r.duel?noStatTag(r):"Exhibition")+'</span>':"")+'</td><td class="n">'+esc(r.round||"")+"</td><td>"+esc(r.date||"")+'</td><td class="wrapcell muted">'+esc(r.event||"")+"</td><td>"+esc(r.pole||"–")+"</td><td><b>"+(r.raceId&&r.done?'<button class="dl" data-act="openrace" data-arg="'+esc(r.raceId)+'">'+esc(r.winner||"–")+"</button>":esc(r.winner||"–"))+"</b></td></tr>").join("")+"</tbody></table></div></div>"+
     (t.wins.length?'<div class="panel"><div class="lt">Winners at '+esc(t.label)+'</div><div class="list">'+t.wins.map(([n,w],i)=>'<div class="podrow">'+posBadge(i+1)+'<div class="name">'+esc(n)+'</div><span class="pts">'+w+"</span></div>").join("")+"</div></div>":"")+top+"</section>";}
 
 /* ---------- careers & records (all series, all seasons) ---------- */
