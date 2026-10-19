@@ -203,7 +203,7 @@ footer .presented b{color:var(--accent)}
 .dot.void{background:transparent;border:2px solid var(--muted)}
 .teamroster{margin-top:3px;color:var(--muted);line-height:1.5}.teamroster .dl{font-size:13px}
 .elimrow td{text-align:left;font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--bad);border-top:2px dashed var(--bad)!important;padding:8px!important}
-.why.pop{color:var(--gold);font-weight:600}
+.why.popbet{color:var(--gold);font-weight:600}
 .mvp{font-style:normal;font-size:10px;margin-left:3px;vertical-align:2px}.mvp.up{color:var(--ok)}.mvp.dn{color:var(--bad)}.price.on .mvp{color:#fff}
 .h2hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:10px}
 .h2hcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}.h2hbuild+.h2hcard,.panel .h2hcard{margin-top:10px;padding:0;border:0;background:none}
@@ -937,7 +937,7 @@ V.odds=()=>{const c=S.calc;needSeasons();if(!S.marketKick){S.marketKick=1;setTim
     out.push('<span class="why"><b>Last 5</b> '+x.form.map(v=>chip(v.f)).join("")+"</span>");
     const lv=[];if(x.lp&&x.lp.best)lv.push("Practice P"+x.lp.pos+" · "+lapFmt(x.lp.best));if(x.lq)lv.push("Starts P"+x.lq);if(x.lr&&x.lr.pos)lv.push("Running P"+x.lr.pos);
     const pops=["win","top5","top10"].map(mm=>[mm,popCount(S.sel,d.race.id,x.id,mm)]).filter(v=>v[1]>=3);
-    return(pops.length?'<span class="why pop">Popular bet: '+pops.map(v=>MKT_L[v[0]]+" ("+v[1]+" bettors)").join(", ")+" · odds shortened</span>":"")+(lv.length?'<span class="why live"><span class="ldot"></span>'+lv.join(" · ")+"</span>":"")+out.join("");};
+    return(pops.length?'<span class="why popbet">Popular bet: '+pops.map(v=>MKT_L[v[0]]+" ("+v[1]+" bettors)").join(", ")+" · odds shortened</span>":"")+(lv.length?'<span class="why live"><span class="ldot"></span>'+lv.join(" · ")+"</span>":"")+out.join("");};
   const price=(x,mm)=>{const o=priceOf(d,x,mm),key=k+"|"+d.race.id+"|"+x.id+"|"+mm;
     const o0=O[x.id]?oddsFmt(O[x.id][col[mm]],vig[mm]):null,mv=o0&&o0!==o?(decOdds(o)>decOdds(o0)?'<i class="mvp up" title="Opened '+o0+'">▲</i>':'<i class="mvp dn" title="Opened '+o0+'">▼</i>'):"";
     const full=d.rows.length<=MKT_N[mm];return'<button title="'+(o0&&o0!==o?"Opened "+o0:"")+'" class="price'+(picked.has(key)?" on":"")+'" '+(open&&!full?'data-act="pick" data-arg="'+esc(k+"|"+d.race.id+"|"+x.id+"|"+mm+"|"+o)+'"':"disabled")+' aria-pressed="'+picked.has(key)+'" aria-label="'+esc(drv(x.id).name+" "+MKT_L[mm]+" "+o)+'"><small>'+MKT_L[mm]+"</small><b>"+o+mv+"</b></button>";};
