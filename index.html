@@ -1185,7 +1185,7 @@ const BOOK_ACT={
    in the URL. We swap it for a Firebase ID token, which proves who you are to the database rules. */
 const AUTH_K="inrs-auth";
 /* Fill these in after setting up the helper (see tools/signin/README.md). Both are public values, not secrets. */
-const AUTH_URL="",FB_KEY="";
+const AUTH_URL="https://inrs-signin.jordanbooth0904.workers.dev",FB_KEY="AIzaSyDDiZgC--JdfDOSXNP3T29AUkQroS8ptpc";
 const authCfg=()=>({url:safeUrl(AUTH_URL).replace(/\/$/,""),key:String(FB_KEY).replace(/[^A-Za-z0-9_-]/g,"")});
 const authOn=()=>{const c=authCfg();return!!(c.url&&c.key&&liveDb());};
 function me(){if(S.me===undefined){let v=null;try{v=JSON.parse(localStorage.getItem(AUTH_K)||"null");}catch(e){}S.me=v&&v.uid&&v.refresh?v:null;}return S.me;}
