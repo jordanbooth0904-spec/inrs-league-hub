@@ -57,6 +57,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .seg{flex:none}
 .switch .yearsel{width:auto;flex:none;font:600 16px/1.1 var(--mono);background:var(--panel);color:var(--fg);border:1px solid var(--line-2);border-radius:6px;padding:5px 6px;cursor:pointer}
 .awresgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}.awres{border:1px solid var(--line-2);border-radius:6px;padding:12px;background:var(--panel-2,rgba(255,255,255,.02));display:flex;flex-direction:column;gap:4px;min-height:96px}.awres.hid{justify-content:space-between;align-items:flex-start}.awwin{font-size:18px;color:var(--gold)}.champ26{border-top:3px solid var(--gold);margin-bottom:16px}.champname{font:italic 900 clamp(30px,7vw,52px)/1 var(--display);text-transform:uppercase;margin:6px 0 0}.champname .dl{font:inherit;color:var(--gold)}.wrapcta{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.lapboards{display:grid;gap:0 20px;grid-template-columns:minmax(0,1fr)}@media(min-width:900px){.lapboards{grid-template-columns:repeat(2,minmax(0,1fr))}}.lapboard{max-height:min(420px,60vh);overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--accent) transparent;border:1px solid var(--line);border-radius:6px}@media(max-width:520px){.lapboard .lbset{display:none}.lapboard .tbl td,.lapboard .tbl th{padding-inline:6px}}.lapboard thead th{position:sticky;top:0;background:var(--panel);z-index:1}
 .farewell{border-left:3px solid var(--accent);margin-bottom:16px}.farewell h2{font-size:20px}details.legyr{border-top:1px solid var(--line);padding:8px 0}details.legyr:first-of-type{border-top:0}details.legyr summary{cursor:pointer;padding:4px 2px}details.legyr .scroll{margin-top:6px}
 .archbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:8px 12px;border:1px solid var(--line-2);border-left:3px solid var(--accent);border-radius:6px;background:var(--panel);font-size:14px}
 .season{display:none;font:600 12px var(--mono);color:var(--muted);border:1px solid var(--line-2);padding:3px 8px;border-radius:4px}
@@ -1011,16 +1012,17 @@ function raceLapsPanel(r){if(!liveDb())return"";loadLapIdx();const rs=lapSessFor
 function trackRecordsPanel(t){if(!liveDb())return"";loadLapIdx();if(!S.lapIdx)return"";const ss=lapSessions(t.key);
   if(!ss.length)return'<div class="panel"><div class="lt">Track records</div><p class="hint">Lap records start with the first '+esc(settings().name)+" session here recorded by the live timing helper.</p></div>";
   const rec=kind=>{let b=null;ss.filter(s=>s.session===kind).forEach(s=>s.cars.forEach(c=>{if(c[2]>0&&(!b||c[2]<b.ms))b={ms:c[2],who:lapWho(c),at:s.at};}));return b;};
-  const rl=rec("race"),ql=rec("qualify"),P={};
-  ss.forEach(s=>{if(s.session==="practice")return;s.cars.forEach(c=>{if(!(c[2]>0))return;const w=lapWho(c),k=w.id||w.name,o=P[k]=P[k]||{who:w,race:0,qual:0,n:new Set()};o.n.add(s.at);
-    if(s.session==="race"&&(!o.race||c[2]<o.race))o.race=c[2];if(s.session==="qualify"&&(!o.qual||c[2]<o.qual))o.qual=c[2];});});
-  const rows=Object.values(P).sort((a,b)=>(Math.min(a.race||9e9,a.qual||9e9))-(Math.min(b.race||9e9,b.qual||9e9))).slice(0,15);
+  const rl=rec("race"),ql=rec("qualify");
+  /* one leaderboard per session type: every driver's best lap here, fastest first */
+  const board=kind=>{const P={};ss.filter(s=>s.session===kind).forEach(s=>s.cars.forEach(c=>{if(!(c[2]>0))return;const w=lapWho(c),k=w.id||w.name,o=P[k];if(!o||c[2]<o.ms)P[k]={who:w,ms:c[2],at:s.at};}));
+    return Object.values(P).sort((a,b)=>a.ms-b.ms);};
   const quals=ss.filter(s=>s.session==="qualify").sort((a,b)=>b.at-a.at).map(s=>{const p=[...s.cars].filter(c=>c[2]>0).sort((a,b)=>a[2]-b[2])[0];return p?{at:s.at,who:lapWho(p),ms:p[2]}:null;}).filter(Boolean);
   const nm=w=>w.id?'<button class="dl" data-act="driver" data-arg="'+esc(w.id)+'">'+esc(w.name)+"</button>":esc(w.name);
   return'<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Track records</div><div class="tiles" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'+
     (rl?tile(lapFmt(rl.ms),"Race lap record · "+esc(rl.who.name)+" · "+lapDate(rl.at),true):"")+(ql?tile(lapFmt(ql.ms),"Qualifying record · "+esc(ql.who.name)+" · "+lapDate(ql.at),true):"")+"</div>"+
-    (rows.length?'<div class="scroll"><table class="tbl"><thead><tr><th class="n">#</th><th>Driver</th><th class="n">Best race lap</th><th class="n">Best qualifying lap</th></tr></thead><tbody>'+
-      rows.map((o,i)=>'<tr><td class="n">'+(i+1)+"</td><td>"+nm(o.who)+'</td><td class="n">'+(o.race?(rl&&o.race===rl.ms?"<b>"+lapFmt(o.race)+"</b>":lapFmt(o.race)):"–")+'</td><td class="n">'+(o.qual?(ql&&o.qual===ql.ms?"<b>"+lapFmt(o.qual)+"</b>":lapFmt(o.qual)):"–")+"</td></tr>").join("")+"</tbody></table></div>":"")+
+    '<div class="lapboards">'+[["race","Race leaderboard","Best lap"],["qualify","Qualifying leaderboard","Best lap"]].map(([k,title,col])=>{const B=board(k);if(!B.length)return"";const f=B[0].ms;
+      return'<div><div class="sechead" style="margin:14px 8px 8px"><div class="lt">'+title+'</div><span class="hint">'+plural(B.length,"driver")+'</span></div><div class="lapboard"><table class="tbl"><thead><tr><th class="n">#</th><th>Driver</th><th class="n">'+col+'</th><th class="n">Gap</th><th class="n lbset">Set</th></tr></thead><tbody>'+
+        B.map((o,i)=>'<tr><td class="n">'+(i+1)+"</td><td>"+nm(o.who)+'</td><td class="n">'+(i===0?"<b>"+lapFmt(o.ms)+"</b>":lapFmt(o.ms))+'</td><td class="n muted">'+(i===0?"–":"+"+((o.ms-f)/1000).toFixed(3))+'</td><td class="n muted lbset">'+esc(fmtShort(new Date(o.at).toISOString()))+"</td></tr>").join("")+"</tbody></table></div></div>";}).join("")+"</div>"+
     (quals.length?'<div class="lt" style="margin:14px 8px 8px">Qualifying history</div><div class="list">'+quals.map(q=>'<div class="podrow"><div class="name">'+nm(q.who)+' <span class="muted small">'+lapDate(q.at)+'</span></div><span class="pts">'+lapFmt(q.ms)+"</span></div>").join("")+"</div>":"")+
     '<p class="hint" style="margin:8px">Recorded by the live timing helper, so records only include sessions it was running for.</p></div>';}
 
