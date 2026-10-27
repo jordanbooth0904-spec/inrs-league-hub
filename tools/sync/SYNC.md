@@ -46,6 +46,7 @@ simracerhub.com, youtube.com, github.com. If the browser can't be reached, stop 
 9. After ~2 minutes, open the live site in the built-in browser and confirm the Home page shows
    the new result.
 10. Report: rounds added (track + winner), points leader and gap, recaps linked, anything that failed.
+    Recap links use the regular "<Track> Race Recap" video, never the "Extended" one (apply.py skips those).
     Recaps started with Las Vegas (2026 Rd 33). Races before that will never have one, so don't flag them as missing.
 
 ## Files

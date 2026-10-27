@@ -153,7 +153,7 @@ def main():
         used = {r.get('recapUrl', '') for r in races.values()}
         for vid, title, desc, pub, length in vids:
             url = 'https://www.youtube.com/watch?v=' + vid
-            if url in used or not re.search(r'recap', title, re.I) or not pub:
+            if url in used or not re.search(r'recap', title, re.I) or re.search(r'extended', title, re.I) or not pub:  # extended cuts are never the race recap
                 continue
             pdate = pub[:10]
             key = track_key(title + ' ' + desc)
