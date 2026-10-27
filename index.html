@@ -56,7 +56,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .seg button:focus-visible,.yearsel:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .seg{flex:none}
 .switch .yearsel{width:auto;flex:none;font:600 16px/1.1 var(--mono);background:var(--panel);color:var(--fg);border:1px solid var(--line-2);border-radius:6px;padding:5px 6px;cursor:pointer}
-.awresgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}.awres{border:1px solid var(--line-2);border-radius:6px;padding:12px;background:var(--panel-2,rgba(255,255,255,.02));display:flex;flex-direction:column;gap:4px;min-height:96px}.awres.hid{justify-content:space-between;align-items:flex-start}.awwin{font-size:18px;color:var(--gold)}.champ26{border-top:3px solid var(--gold);margin-bottom:16px}.champname{font:italic 900 clamp(30px,7vw,52px)/1 var(--display);text-transform:uppercase;margin:6px 0 0}.champname .dl{font:inherit;color:var(--gold)}.wrapcta{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.awresgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}.awres{border:1px solid var(--line-2);border-radius:6px;padding:12px;background:var(--panel-2,rgba(255,255,255,.02));display:flex;flex-direction:column;gap:4px;min-height:96px}.awres.hid{justify-content:space-between;align-items:flex-start}.awres.awnext{border-color:var(--gold)}.awres.awnew{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold);animation:awpop .6s ease-out}@keyframes awpop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}@media(prefers-reduced-motion:reduce){.awres.awnew{animation:none}}.awwin{font-size:18px;color:var(--gold)}.champ26{border-top:3px solid var(--gold);margin-bottom:16px}.champname{font:italic 900 clamp(30px,7vw,52px)/1 var(--display);text-transform:uppercase;margin:6px 0 0}.champname .dl{font:inherit;color:var(--gold)}.wrapcta{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .lapboards{display:grid;gap:0 20px;grid-template-columns:minmax(0,1fr)}@media(min-width:900px){.lapboards{grid-template-columns:repeat(2,minmax(0,1fr))}}.lapboard{max-height:min(420px,60vh);overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--accent) transparent;border:1px solid var(--line);border-radius:6px}@media(max-width:520px){.lapboard .lbset{display:none}.lapboard .tbl td,.lapboard .tbl th{padding-inline:6px}}.lapboard thead th{position:sticky;top:0;background:var(--panel);z-index:1}
 .farewell{border-left:3px solid var(--accent);margin-bottom:16px}.farewell h2{font-size:20px}details.legyr{border-top:1px solid var(--line);padding:8px 0}details.legyr:first-of-type{border-top:0}details.legyr summary{cursor:pointer;padding:4px 2px}details.legyr .scroll{margin-top:6px}
 .archbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:8px 12px;border:1px solid var(--line-2);border-left:3px solid var(--accent);border-radius:6px;background:var(--panel);font-size:14px}
@@ -1316,6 +1316,11 @@ const AW_KEY="inrs-awards-2026";
    The live database only lets ballots be read after this time and only accepts them before it. */
 const AW_REVEAL=1793926800000,AW_SHOW_DAYS=21;
 const awRevealed=()=>Date.now()>=AW_REVEAL;
+/* Live unveil: one award a minute from AW_REVEAL, in this order (Most Popular Driver last). Every viewer runs on
+   the same clock, so the whole league sees each winner at the same moment. */
+const AW_ORDER=["roty","improved","pass","wrecker","radio","keyboard","steal","unpopular","popular"],AW_GAP=60e3;
+const awAt=k=>AW_REVEAL+Math.max(0,AW_ORDER.indexOf(k))*AW_GAP,awOut=k=>Date.now()>=awAt(k),awShownN=()=>AW_ORDER.filter(awOut).length;
+const awMS=ms=>{const t=Math.max(0,Math.ceil(ms/1000));return Math.floor(t/60)+":"+String(t%60).padStart(2,"0");};
 function awCountdown(){const ms=AW_REVEAL-Date.now();if(ms<=0)return"";const d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5),m=Math.floor(ms%36e5/6e4);
   return d?d+"d "+h+"h":h?h+"h "+m+"m":m+"m";}
 S.awRes=null;S.awAt=0;S.awShown={};
@@ -1332,14 +1337,20 @@ function awardsResults(full){const db=liveDb();if(!db)return"";
   const head='<div class="eyebrow">Fan vote · results</div><div class="sechead"><h2 class="awtitle">2026 iNRS Awards</h2>'+(!full?'<button class="btn sm" data-act="nav" data-arg="awards">Full results</button>':"")+"</div>";
   if(!S.awRes||(S.awRes.ballots&&!awardsTally()))return'<section class="panel awards">'+head+loading()+"</section>";
   if(S.awRes.err!==undefined)return'<section class="panel awards">'+head+'<p class="muted" style="margin:6px 0 0">The votes are being counted. Check back in a few minutes.</p></section>';
-  const T=awardsTally(),nm=id=>(drv(id)||{name:id}).name,all=!!S.awShown.__all;
-  const card=c=>{const shown=all||S.awShown[c.k];
-    if(!shown)return'<div class="awres hid"><span class="eyebrow">'+esc(c.l)+'</span><button class="btn primary sm" data-act="awreveal" data-arg="'+c.k+'">Reveal winner</button></div>';
+  const T=awardsTally(),nm=id=>(drv(id)||{name:id}).name,n=awShownN(),nextK=AW_ORDER[n],lastK=AW_ORDER[n-1],live=n<AW_ORDER.length;
+  const cats=[...T.cats].sort((a,b)=>AW_ORDER.indexOf(a.k)-AW_ORDER.indexOf(b.k));
+  const card=c=>{if(!awOut(c.k))return c.k===nextK?'<div class="awres hid awnext"><span class="eyebrow">'+esc(c.l)+'</span><b class="muted">Revealed in <span data-awcd="'+c.k+'">'+awMS(awAt(c.k)-Date.now())+'</span></b></div>'
+      :'<div class="awres hid"><span class="eyebrow">'+esc(c.l)+'</span><span class="small muted">Coming up</span></div>';
+    if(c.k===lastK&&live)return card2(c).replace('class="awres"','class="awres awnew"');return card2(c);};
+  const card2=c=>{
     if(!c.n)return'<div class="awres"><span class="eyebrow">'+esc(c.l)+'</span><b class="muted">No votes</b></div>';
     return'<div class="awres"><span class="eyebrow">'+esc(c.l)+'</span><b class="awwin">'+c.winners.map(id=>drv(id)?dlink(id):esc(nm(id))).join(" &amp; ")+"</b>"+(c.winners.length>1?'<span class="small muted">Tied</span>':"")+
       '<div class="list" style="margin-top:8px">'+c.list.slice(0,3).map(([id,v])=>{const pct=Math.round(v/c.n*100);return'<div class="dotrbar"><div class="dotrfill" style="width:'+pct+'%"></div><span class="nm">'+esc(nm(id))+'</span><span class="pc">'+pct+"%</span></div>";}).join("")+
       '</div><p class="hint" style="margin:6px 0 0">'+plural(c.n,"vote")+"</p></div>";};
-  return'<section class="panel awards">'+head+'<p class="small muted" style="margin:6px 0 12px">'+plural(T.ballots,"ballot")+" cast. "+(all?"":'Tap a category to reveal its winner, or <button class="dl" data-act="awreveal" data-arg="__all">reveal them all</button>.')+'</p><div class="awresgrid">'+T.cats.map(card).join("")+"</div></section>";}
+  return'<section class="panel awards">'+head+'<p class="small muted" style="margin:6px 0 12px">'+plural(T.ballots,"ballot")+" cast. "+(live?'<b style="color:var(--gold)">Unveiling live: '+n+" of "+AW_ORDER.length+"</b> · a new award every minute.":"All "+AW_ORDER.length+" winners are in.")+'</p><div class="awresgrid">'+cats.map(card).join("")+"</div></section>";}
+/* during the unveil: tick the countdown every second, and redraw the moment the next award is due */
+setInterval(()=>{if(!awRevealed()||Date.now()>awAt(AW_ORDER[AW_ORDER.length-1])+5e3||!(S.view==="home"||S.view==="awards"))return;
+  const n=awShownN();if(n!==S.awLastN){S.awLastN=n;render();return;}document.querySelectorAll("[data-awcd]").forEach(e=>{e.textContent=awMS(awAt(e.dataset.awcd)-Date.now());});},1000);
 V.awards=()=>{if(!awRevealed())return'<div class="lt">2026 iNRS Awards</div>'+empty("Winners revealed Thu, Nov 5 at 8 PM ET","Voting is open on the Home page until then.");return'<section class="stack">'+awardsResults(true)+"</section>";};
 function awardsVoted(){try{return!!localStorage.getItem(AW_KEY);}catch(e){return false;}}
 function awardsPool(){const M=S.M,o=M.official;if(!o||!Array.isArray(o.rows))return null;const D={};(M.drivers||[]).forEach(d=>D[d.id]=d);
@@ -1378,7 +1389,6 @@ function awardsPanel(){if(!isMain())return"";const db=liveDb();if(!db)return"";
     '</div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="awsubmit"'+(S.busy?" disabled":"")+'>Submit ballot</button><button class="btn ghost" data-act="awclose">Cancel</button></div></section>';}
 document.addEventListener("change",e=>{const el=e.target;if(el.dataset&&el.dataset.aw){S.awVotes=S.awVotes||{};S.awVotes[el.dataset.aw]=el.value;}});
 const AW_ACT={
-  awreveal(k){S.awShown[k]=1;draw();},
   awopen(){S.awOpen=true;S.awVotes=S.awVotes||{};draw();},
   awclose(){S.awOpen=false;draw();},
   async awsubmit(){const v={};document.querySelectorAll("select[data-aw]").forEach(s=>{if(s.value)v[s.dataset.aw]=s.value;});
