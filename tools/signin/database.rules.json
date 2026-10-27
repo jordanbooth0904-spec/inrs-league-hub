@@ -3,8 +3,8 @@
  "lapsIndex":{".read":true},
  "laps":{".read":true},
  "market":{".read":true,"$race":{"$sel":{"$who":{".write":"!data.exists()",".validate":"newData.isBoolean() && $who.length < 40"}}}},
- "awards":{"$year":{".read":"$year === '2026' && now >= 1793926800000",
-   "$voter":{".write":"!data.exists() && now < 1793926800000",".validate":"newData.hasChildren(['t']) && $voter.length < 40"}}},
+ "awards":{"$year":{".read":"$year === '2026' && now >= 1793748600000",
+   "$voter":{".write":"!data.exists() && now < 1793748600000",".validate":"newData.hasChildren(['t']) && $voter.length < 40"}}},
  "dotr":{".read":true,"$race":{"$voter":{".write":"!data.exists() && (!$voter.beginsWith('discord:') || (auth != null && auth.uid === $voter))",".validate":"newData.isString() && newData.val().length < 60 && $voter.length < 40"}}},
  "sb":{".read":true,"$uid":{
    "profile":{".write":"auth != null && auth.uid === $uid",

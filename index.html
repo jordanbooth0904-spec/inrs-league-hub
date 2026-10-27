@@ -1312,9 +1312,9 @@ const AWARDS=[["roty","Rookie of the Year","First Cup season (no Cup starts befo
   ["wrecker","Most Likely to Wreck You"],["radio","Radioactive Sweetheart","Most likely to blow up over the radio"],["pass","Hardest Pass"],
   ["steal","Driver You Most Want to Steal for Your Team"],["keyboard","Keyboard Warrior","Who talks the most trash in Discord"],["improved","Most Improved Driver","Raced in the Cup Series before 2026"]];
 const AW_KEY="inrs-awards-2026";
-/* Voting closes and winners are revealed at the same moment: Thu Nov 5, 2026, 8:00 PM ET (Homestead race night).
+/* Voting closes and winners are revealed at the same moment: Tue Nov 3, 2026, 6:30 PM ET.
    The live database only lets ballots be read after this time and only accepts them before it. */
-const AW_REVEAL=1793926800000,AW_SHOW_DAYS=21;
+const AW_REVEAL=1793748600000,AW_SHOW_DAYS=21;
 const awRevealed=()=>Date.now()>=AW_REVEAL;
 /* Live unveil: one award a minute from AW_REVEAL, in this order (Most Popular Driver last). Every viewer runs on
    the same clock, so the whole league sees each winner at the same moment. */
@@ -1322,7 +1322,7 @@ const AW_ORDER=["roty","improved","pass","wrecker","radio","keyboard","steal","u
 const awAt=k=>AW_REVEAL+Math.max(0,AW_ORDER.indexOf(k))*AW_GAP,awOut=k=>Date.now()>=awAt(k),awShownN=()=>AW_ORDER.filter(awOut).length;
 const awMS=ms=>{const t=Math.max(0,Math.ceil(ms/1000));return Math.floor(t/60)+":"+String(t%60).padStart(2,"0");};
 function awCountdown(){const ms=AW_REVEAL-Date.now();if(ms<=0)return"";const d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5),m=Math.floor(ms%36e5/6e4);
-  return d?d+"d "+h+"h":h?h+"h "+m+"m":m+"m";}
+  return d?d+"d "+h+"h":h?h+"h "+m+"m":m?m+"m":"under a minute";}
 S.awRes=null;S.awAt=0;S.awShown={};
 async function loadAwardResults(){const u=liveDb();if(!u||!awRevealed())return;S.awAt=Date.now();
   try{const r=await fetch(u+"/awards/2026.json",{cache:"no-store"});if(!r.ok){S.awRes={err:r.status};render();return;}S.awRes={ballots:(await r.json())||{}};render();}catch(e){S.awRes={err:0};render();}}
@@ -1351,7 +1351,7 @@ function awardsResults(full){const db=liveDb();if(!db)return"";
 /* during the unveil: tick the countdown every second, and redraw the moment the next award is due */
 setInterval(()=>{if(!awRevealed()||Date.now()>awAt(AW_ORDER[AW_ORDER.length-1])+5e3||!(S.view==="home"||S.view==="awards"))return;
   const n=awShownN();if(n!==S.awLastN){S.awLastN=n;render();return;}document.querySelectorAll("[data-awcd]").forEach(e=>{e.textContent=awMS(awAt(e.dataset.awcd)-Date.now());});},1000);
-V.awards=()=>{if(!awRevealed())return'<div class="lt">2026 iNRS Awards</div>'+empty("Winners revealed Thu, Nov 5 at 8 PM ET","Voting is open on the Home page until then.");return'<section class="stack">'+awardsResults(true)+"</section>";};
+V.awards=()=>{if(!awRevealed())return'<div class="lt">2026 iNRS Awards</div>'+empty("Winners revealed Tue, Nov 3 at 6:30 PM ET","Voting is open on the Home page until then.");return'<section class="stack">'+awardsResults(true)+"</section>";};
 function awardsVoted(){try{return!!localStorage.getItem(AW_KEY);}catch(e){return false;}}
 function awardsPool(){const M=S.M,o=M.official;if(!o||!Array.isArray(o.rows))return null;const D={};(M.drivers||[]).forEach(d=>D[d.id]=d);
   const prior=new Set();((S.idx&&S.idx.seasons)||[]).forEach(s=>{if(s.series==="cup"&&+s.year<2026)(s.lines||[]).forEach(l=>{if(num(l[5])>0)prior.add(l[0]);});});
@@ -1377,7 +1377,7 @@ function farewellPanel(){if(!isMain())return"";let h="";Object.keys(SER_FINAL).f
     '<button class="btn primary" data-act="legacy" data-arg="'+k+'">See the series legacy</button></div></section>';});return h;}
 function awardsPanel(){if(!isMain())return"";const db=liveDb();if(!db)return"";
   if(awRevealed())return Date.now()<AW_REVEAL+AW_SHOW_DAYS*864e5?awardsResults(false):"";
-  const when='<p class="small" style="margin:6px 0 0;color:var(--gold)">Voting closes and winners are revealed <b>Thu, Nov 5 at 8 PM ET</b> · '+awCountdown()+" to go</p>";
+  const when='<p class="small" style="margin:6px 0 0;color:var(--gold)">Voting closes and winners are revealed <b>Tue, Nov 3 at 6:30 PM ET</b> · '+awCountdown()+" to go</p>";
   const head='<div class="eyebrow">Fan vote</div><h2 class="awtitle">2026 iNRS Awards</h2>';
   if(awardsVoted())return'<section class="panel awards">'+head+'<p class="muted" style="margin:6px 0 0">Thanks, your ballot is in. Winners are revealed right here.</p>'+when+"</section>";
   if(!S.awOpen)return'<section class="panel awards">'+head+'<p class="muted" style="margin:6px 0 10px">Vote in '+AWARDS.length+' categories, from Rookie of the Year to Keyboard Warrior. Anonymous, one ballot per person. Open to Cup drivers with 10+ starts this season.</p>'+when.replace("margin:6px 0 0","margin:0 0 10px")+'<button class="btn primary" data-act="awopen">Vote now</button></section>';
