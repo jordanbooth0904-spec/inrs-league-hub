@@ -1541,31 +1541,41 @@ function wrapTitles(){const c=S.calc,key=S.sel+"|"+c.done.length;if(c._wt&&c._wt
   const all=c.standings.filter(x=>x.starts>0),M=c.done.length,minS=Math.max(3,Math.round(M*0.25)),F=all.filter(x=>x.starts>=minS),f1=n=>n.toFixed(1);
   const info=x=>{const log=x.log.filter(l=>l.fin),h=Math.floor(log.length/2),avg=a=>a.reduce((p,l)=>p+l.fin,0)/a.length,g=x.log.filter(l=>l.fin&&l.start);
     return{inc:x.inc/x.starts,early:h>=3?avg(log.slice(0,h)):null,late:h>=3?avg(log.slice(-h)):null,gain:g.length>=5?g.reduce((p,l)=>p+(l.start-l.fin),0)/g.length:null};};
-  const I={};F.forEach(x=>I[x.driver.id]=info(x));
-  /* [key, title, value (bigger = better), qualifies, why] */
+  const I={};all.forEach(x=>I[x.driver.id]=info(x));
+  const incAvg=F.length?F.reduce((p,x)=>p+I[x.driver.id].inc,0)/F.length:0,rate=(n,x)=>n/Math.max(1,x.starts),half=Math.max(minS,Math.round(M/2));
+  /* [title, value (bigger = better), the bar a driver must clear to earn it, why]. Each bar is a real standard,
+     not just "best of the rest", so nobody is called a Top-5 Machine for 3 top 5s. */
   const DEF=[
-    ["closer","The Closer",x=>x.wins,x=>x.wins>=1,x=>plural(x.wins,"win")+" this season"],
-    ["leader","Front Runner",x=>x.led,x=>x.led>=25,x=>fmtN(x.led)+" laps led"],
-    ["pole","Pole Sitter",x=>x.poles,x=>x.poles>=1,x=>plural(x.poles,"pole")+" this season"],
-    ["qual","Qualifying Ace",x=>-x.avgStart,x=>x.startN>=5,x=>"Average start of "+f1(x.avgStart)],
-    ["top5","Top-5 Machine",x=>x.top5,x=>x.top5>=3,x=>x.top5+" top 5s"],
-    ["top10","Top-10 Regular",x=>x.top10,x=>x.top10>=5,x=>x.top10+" top 10s"],
-    ["steady","Mr. Consistent",x=>-x.avgFin,x=>!!x.avgFin,x=>"Average finish of "+f1(x.avgFin)],
-    ["clean","Clean Machine",x=>-I[x.driver.id].inc,x=>true,x=>f1(I[x.driver.id].inc)+" incidents a race, among the cleanest"],
-    ["chaos","Chaos Agent",x=>I[x.driver.id].inc,x=>I[x.driver.id].inc>=4,x=>f1(I[x.driver.id].inc)+" incidents a race"],
-    ["charge","Hard Charger",x=>I[x.driver.id].gain,x=>I[x.driver.id].gain>0.5,x=>"Gained "+f1(I[x.driver.id].gain)+" spots a race on average"],
-    ["bloom","Late Bloomer",x=>I[x.driver.id].early-I[x.driver.id].late,x=>I[x.driver.id].early!=null&&I[x.driver.id].early-I[x.driver.id].late>=2,x=>"Average finish improved from "+f1(I[x.driver.id].early)+" to "+f1(I[x.driver.id].late)],
-    ["fast","Fast Starter",x=>I[x.driver.id].late-I[x.driver.id].early,x=>I[x.driver.id].early!=null&&I[x.driver.id].late-I[x.driver.id].early>=2,x=>"Averaged "+f1(I[x.driver.id].early)+" in the first half of the season"],
-    ["iron","Iron Man",x=>x.starts,x=>x.starts>=M-1&&M>=6,x=>"Started "+x.starts+" of "+M+" races"],
-    ["survive","The Survivor",x=>x.comp,x=>!x.dnf&&x.starts>=minS,x=>"Running at the finish in all "+plural(x.starts,"start")],
-    ["giant","Giant Killer",x=>x.avgFin-x.best,x=>x.best!=null&&x.best<=5&&x.avgFin>=12,x=>"Best finish P"+x.best+", from an average of "+f1(x.avgFin)],
-    ["luck","Bad Luck Magnet",x=>x.dnf,x=>x.dnf>=3,x=>plural(x.dnf,"DNF")+" this season"]];
-  const cand=[];DEF.forEach(([k,t,val,ok,why],pri)=>{const L=F.filter(x=>ok(x)&&isFinite(val(x))).sort((a,b)=>val(b)-val(a));
-    L.forEach((x,r)=>{const tied=L.findIndex(y=>val(y)===val(x));cand.push({id:x.driver.id,t,why:why(x),score:tied/Math.max(1,F.length),pri});});});
+    ["The Closer",x=>x.wins,x=>x.wins>=3||(x.wins>=2&&rate(x.wins,x)>=0.15),x=>plural(x.wins,"win")+" this season"],
+    ["Front Runner",x=>x.led,x=>x.led>=100&&rate(x.racesLed,x)>=0.25,x=>fmtN(x.led)+" laps led"],
+    ["Pole Sitter",x=>x.poles,x=>x.poles>=4||(x.poles>=3&&rate(x.poles,x)>=0.15),x=>plural(x.poles,"pole")+" this season"],
+    ["Qualifying Ace",x=>-x.avgStart,x=>x.startN>=half&&x.avgStart<=8,x=>"Average start of "+f1(x.avgStart)],
+    ["Top-5 Machine",x=>x.top5,x=>x.top5>=8&&rate(x.top5,x)>=0.35,x=>x.top5+" top 5s in "+plural(x.starts,"start")],
+    ["Top-10 Regular",x=>x.top10,x=>x.top10>=10&&rate(x.top10,x)>=0.5,x=>x.top10+" top 10s in "+plural(x.starts,"start")],
+    ["Mr. Consistent",x=>-x.avgFin,x=>x.starts>=half&&x.avgFin<=10,x=>"Average finish of "+f1(x.avgFin)],
+    ["Clean Machine",x=>-I[x.driver.id].inc,x=>x.starts>=half&&I[x.driver.id].inc<=incAvg*0.6,x=>f1(I[x.driver.id].inc)+" incidents a race, the series averages "+f1(incAvg)],
+    ["Chaos Agent",x=>I[x.driver.id].inc,x=>I[x.driver.id].inc>=incAvg*1.6,x=>f1(I[x.driver.id].inc)+" incidents a race, the series averages "+f1(incAvg)],
+    ["Hard Charger",x=>I[x.driver.id].gain,x=>I[x.driver.id].gain>=3,x=>"Gained "+f1(I[x.driver.id].gain)+" spots a race on average"],
+    ["Late Bloomer",x=>I[x.driver.id].early-I[x.driver.id].late,x=>I[x.driver.id].early!=null&&I[x.driver.id].early-I[x.driver.id].late>=4,x=>"Average finish improved from "+f1(I[x.driver.id].early)+" to "+f1(I[x.driver.id].late)],
+    ["Fast Starter",x=>I[x.driver.id].late-I[x.driver.id].early,x=>I[x.driver.id].early!=null&&I[x.driver.id].early<=12&&I[x.driver.id].late-I[x.driver.id].early>=4,x=>"Averaged "+f1(I[x.driver.id].early)+" in the first half of the season"],
+    ["Iron Man",x=>x.starts,x=>M>=6&&x.starts>=M,x=>"Started all "+M+" races"],
+    ["The Survivor",x=>x.comp,x=>!x.dnf&&x.starts>=half,x=>"Running at the finish in all "+plural(x.starts,"start")],
+    ["Giant Killer",x=>x.avgFin-x.best,x=>x.best!=null&&x.best<=3&&x.avgFin>=15,x=>"Finished P"+x.best+" with an average of "+f1(x.avgFin)],
+    ["Bad Luck Magnet",x=>x.dnf,x=>x.dnf>=4&&rate(x.dnf,x)>=0.25,x=>plural(x.dnf,"DNF")+" in "+plural(x.starts,"start")]];
+  const cand=[];DEF.forEach(([t,val,ok,why],pri)=>{const L=F.filter(x=>ok(x)&&isFinite(val(x))).sort((a,b)=>val(b)-val(a));
+    L.forEach(x=>{const tied=L.findIndex(y=>val(y)===val(x));cand.push({id:x.driver.id,t,why:why(x),score:tied/Math.max(1,L.length),pri});});});
   cand.sort((a,b)=>a.score-b.score||a.pri-b.pri);
   const T={},used={},CAP=2;
-  [0.2,0.5,1].forEach(lim=>cand.forEach(o=>{if(T[o.id]||o.score>lim||(used[o.t]||0)>=CAP)return;used[o.t]=(used[o.t]||0)+1;T[o.id]={title:o.t,why:o.why};}));
-  all.forEach(x=>{if(T[x.driver.id])return;T[x.driver.id]=x.starts<minS?(x.starts<=2?{title:"Guest Star",why:plural(x.starts,"start")+(x.best?", best finish P"+x.best:"")}:x.best&&x.best<=5?{title:"Cameo Hero",why:"Finished P"+x.best+" with only "+plural(x.starts,"start")}:x.led>0?{title:"Spotlight Stealer",why:plural(x.led,"lap")+" led in "+plural(x.starts,"start")}:x.best&&x.best<=12?{title:"Pinch Hitter",why:"Best finish P"+x.best+" in "+plural(x.starts,"start")}:{title:"Part-Timer",why:plural(x.starts,"start")+", and made them count"}):{title:"The Grinder",why:plural(x.starts,"start")+", never missing a fight"};});
+  cand.forEach(o=>{if(T[o.id]||(used[o.t]||0)>=CAP)return;used[o.t]=(used[o.t]||0)+1;T[o.id]={title:o.t,why:o.why};});
+  /* nobody above cleared a bar: an honest title from what their season actually was */
+  all.forEach(x=>{if(T[x.driver.id])return;T[x.driver.id]=x.starts<minS?(x.starts<=2?{title:"Guest Star",why:plural(x.starts,"start")+(x.best?", best finish P"+x.best:"")}:x.best&&x.best<=5?{title:"Cameo Hero",why:"Finished P"+x.best+" with only "+plural(x.starts,"start")}:x.led>0?{title:"Spotlight Stealer",why:plural(x.led,"lap")+" led in "+plural(x.starts,"start")}:x.best&&x.best<=12?{title:"Pinch Hitter",why:"Best finish P"+x.best+" in "+plural(x.starts,"start")}:{title:"Part-Timer",why:plural(x.starts,"start")+" this season"})
+    :(()=>{const opts=[x.wins&&{title:"Race Winner",why:"Won "+(x.wins>1?x.wins+" races":"a race")+" this season"},
+      x.top10>=8&&rate(x.top10,x)>=0.3&&{title:"Top-10 Contender",why:x.top10+" top 10s in "+plural(x.starts,"start")},
+      x.avgFin&&x.avgFin<=16&&{title:"Midfield Warrior",why:"Average finish of "+f1(x.avgFin)+" over "+plural(x.starts,"start")},
+      I[x.driver.id].inc<=incAvg*0.85&&{title:"Smooth Operator",why:f1(I[x.driver.id].inc)+" incidents a race, under the series average of "+f1(incAvg)},
+      x.best&&x.best<=5&&{title:"Breakout Day",why:"Best finish of P"+x.best+" this season"},
+      x.racesLed>=2&&{title:"Spotlight Stealer",why:"Led laps in "+plural(x.racesLed,"race")}].filter(Boolean);
+      const o=opts.find(o=>(used[o.title]||0)<3)||{title:"The Grinder",why:plural(x.starts,"start")+", never missing a fight"};used[o.title]=(used[o.title]||0)+1;return o;})();});
   c._wt={key,T};return T;}
 function wrappedData(id){const c=S.calc,s=c.D[id];if(!s||!s.starts)return null;const d=s.driver,log=s.log.filter(l=>l.fin);if(!log.length)return null;
   const best=[...log].sort((a,b)=>a.fin-b.fin||(b.led||0)-(a.led||0))[0];
