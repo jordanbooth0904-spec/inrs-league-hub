@@ -183,6 +183,14 @@ def main():
             sys.exit('%s is missing races %s; re-export it.' % (f, e['missing']))
         s = convert(e)
         fn = os.path.join(DATA, '%s-%s.json' % (s['series'], s['year']))
+        try:  # the league posts its own team standings for some seasons (teamsManual): keep them, don't use SimRacerHub's
+            old = json.load(open(fn))['official']
+            if old.get('teamsManual'):
+                for k in ('teams', 'teamsManual', 'teamsAsOf', 'teamsChampion'):
+                    if k in old:
+                        s['official'][k] = old[k]
+        except Exception:
+            pass
         json.dump(s, open(fn, 'w'), separators=(',', ':'))
         lead = s['official']['rows'][0] if s['official']['rows'] else None
         nm = {d['id']: d['name'] for d in s['drivers']}
