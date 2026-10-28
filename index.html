@@ -487,7 +487,7 @@ V.home=()=>{const c=S.calc;let h="";
 function hubBtn(label){const u=safeUrl(settings().hubUrl);return u?'<a class="btn sm" href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(label||"Official standings on SimRacerHub")+" ↗</a>":"";}
 function hubBar(label){const b=hubBtn(label);return b?'<div class="row" style="margin-bottom:12px">'+b+"</div>":"";}
 function tile(v,l,small){return'<div class="tile"><b'+(small?' class="sm"':"")+">"+esc(v)+"</b><span>"+esc(l)+"</span></div>";}
-function linksPanel(){const st=settings(),dc=safeUrl(st.discord),sp=safeUrl(st.sponsorUrl),hb=safeUrl(st.hubUrl),yt=safeUrl(st.youtubeUrl),tw=safeUrl(st.liveUrl);if(!dc&&!sp&&!hb&&!yt&&!tw)return"";
+function linksPanel(){const st=settings(),dc=safeUrl(st.discord),sp=safeUrl(st.sponsorUrl),hb=safeUrl(st.hubUrl),yt=streamUrl()?safeUrl(st.youtubeUrl):"",tw=streamUrl();if(!dc&&!sp&&!hb&&!yt&&!tw)return"";
   return'<div class="panel"><div class="lt">Links</div><div class="links">'+(tw?'<a class="btn" href="'+esc(tw)+'" target="_blank" rel="noopener">Watch races live</a>':"")+(yt?'<a class="btn" href="'+esc(yt)+'" target="_blank" rel="noopener">Recaps on YouTube</a>':"")+(hb?'<a class="btn" href="'+esc(hb)+'" target="_blank" rel="noopener">SimRacerHub standings</a>':"")+(dc?'<a class="btn primary" href="'+esc(dc)+'" target="_blank" rel="noopener">Join the Discord</a>':"")+(sp?'<a class="btn" href="'+esc(sp)+'" target="_blank" rel="noopener">'+esc(st.sponsorName||"Sponsor")+"</a>":"")+"</div></div>";}
 function recapRow(r){const c=S.calc,w=(r.results||[]).find(x=>int(x.fin)===1);
   return'<div class="recap"><a class="play" href="'+esc(safeUrl(r.recapUrl))+'" target="_blank" rel="noopener" aria-label="Watch recap"></a><div style="min-width:0"><div class="racetitle">'+esc(r.track||"Race")+'</div><div class="racesub">Round '+esc(r.round??"?")+" · "+fmtShort(r.date)+(w&&drv(w.driverId)?" · Won by "+esc(drv(w.driverId).name):"")+'</div></div><a class="btn sm" href="'+esc(safeUrl(r.recapUrl))+'" target="_blank" rel="noopener">Watch</a></div>';}
@@ -627,7 +627,9 @@ function recapEmbed(r){const id=ytId(r.recapUrl);if(!S.static||!id)return recapR
 
 /* ---------- race night ---------- */
 function isRaceDay(r){if(!r||!r.date)return false;const a=new Date(r.date),b=new Date();return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
-function liveBtn(r){const tw=safeUrl(settings().liveUrl);return tw&&isRaceDay(r)?'<a class="btn live" href="'+esc(tw)+'" target="_blank" rel="noopener"><span class="dot"></span>Watch live on YouTube</a>':"";}
+/* Only Cup races are broadcast, so the stream link never shows for O'Reilly or Trucks */
+function streamUrl(){return String(S.sel||MAINKEY).split("-")[0]==="cup"?safeUrl(settings().liveUrl):"";}
+function liveBtn(r){const tw=streamUrl();return tw&&isRaceDay(r)?'<a class="btn live" href="'+esc(tw)+'" target="_blank" rel="noopener"><span class="dot"></span>Watch live on YouTube</a>':"";}
 
 /* ---------- tracks ---------- */
 const TRACKS=[[/Raceway Park|\bIRP\b/i,"irp","Lucas Oil Raceway (IRP)"],[/Milwaukee/i,"milwaukee","Milwaukee Mile"],[/Rockingham/i,"rockingham","Rockingham"],[/Lime Rock/i,"lime-rock","Lime Rock"],[/Portland/i,"portland","Portland"],[/Gilles Villeneuve|Montreal/i,"montreal","Montreal"],[/Daytona/i,"daytona","Daytona"],[/Charlotte.*Roval/i,"charlotte-roval","Charlotte Roval"],[/Charlotte/i,"charlotte","Charlotte"],[/Gateway|World Wide Technology/i,"gateway","Gateway"],
