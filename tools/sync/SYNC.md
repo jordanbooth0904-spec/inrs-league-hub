@@ -17,7 +17,7 @@ simracerhub.com, youtube.com, github.com. If the browser can't be reached, stop 
    `tools/sync/extract_main.js`. Save the returned JSON string **exactly as returned** to `/tmp/sync_main.json`.
 3. (Skipped while `official.teamsManual` is true in data.json: Jordan posts the official team standings himself and they are entered by hand.) Otherwise `navigate` to the same URL with `&view=team`. Run `tools/sync/extract_teams.js`.
    Save the result to `/tmp/sync_teams.json`.
-4. `navigate` to `https://www.youtube.com/@40XLIRacing/videos` (if youtube.com needs approval,
+4. `navigate` to `https://www.youtube.com/@40XLIBroadcastingNetwork/videos` (if youtube.com needs approval,
    call `request_access` once with scope "site"). Run `tools/sync/extract_youtube.js`.
    Save to `/tmp/sync_yt.json`. If this step fails, skip it (recaps are optional).
 5. `python3 tools/sync/apply.py /tmp/sync_main.json --teams /tmp/sync_teams.json --youtube /tmp/sync_yt.json`
