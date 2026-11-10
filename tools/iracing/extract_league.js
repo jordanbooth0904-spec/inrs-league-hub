@@ -29,14 +29,17 @@ for (const s of todo) {
   const laps = Math.max(...race.results.map(x => x.laps_complete));
   const ev = await chunks(await ir('results/event_log', {subsession_id: s.subsession_id, simsession_number: 0}));
   const cautions = ev.filter(e => e.event_code === 6 && /^Caution for/i.test(e.message || '')).map(e => e.lap_number);
-  const base = Math.floor(laps * STAGE_PCT);
+  const sched = s.race_laps > 0 ? s.race_laps : laps;  // stage is 33% of the scheduled distance (overtime doesn't move it)
+  const base = Math.floor(sched * STAGE_PCT);
   const c = cautions.find(l => l >= base - CAUTION_WINDOW && l <= base);
   const stageLap = c != null ? c + 1 : base;
   const lc = await chunks(await ir('results/lap_chart_data', {subsession_id: s.subsession_id, simsession_number: 0}));
-  const stage = lc.filter(r => r.lap_number === stageLap).sort((a, b) => a.lap_position - b.lap_position).slice(0, 10).map(r => r.cust_id);
+  const tops = {};  // top 10 at the end of every lap, so a steward's stage-lap override can be scored later
+  for (const r of lc) if (r.lap_number > 0 && r.lap_position <= 10) (tops[r.lap_number] = tops[r.lap_number] || [])[r.lap_position - 1] = r.cust_id;
+  const stage = (tops[stageLap] || []).filter(Boolean);
   const fast = race.results.filter(x => x.best_lap_time > 0).sort((a, b) => a.best_lap_time - b.best_lap_time)[0];
   races.push({subsession: s.subsession_id, launch: s.launch_at, track: (s.track || {}).track_name, config: (s.track || {}).config_name,
-    laps, stageBase: base, stageCaution: c ?? null, stageLap, stage, fastest: fast ? fast.cust_id : null, cautions,
+    laps, schedLaps: sched, stageBase: base, tops, stageCaution: c ?? null, stageLap, stage, fastest: fast ? fast.cust_id : null, cautions,
     results: race.results.map(x => ({cust: x.cust_id, name: x.display_name, car: String(x.car_number ?? (x.livery || {}).car_number ?? ''),
       fin: x.finish_position + 1, start: x.starting_position + 1, laps: x.laps_complete, led: x.laps_lead, inc: x.incidents,
       best: x.best_lap_time, status: x.reason_out}))});

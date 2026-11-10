@@ -1,6 +1,11 @@
 {"rules":{".read":false,".write":false,
  "live":{".read":true},
  "provisional": {".read": true},
+ "stewards":{
+   "admins":{".read":"auth != null && auth.uid === 'discord:391344204871368704'",".write":"auth != null && auth.uid === 'discord:391344204871368704'",
+     "$uid":{".read":"auth != null && auth.uid === $uid",".validate":"newData.isBoolean() && $uid.length < 60"}},
+   "$season":{".read":"auth != null && (auth.uid === 'discord:391344204871368704' || root.child('stewards/admins/' + auth.uid).val() === true)",".write":"auth != null && (auth.uid === 'discord:391344204871368704' || root.child('stewards/admins/' + auth.uid).val() === true)",".validate":"$season.matches(/^(cup|trucks|xfinity)-20[0-9][0-9]$/)",
+     "$race":{".read":"data.child('published').val() === true",".validate":"$race.length < 12"}}},
  "lapsIndex":{".read":true},
  "laps":{".read":true},
  "market":{".read":true,"$race":{"$sel":{"$who":{".write":"!data.exists()",".validate":"newData.isBoolean() && $who.length < 40"}}}},

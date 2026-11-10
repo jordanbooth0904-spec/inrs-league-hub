@@ -292,6 +292,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.45}
 .hint{font-size:14px;color:var(--muted)}
 .provtag{display:inline-block;font:700 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#1a1300;background:#f5c542;border-radius:4px;padding:2px 6px;vertical-align:2px}
 .provp{border:1px solid #f5c54266}
+.lvl{display:inline-block;min-width:26px;text-align:center;font:700 12px var(--mono);border-radius:4px;padding:2px 5px;background:var(--panel-2);color:var(--muted)}.lvl1{background:#f5c54233;color:#f5c542}.lvl2{background:#ff9f4333;color:#ff9f43}.lvl3{background:#ff6b6b33;color:#ff6b6b}.lvl4,.lvl5{background:#e0313b;color:#fff}
 td.fl{color:#b06cff;font-weight:700}
 .okline{font-size:14px;color:var(--ok)}
 .adminrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
@@ -361,7 +362,7 @@ S.drivers=a.drivers||[];S.races=a.races||[];S.penalties=a.penalties||[];S.offici
   S.history=(ih||[]).filter(h=>+h[0]<+i.year);S.settingsRaw=Object.assign({},M.settingsRaw||{},a.settings||{});}
 /* The address bar mirrors the page: #view, #view/season, or #view/season/item for a driver, career, Wrapped card or track.
    Every move to a new page adds a browser history entry, so Back and Forward work and pages can be shared as links. */
-const VIEWS=v=>TABS.some(t=>t[0]===v)||["compare","career","bets","board","wrapped","legacy","awards","provisional"].includes(v);
+const VIEWS=v=>TABS.some(t=>t[0]===v)||["compare","career","bets","board","wrapped","legacy","awards","provisional","steward"].includes(v);
 function hashFor(){const sub=S.view==="drivers"?S.driverSel:S.view==="career"?S.careerId:S.view==="wrapped"?S.wrapId:S.view==="tracks"?S.trackSel:null;
   return"#"+S.view+(sub?"/"+S.sel+"/"+encodeURIComponent(sub):isMain()?"":"/"+S.sel);}
 function setHash(replace){if(S.routing)return;try{const h=hashFor();if(h===location.hash)return;if(replace||!location.hash)history.replaceState(null,"",h);else history.pushState(null,"",h);}catch(e){}}
@@ -577,7 +578,7 @@ V.schedule=()=>{const c=S.calc;if(!c.races.length)return'<div class="lt">'+esc(c
   return'<section><div class="lt">'+esc(c.st.season)+' schedule</div>'+hubBar("League page on SimRacerHub")+'<div class="list">'+c.races.map(r=>{
     const done=r.status==="complete"&&(r.results||[]).length,isNext=c.next&&c.next.id===r.id,open=S.raceOpen===r.id;
     const w=done?r.results.find(x=>int(x.fin)===1):null,rec=safeUrl(r.recapUrl);
-    return'<article class="race'+(isNext?" isnext":"")+'" id="race-'+esc(r.id)+'"><div class="racehead"><div class="rnd"><small>Rnd</small><b>'+esc(r.round??"?")+'</b></div><div style="min-width:0"><div class="racetitle">'+esc(r.track||"Track TBA")+'</div><div class="racesub">'+fmtDate(r.date)+(fmtTime(r.date,r.dateOnly)?" · "+fmtTime(r.date,r.dateOnly):"")+(r.laps?" · "+esc(r.laps)+" laps":"")+"</div>"+(r.name?'<div class="small muted">'+esc(r.name)+"</div>":"")+(r.note?'<div class="small" style="color:var(--accent)">'+esc(r.note)+"</div>":"")+
+    return'<article class="race'+(isNext?" isnext":"")+'" id="race-'+esc(r.id)+'"><div class="racehead"><div class="rnd"><small>Rnd</small><b>'+esc(r.round??"?")+'</b></div><div style="min-width:0"><div class="racetitle">'+esc(r.track||"Track TBA")+'</div><div class="racesub">'+fmtDate(r.date)+(fmtTime(r.date,r.dateOnly)?" · "+fmtTime(r.date,r.dateOnly):"")+(r.laps?" · "+esc(r.laps)+" laps":"")+(r.stageLap&&!r.exhibition&&!r.duel?" · stage lap "+esc(r.stageLap):"")+"</div>"+(r.name?'<div class="small muted">'+esc(r.name)+"</div>":"")+(r.note?'<div class="small" style="color:var(--accent)">'+esc(r.note)+"</div>":"")+
       (w?'<div class="small" style="margin-top:4px">Winner: '+dlink(w.driverId)+"</div>":"")+'</div><div class="raceside">'+(r.exhibition?'<span class="pill">'+(r.duel?noStatTag(r):"Exhibition")+'</span>':"")+(done?'<span class="pill final">Final</span>':isNext?'<span class="pill next">Next</span>':'<span class="pill">Upcoming</span>')+"</div></div>"+
       ('<div class="raceactions">'+(done?'<button class="btn sm" data-act="race" data-arg="'+esc(r.id)+'" aria-expanded="'+open+'">'+(open?"Hide results":"Results")+"</button>"+(open?'<button class="btn sm ghost" data-act="resultimg" data-arg="'+esc(r.id)+'">Results image</button>':""):"")+(rec?'<a class="btn sm primary" href="'+esc(rec)+'" target="_blank" rel="noopener">Watch recap</a>':"")+'<button class="btn sm ghost" data-act="track" data-arg="'+esc(trackOf(r.track).key)+'">Track history</button>'+(isNext?liveBtn(r):"")+"</div>")+
       (open&&done?'<div class="racebody">'+resultsTable(r)+raceLapsPanel(r)+"</div>":"")+"</article>";}).join("")+"</div></section>";};
@@ -616,7 +617,8 @@ function penTable(list){const rr=id=>S.races.find(r=>r.id===id);
   return'<div class="scroll"><table class="tbl"><thead><tr><th>Race</th><th>Driver</th><th>Infraction</th><th>Decision</th><th class="n">Pts</th></tr></thead><tbody>'+
     list.map(p=>{const r=rr(p.raceId);return"<tr><td>"+(r?esc("Rd "+(r.round??"?")+" · "+(r.track||"")):'<span class="muted">—</span>')+"</td><td>"+dlink(p.driverId)+'</td><td class="wrapcell">'+esc(p.infraction)+'</td><td class="wrapcell">'+esc(p.decision||"")+'</td><td class="n">'+(num(p.points,0)?"−"+num(p.points,0):"0")+"</td></tr>";}).join("")+"</tbody></table></div>";}
 function penSorted(){const rd=id=>{const r=S.races.find(x=>x.id===id);return r?num(r.round,0):0};return[...S.penalties].sort((a,b)=>rd(b.raceId)-rd(a.raceId)||String(b.created||"").localeCompare(String(a.created||"")));}
-V.penalties=()=>'<section><div class="lt">Penalties &amp; incidents</div>'+(S.penalties.length?'<div class="panel" style="padding:6px 8px">'+penTable(penSorted())+"</div>":empty("Clean sheet so far","No steward decisions have been posted."))+"</section>";
+V.penalties=()=>{const y27=+selInfo().year>=2027,rep=y27?stwPublic():"",stw=authOn()&&y27?'<button class="btn sm" data-act="steward">Steward tools</button>':"";
+  return'<section class="stack"><div class="sechead"><div class="lt">Penalties &amp; incidents</div>'+stw+"</div>"+rep+(S.penalties.length?'<div class="panel" style="padding:6px 8px">'+(rep?'<div class="lt" style="margin:8px">Official penalties</div>':"")+penTable(penSorted())+"</div>":rep?"":empty("Clean sheet so far","No steward decisions have been posted."))+"</section>";};
 
 V.rules=()=>{const rules=settings().rules;
   return'<section class="stack"><div><div class="lt">Rulebook</div>'+(rules.length?'<div class="list">'+rules.map((r,i)=>'<details class="rulesec"'+(i===0?" open":"")+"><summary>"+esc(r.title||"Section "+(i+1))+'</summary><div class="rulebody">'+esc(r.body||"")+"</div></details>").join("")+"</div>":empty("Rulebook coming soon","The league rules will be posted here."))+
@@ -1073,6 +1075,8 @@ function provRace(){const c=S.calc,r=c&&c.next,L=(S.prov||{})[selInfo().series];
   const rows=p.results.filter(x=>x.fin).sort((a,b)=>a.fin-b.fin).map(x=>{const id=byCust[String(x.cust)]||(drv(slugId(x.name))?slugId(x.name):null),sp=duel?0:stg.get(x.cust)||0;
     const fin=duel?(PROV_RULES.duel[x.fin-1]||0):(PROV_RULES.finish[x.fin-1]||1),stage=sp?PROV_RULES.stage[sp-1]||0:0,bonus=!duel&&p.fastest&&x.cust===p.fastest?PROV_RULES.fastest:0;
     return Object.assign({},x,{driverId:id,stagePos:sp,ptsFin:fin,ptsStage:stage,ptsBonus:bonus,pts:fin+stage+bonus});});
+  if(+selInfo().year>=2027){const st=(S.stw||{})[selInfo().key];if(!st||!st.loaded)setTimeout(()=>stwLoad(),0);const sd=st&&st.races[r.id];
+    if(sd)rows.forEach(x=>{const pen=sd.inc.filter(i=>i.driverId===x.driverId&&i.appeal!=="overturned").reduce((a,i)=>a+i.pts,0)+sd.pen.filter(q=>q.driverId===x.driverId).reduce((a,q)=>a+q.pts,0);if(pen){x.ptsPen=pen;x.pts-=pen;}});}
   return{race:r,p,rows,duel};}
 function provName(x){return x.driverId?dlink(x.driverId):esc(x.name||"Unknown driver");}
 function provStandings(pr){const c=S.calc,base=c.standings.filter(s=>s.starts>0||s.off),M=new Map(pr.rows.filter(x=>x.driverId).map(x=>[x.driverId,x]));
@@ -1091,7 +1095,7 @@ V.provisional=()=>{const pr=provRace();if(!pr)return'<section class="stack"><div
     '<div class="hero"><div class="eyebrow"><span class="provtag">Provisional</span> Round '+esc(pr.race.round!=null&&pr.race.round!==""?pr.race.round:"?")+'</div><h1 class="track">'+esc(pr.race.track||p.track)+'</h1><div class="rule"></div><div class="meta"><span>'+fmtDate(pr.race.date)+"</span><span>"+p.laps+" laps</span>"+(!pr.duel&&p.stageLap?"<span>Stage on lap "+p.stageLap+"</span>":"")+'</div>'+
     '<div class="small muted" style="margin-top:8px">These results come straight from iRacing at the checkered flag and are scored with league rules. They are unofficial: penalties and stage reviews can still change them, and the official results replace this page after the stewards\' review.</div></div>'+
     '<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Race results</div><div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">#</th><th class="n">Start</th><th class="n">Laps</th><th class="n">Led</th><th class="n">Inc</th><th class="n">Best</th>'+(pr.duel?"":'<th class="n">Stage</th>')+'<th class="n">Pts</th></tr></thead><tbody>'+
-    pr.rows.map(x=>"<tr><td>"+posBadge(x.fin)+"</td><td>"+provName(x)+(isDnf(x.status)?' <span class="muted small">'+esc(x.status)+"</span>":"")+'</td><td class="n muted">'+esc(x.car||"–")+'</td><td class="n">'+(x.start||"–")+'</td><td class="n">'+x.laps+'</td><td class="n">'+(x.led||"–")+'</td><td class="n">'+x.inc+'x</td><td class="n'+(x.best&&x.best===lb?' fl':"")+'">'+fl(x.best)+"</td>"+(pr.duel?"":'<td class="n">'+(x.stagePos?"P"+x.stagePos:"–")+"</td>")+'<td class="n"><span class="pts" title="Finish '+x.ptsFin+(x.ptsStage?" + stage "+x.ptsStage:"")+(x.ptsBonus?" + fastest lap "+x.ptsBonus:"")+'">'+x.pts+"</span></td></tr>").join("")+
+    pr.rows.map(x=>"<tr><td>"+posBadge(x.fin)+"</td><td>"+provName(x)+(isDnf(x.status)?' <span class="muted small">'+esc(x.status)+"</span>":"")+'</td><td class="n muted">'+esc(x.car||"–")+'</td><td class="n">'+(x.start||"–")+'</td><td class="n">'+x.laps+'</td><td class="n">'+(x.led||"–")+'</td><td class="n">'+x.inc+'x</td><td class="n'+(x.best&&x.best===lb?' fl':"")+'">'+fl(x.best)+"</td>"+(pr.duel?"":'<td class="n">'+(x.stagePos?"P"+x.stagePos:"–")+"</td>")+'<td class="n"><span class="pts" title="Finish '+x.ptsFin+(x.ptsStage?" + stage "+x.ptsStage:"")+(x.ptsBonus?" + fastest lap "+x.ptsBonus:"")+(x.ptsPen?" − penalty "+x.ptsPen:"")+'">'+x.pts+"</span>"+(x.ptsPen?' <span class="small" style="color:var(--bad)">−'+x.ptsPen+"</span>":"")+"</td></tr>").join("")+
     '</tbody></table></div><p class="hint" style="margin:10px 8px">'+(pr.duel?"Duel points: 10 for the winner down to 1 for 10th.":"Points: finish, plus stage points for the top 10 at the stage (10 down to 1), plus 1 for the fastest lap. Hover a total to see the split.")+"</p></div>"+
     '<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Provisional standings</div><div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th class="n">Move</th><th>Driver</th><th class="n">Before</th><th class="n">Tonight</th><th class="n">Points</th><th class="n">Behind</th></tr></thead><tbody>'+
     st.map(r=>"<tr><td>"+posBadge(r.pos)+'</td><td class="n">'+arrow(r)+"</td><td>"+(r.id?dlink(r.id):esc(r.name))+'</td><td class="n muted">'+r.before+'</td><td class="n">'+(r.ran?"+"+r.add:"–")+'</td><td class="n"><span class="pts">'+r.total+'</span></td><td class="n muted">'+(r.pos===1?"–":"−"+(lead-r.total))+"</td></tr>").join("")+
@@ -1877,6 +1881,162 @@ async function write(fn,ok){S.busy=true;draw();try{await fn();toast(ok);return t
 function loadResultsForm(id){const r=S.races.find(x=>x.id===id);if(!r){S.forms.results=null;return;}
   S.forms.results={raceId:id,recapUrl:r.recapUrl||"",note:"",rows:[...(r.results||[])].sort((a,b)=>a.fin-b.fin).map(x=>({driverId:x.driverId,newName:"",newNumber:"",newCust:"",fin:String(x.fin??""),start:x.start==null?"":String(x.start),led:String(x.lapsLed||0),comp:x.lapsComp==null?"":String(x.lapsComp),inc:String(x.inc||0),status:x.status||"Running",bonus:String(x.bonus||0),pts:typeof x.pts==="number"?String(x.pts):"",keep:{car:x.car,stage:x.stage,pen:x.pen,rating:x.rating}}))};}
 
+/* ---------- stewards: incident reports, penalty standing, stage overrides ----------
+   Decisions live in the database at /stewards/<season>/<raceId>: {published, stageLap, stageNote, inc:{...}, pen:{...}}.
+   Only stewards can write (Jordan, plus anyone he adds); the public can read a race once its report is published.
+   2027 rules (member update, Nov 10 2026): claimed incidents are served in the race (1st EOL, 2nd EOL + 1-lap hold,
+   3rd removal). Unclaimed at-fault incidents get post-race penalties (1: EOL next race, 2: EOL + drive-through,
+   3: suspended next race + 10 pts). Two or more at-fault incidents including an unclaimed one forfeits the race purse.
+   Standing: 3 qualifying incidents within a driver's last 2 appearances moves them up a level (the first claimed
+   incident in a race doesn't qualify); 2 straight clean appearances drop 2 levels, each further clean one drops 1.
+   The site only suggests the standard sanctions; stewards decide and apply every penalty themselves. */
+const STW_OWNER="discord:391344204871368704";
+const STW_KINDS=[["claimed","Claimed (at fault)"],["unclaimed","Not claimed (at fault)"],["racing","Racing incident (no fault)"],["egregious","Intentional / egregious"]];
+const STW_OFF=["Avoidable contact","Unsafe rejoin","Below the racing boundary","Blocking that caused a wreck","Failure to avoid a wreck (ARCA braking)","Intentional wreck / retaliation","Deliberate caution","Other"];
+const STW_LEVEL=[["Clear standing",0],["10-point penalty",10],["25-point penalty",25],["40-point penalty",40],["One-race ban",0],["At least a three-race suspension, possible league ban",0]];
+const STW_POST=[null,["EOL at the start of the next race",0],["EOL plus a drive-through at the start of the next race",0],["Suspended from the next race, plus a 10-point penalty",10]];
+const stwKind=k=>(STW_KINDS.find(x=>x[0]===k)||[k,k])[1];
+const stwSeason=()=>selInfo().key;
+function stwStore(){S.stw=S.stw||{};return S.stw[stwSeason()]=S.stw[stwSeason()]||{races:{},loaded:false,loading:false,steward:false};}
+const isStewardMe=()=>{const m=me();return!!m&&(m.uid===STW_OWNER||!!(S.stwAdmin&&S.stwAdmin[m.uid]));};
+function cleanStw(x){if(!x||typeof x!=="object")return null;const T=(v,n)=>v==null?"":String(v).slice(0,n||300),N=v=>{const n=Number(v);return isFinite(n)?n:0;};
+  const rec=(o,f)=>Object.entries(o&&typeof o==="object"?o:{}).filter(([,v])=>v&&typeof v==="object").map(([id,v])=>Object.assign({id:T(id,40)},f(v)));
+  return{published:x.published===true,publishedAt:N(x.publishedAt),stageLap:x.stageLap==null||x.stageLap===""?null:N(x.stageLap),stageNote:T(x.stageNote),
+    inc:rec(x.inc,v=>({lap:N(v.lap),driverId:T(v.driverId,80),name:T(v.name,80),kind:STW_KINDS.some(k=>k[0]===v.kind)?v.kind:"racing",offense:T(v.offense,80),sanction:T(v.sanction,160),pts:N(v.pts),reason:T(v.reason,1200),appeal:["pending","upheld","overturned"].includes(v.appeal)?v.appeal:"",with:T(v.with,40),at:N(v.at)})).sort((a,b)=>a.lap-b.lap||a.at-b.at),
+    pen:rec(x.pen,v=>({driverId:T(v.driverId,80),pts:N(v.pts),sanction:T(v.sanction,160),reason:T(v.reason,600),src:T(v.src,30),at:N(v.at)})).sort((a,b)=>a.at-b.at)};}
+/* Load this season's decisions: everything for a steward, published reports only for everyone else. */
+async function stwLoad(force){const st=stwStore(),u=liveDb(),want=S.view==="penalties"||S.view==="steward";if(!u||st.loading||S.selLoading||!S.races.length||(isMain()?false:!S.arch[stwSeason()])||(st.loaded&&!force&&(st.full||st.steward||!want)))return;st.loading=true;const m=me();
+  try{if(m&&m.uid!==STW_OWNER&&!S.stwAdminChecked){S.stwAdminChecked=true;const t=await idToken();if(t){const r=await fetch(u+"/stewards/admins/"+encodeURIComponent(m.uid)+".json?auth="+encodeURIComponent(t),{cache:"no-store"});if(r.ok&&(await r.json())===true)(S.stwAdmin=S.stwAdmin||{})[m.uid]=true;}}
+    if(isStewardMe()){const t=await idToken(),r=await fetch(u+"/stewards/"+stwSeason()+".json?auth="+encodeURIComponent(t),{cache:"no-store"});
+      if(r.ok){const j=await r.json()||{};st.races={};Object.entries(j).forEach(([k,v])=>{const c=cleanStw(v);if(c)st.races[k]=c;});st.steward=true;}}
+    else{const full=S.view==="penalties"||S.view==="steward",pr=provRace();if(!full&&!pr){st.loading=false;return;}
+      const ids=full?S.races.filter(r=>r.status==="complete"||(pr&&pr.race.id===r.id)).map(r=>r.id):[pr.race.id];st.races={};st.full=full;
+      await Promise.all(ids.map(async id=>{try{const r=await fetch(u+"/stewards/"+stwSeason()+"/"+id+".json",{cache:"no-store"});if(r.ok){const c=cleanStw(await r.json());if(c&&c.published)st.races[id]=c;}}catch(e){}}));}
+    st.loaded=true;st.err=false;}catch(e){st.loaded=true;st.err=true;}finally{st.loading=false;}render();}
+/* A steward edit: write one path under this season, then reload. */
+async function stwPut(path,val,msg){if(!isStewardMe())return toast("Only stewards can do that.",true);const ok=await authPut("stewards/"+stwSeason()+"/"+path,val);
+  if(ok===null&&val!==null){toast("Couldn't save. Check you're signed in as a steward.",true);return false;}if(msg)toast(msg);await stwLoad(true);return true;}
+const stwId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+/* Who ran a race: official results, else tonight's provisional results, plus anyone with an incident. */
+function stwField(r,sd){const set=new Map();(r.results||[]).forEach(x=>{if(x.driverId)set.set(x.driverId,drv(x.driverId)?drv(x.driverId).name:x.driverId);});
+  const pr=provRace();if(!set.size&&pr&&pr.race.id===r.id)pr.rows.forEach(x=>{if(x.driverId)set.set(x.driverId,drv(x.driverId).name);});
+  ((sd&&sd.inc)||[]).forEach(i=>{if(i.driverId&&!set.has(i.driverId))set.set(i.driverId,i.name||i.driverId);});return set;}
+/* The 2027 penalty engine: per race and driver, in round order. */
+function stwEngine(){const st=stwStore(),out={byRace:{},drivers:{}};
+  sortedRaces().forEach(r=>{const sd=st.races[r.id];if(!sd&&!(st.steward&&r.status==="complete"))return;const field=stwField(r,sd);if(!field.size)return;const R=out.byRace[r.id]={};
+    field.forEach((name,id)=>{const D=out.drivers[id]=out.drivers[id]||{id,name,level:0,streak:0,pool:[],apps:0,clean:0,atFault:0,claimed:0,unclaimed:0,racing:0,forfeits:0,pts:0,hist:[]};
+      const I=((sd&&sd.inc)||[]).filter(i=>i.driverId===id&&i.appeal!=="overturned");
+      const cl=I.filter(i=>i.kind==="claimed").length,un=I.filter(i=>i.kind==="unclaimed"||i.kind==="egregious").length,eg=I.some(i=>i.kind==="egregious");
+      const at=cl+un,qual=Math.max(0,cl-1)+un,clean=!eg&&(at===0||(at===1&&cl===1)),forfeit=un>=1&&at>=2;
+      D.apps++;D.atFault+=at;D.claimed+=cl;D.unclaimed+=un;D.racing+=I.filter(i=>i.kind==="racing").length;if(forfeit)D.forfeits++;
+      const from=D.level,esc2=[];for(let q=0;q<qual;q++)D.pool.push(D.apps);D.pool=D.pool.filter(a=>a>=D.apps-1);
+      while(D.pool.length>=3&&D.level<5){D.pool.splice(0,3);D.level++;esc2.push(D.level);}
+      if(clean){D.clean++;D.streak++;if(D.streak===2)D.level=Math.max(0,D.level-2);else if(D.streak>2)D.level=Math.max(0,D.level-1);}else D.streak=0;
+      const post=un?STW_POST[Math.min(3,un)]:null;
+      const pen=((sd&&sd.pen)||[]).filter(p=>p.driverId===id),incPts=I.reduce((a,i)=>a+i.pts,0),penPts=pen.reduce((a,p)=>a+p.pts,0);D.pts+=incPts+penPts;
+      R[id]={id,name,at,cl,un,qual,clean,forfeit,post,esc:esc2,from,level:D.level,streak:D.streak,pen,incPts,penPts};});});
+  return out;}
+const stwLevelChip=l=>'<span class="lvl lvl'+l+'">L'+l+"</span>";
+function stwSuggest(r,E){const R=E.byRace[r.id]||{},sd=stwStore().races[r.id]||{pen:[]},rows=[];
+  Object.values(R).forEach(x=>{const has=src=>(sd.pen||[]).some(p=>p.driverId===x.id&&p.src===src);
+    if(x.post)rows.push({x,src:"post",what:x.post[0],pts:x.post[1],why:plural(x.un,"unclaimed at-fault incident")+" this race",done:has("post")});
+    x.esc.forEach(l=>rows.push({x,src:"L"+l,what:"Standing level "+l+": "+STW_LEVEL[l][0],pts:STW_LEVEL[l][1],why:"3 qualifying incidents in their last 2 races",done:has("L"+l)}));
+    if(x.forfeit)rows.push({x,src:"purse",what:"Forfeits this race's purse",pts:0,why:x.at+" at-fault incidents, at least one unclaimed",done:has("purse")});});
+  return rows;}
+function stwReportText(r,sd){const L=["**INRS Incident Report: Rd "+(r.round??"?")+" · "+trackOf(r.track).label+"**"];
+  if(!sd||!sd.inc.length)L.push("No incidents were found to be anyone's fault.");
+  (sd?sd.inc:[]).forEach(i=>L.push("• Lap "+(i.lap||"?")+" · "+(drv(i.driverId)?drv(i.driverId).name:i.name)+" · "+i.offense+" · "+stwKind(i.kind)+(i.appeal==="overturned"?" (overturned on appeal)":i.appeal==="pending"?" (under appeal)":"")+
+    (i.sanction||i.pts?" → "+[i.sanction,i.pts?"−"+i.pts+" pts":""].filter(Boolean).join(", "):"")+(i.reason?"\n   "+i.reason:"")));
+  const pen=(sd&&sd.pen)||[];if(pen.length){L.push("**Penalties**");pen.forEach(p=>L.push("• "+(drv(p.driverId)?drv(p.driverId).name:p.driverId)+": "+p.sanction+(p.pts?" (−"+p.pts+" pts)":"")+(p.reason?" · "+p.reason:"")));}
+  if(sd&&sd.stageLap)L.push("Stage scored on lap "+sd.stageLap+(sd.stageNote?" ("+sd.stageNote+")":"")+".");
+  L.push("Appeals must be in before practice opens for the next race.");return L.join("\n");}
+/* ---------- public: incident reports and penalty standing (Penalties tab) ---------- */
+function stwPublic(){const st=stwStore();if(!st.loaded){stwLoad();return"";}const E=stwEngine(),pub=sortedRaces().filter(r=>st.races[r.id]&&(st.races[r.id].published||st.steward)).reverse();if(!pub.length)return"";
+  const D=Object.values(E.drivers).filter(d=>d.atFault||d.level||d.racing).sort((a,b)=>b.level-a.level||b.atFault-a.atFault||String(a.name).localeCompare(String(b.name)));
+  return'<div class="panel" style="padding:6px 8px"><div class="sechead" style="margin:8px"><div class="lt">Penalty standing</div><span class="hint">2027 penalty system</span></div>'+(D.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Driver</th><th class="n">Level</th><th class="n">Clean streak</th><th class="n">At fault</th><th class="n">Claimed</th><th class="n">Unclaimed</th><th class="n">Purses lost</th><th class="n">Pts off</th></tr></thead><tbody>'+
+    D.map(d=>"<tr><td>"+(drv(d.id)?dlink(d.id):esc(d.name))+'</td><td class="n">'+stwLevelChip(d.level)+'</td><td class="n">'+d.streak+'</td><td class="n">'+d.atFault+'</td><td class="n">'+d.claimed+'</td><td class="n">'+d.unclaimed+'</td><td class="n">'+(d.forfeits||"–")+'</td><td class="n">'+(d.pts?"−"+d.pts:"–")+"</td></tr>").join("")+"</tbody></table></div>":'<p class="hint" style="margin:8px">No at-fault incidents yet. Everyone is at level 0.</p>')+
+    '<p class="hint" style="margin:10px 8px">Three qualifying at-fault incidents within a driver\'s last two races moves them up a level (L1 −10, L2 −25, L3 −40, L4 one-race ban, L5 suspension). The first claimed incident in a race doesn\'t count. Two clean races in a row drop two levels, and each clean race after that drops one more.</p></div>'+
+    '<div class="lt" style="margin-top:6px">Incident reports</div><div class="list">'+pub.map((r,i)=>{const sd=st.races[r.id];
+      return'<details class="rulesec"'+(i===0?" open":"")+"><summary>Rd "+esc(r.round??"?")+" · "+esc(trackOf(r.track).label)+(sd.published?"":' <span class="provtag">Draft</span>')+'<span class="muted small" style="margin-left:8px">'+plural(sd.inc.length,"incident")+"</span></summary>"+stwIncTable(r,sd,false)+"</details>";}).join("")+"</div>";}
+function stwIncTable(r,sd,edit){const rows=sd.inc,pen=sd.pen||[];
+  return(rows.length?'<div class="scroll"><table class="tbl"><thead><tr><th class="n">Lap</th><th>Driver</th><th>Offense</th><th>Finding</th><th>Penalty</th><th>Reasoning</th>'+(edit?"<th></th>":"")+"</tr></thead><tbody>"+
+    rows.map(i=>'<tr><td class="n">'+(i.lap||"–")+"</td><td>"+(drv(i.driverId)?dlink(i.driverId):esc(i.name))+'</td><td class="wrapcell">'+esc(i.offense)+'</td><td class="wrapcell">'+esc(stwKind(i.kind))+(i.appeal?' <span class="muted small">'+(i.appeal==="pending"?"under appeal":i.appeal==="upheld"?"appeal denied":"overturned")+"</span>":"")+
+      '</td><td class="wrapcell">'+esc([i.sanction,i.pts?"−"+i.pts+" pts":""].filter(Boolean).join(", ")||"–")+'</td><td class="wrapcell small">'+esc(i.reason||"")+"</td>"+
+      (edit?'<td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="stwedit" data-arg="'+esc(i.id)+'">Edit</button><button class="btn sm ghost" data-act="stwdelinc" data-arg="'+esc(i.id)+'">Delete</button></div></td>':"")+"</tr>").join("")+"</tbody></table></div>"
+    :'<p class="hint" style="margin:8px">'+(edit?"No incidents logged for this race yet.":"No incidents were found to be anyone's fault.")+"</p>")+
+    (pen.length?'<div class="lt" style="margin:12px 8px 4px">Penalties</div><div class="list">'+pen.map(p=>'<div class="adminrow"><div class="t"><b>'+(drv(p.driverId)?esc(drv(p.driverId).name):esc(p.driverId))+"</b> · "+esc(p.sanction)+(p.pts?" <b>(−"+p.pts+" pts)</b>":"")+(p.reason?'<div class="small muted">'+esc(p.reason)+"</div>":"")+"</div>"+(edit?'<button class="btn sm ghost" data-act="stwdelpen" data-arg="'+esc(p.id)+'">Remove</button>':"")+"</div>").join("")+"</div>":"")+
+    (sd.stageLap?'<p class="hint" style="margin:10px 8px">Stage scored on lap '+sd.stageLap+(sd.stageNote?" · "+esc(sd.stageNote):"")+".</p>":"");}
+/* ---------- the steward screen ---------- */
+V.steward=()=>{const m=me(),st=stwStore(),back='<div><button class="btn sm ghost" data-act="nav" data-arg="penalties">← Penalties</button></div>';
+  if(!authOn())return'<section class="stack">'+back+empty("Sign-in isn't available here","Open the league website to use the steward tools.")+"</section>";
+  if(!m)return'<section class="stack">'+back+'<div class="panel"><div class="lt">Steward tools</div><p>Sign in with Discord to log incidents and penalties.</p>'+authBar()+"</div></section>";
+  if(!st.loaded){stwLoad();return'<section class="stack">'+back+loading()+"</section>";}
+  if(st.err)return'<section class="stack">'+back+'<div class="panel"><div class="lt">Steward tools</div><p>Couldn\'t reach the league database. Check your connection and try again.</p><button class="btn sm" data-act="stwretry">Try again</button></div></section>';
+  if(!isStewardMe())return'<section class="stack">'+back+'<div class="panel"><div class="lt">Steward tools</div><p>You\'re signed in as <b>'+esc(m.name)+"</b>, but you're not a steward yet. Send Jordan your steward ID so he can add you:</p><p><code>"+esc(m.uid)+"</code></p>"+authBar()+"</div></section>";
+  const races=sortedRaces(),pr=provRace(),cand=races.filter(r=>r.status==="complete"||st.races[r.id]||(pr&&pr.race.id===r.id));
+  if(!S.stwRace||!races.some(r=>r.id===S.stwRace))S.stwRace=(cand[cand.length-1]||races[0]||{}).id;const r=races.find(x=>x.id===S.stwRace);
+  if(!r)return'<section class="stack">'+back+empty("No races on this schedule","Pick a season with races from the menu at the top.")+"</section>";
+  const sd=st.races[r.id]||{published:false,stageLap:null,stageNote:"",inc:[],pen:[]},E=stwEngine(),field=stwField(r,sd),sug=stwSuggest(r,E),f=S.forms.inc||(S.forms.inc={kind:"claimed",offense:STW_OFF[0]});
+  const opts=(L,v)=>L.map(([k,l])=>'<option value="'+esc(k)+'"'+(String(k)===String(v)?" selected":"")+">"+esc(l)+"</option>").join("");
+  const drvOpts=[["","Choose a driver"]].concat([...field].sort((a,b)=>String(a[1]).localeCompare(String(b[1]))).map(([id,n])=>[id,n])).concat(field.size?[]:S.drivers.filter(d=>d.active!==false).map(d=>[d.id,d.name]));
+  const inp=(p,v,a)=>'<input data-f="'+p+'" value="'+esc(v==null?"":v)+'" '+(a||"")+">";
+  let h='<section class="stack">'+back+'<div class="sechead"><div class="lt">Steward tools · '+esc(selInfo().year+" "+serName(selInfo().series,selInfo().year))+'</div><div class="row">'+authBar()+"</div></div>"+
+    '<div class="panel"><div class="fgrid"><label class="f">Race<select data-change="stwrace">'+opts(races.map(x=>[x.id,"Rd "+(x.round??"?")+" · "+trackOf(x.track).label+(x.status==="complete"?"":pr&&pr.race.id===x.id?" (provisional)":" (not run)")]),r.id)+"</select></label></div>"+
+    '<div class="row" style="margin-top:10px;gap:8px;align-items:center">'+(sd.published?'<span class="provtag" style="background:var(--ok);color:#fff">Published</span><button class="btn sm ghost" data-act="stwpub" data-arg="0">Unpublish</button>':'<span class="provtag">Draft</span><button class="btn sm primary" data-act="stwpub" data-arg="1">Publish report</button>')+
+    '<button class="btn sm" data-act="stwcopy">Copy report for Discord</button><span class="hint">'+plural(field.size,"driver")+" in this race</span></div></div>";
+  // stage
+  const base=num(r.stageLap,0)||(r.laps?Math.floor(num(r.laps,0)*0.33):0);
+  h+=isDuel(r)||r.exhibition?"":'<div class="panel"><div class="lt">Stage</div><p class="hint" style="margin-top:0">By rule the stage is at lap '+(base||"?")+' (33%), or on the lap after a caution that starts within 5 laps of it. Set a lap here only to override the rule (e.g. Indy, or a stage the system got wrong). The official import uses this lap.</p><div class="fgrid">'+
+    '<label class="f">Stage lap override<input id="stwStageLap" inputmode="numeric" placeholder="Use the rule" value="'+(sd.stageLap||"")+'"></label><label class="f">Note<input id="stwStageNote" value="'+esc(sd.stageNote)+'" placeholder="Why it was changed"></label></div>'+
+    '<div class="row" style="margin-top:10px"><button class="btn sm primary" data-act="stwstage">Save stage</button></div></div>';
+  // incident form
+  h+='<div class="panel"><div class="lt">'+(f.id?"Edit incident":"Log an incident")+'</div><div class="fgrid">'+
+    '<label class="f">Lap'+inp("inc.lap",f.lap,'inputmode="numeric"')+'</label><label class="f">Driver<select data-f="inc.driverId">'+opts(drvOpts,f.driverId)+"</select></label>"+
+    '<label class="f">Finding<select data-f="inc.kind">'+opts(STW_KINDS,f.kind)+'</select></label><label class="f">Offense<select data-f="inc.offense">'+opts(STW_OFF.map(o=>[o,o]),f.offense)+"</select></label>"+
+    '<label class="f">Penalty (optional)'+inp("inc.sanction",f.sanction,'placeholder="e.g. EOL served; or a sanction for egregious conduct"')+'</label><label class="f">Points off (optional)'+inp("inc.pts",f.pts,'inputmode="numeric" placeholder="0"')+"</label>"+
+    '<label class="f">Appeal<select data-f="inc.appeal">'+opts([["","None"],["pending","Under appeal"],["upheld","Appeal denied"],["overturned","Overturned"]],f.appeal||"")+"</select></label></div>"+
+    '<label class="f" style="margin-top:10px">Reasoning (shown in the public report)<textarea data-f="inc.reason" rows="3">'+esc(f.reason||"")+"</textarea></label>"+
+    '<p class="hint">Claimed incidents are served in the race. Use a separate entry for each driver at fault in the same wreck ("Save and add another driver" keeps the lap and offense). A racing incident has no penalty and doesn\'t count against anyone.</p>'+
+    '<div class="row"><button class="btn sm primary" data-act="stwsave">'+(f.id?"Save changes":"Save incident")+"</button>"+(f.id?"":'<button class="btn sm" data-act="stwsave" data-arg="more">Save and add another driver</button>')+(f.id||f.lap||f.reason?'<button class="btn sm ghost" data-act="stwclear">Cancel</button>':"")+"</div></div>";
+  // incidents list
+  h+='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Incidents and penalties this race</div>'+stwIncTable(r,sd,true)+"</div>";
+  // suggestions
+  h+='<div class="panel"><div class="lt">Standard sanctions</div><p class="hint" style="margin-top:0">What the 2027 rules call for after this race. Nothing is applied until you press Apply. Whether post-race and standing penalties stack hasn\'t been finalized, so decide each one.</p>'+
+    (sug.length?'<div class="list">'+sug.map(s=>'<div class="adminrow"><div class="t"><b>'+esc(s.x.name)+"</b> · "+esc(s.what)+(s.pts?" <b>(−"+s.pts+" pts)</b>":"")+'<div class="small muted">'+esc(s.why)+"</div></div>"+(s.done?'<span class="muted small">Applied</span>':'<button class="btn sm primary" data-act="stwapply" data-arg="'+esc(s.x.id+"|"+s.src+"|"+s.pts+"|"+s.what)+'">Apply</button>')+"</div>").join("")+"</div>":'<p class="hint">Nothing due for this race.</p>')+
+    '<div class="lt" style="margin-top:14px">Add a points penalty</div><div class="fgrid"><label class="f">Driver<select id="stwPenDrv">'+opts(drvOpts,"")+'</select></label><label class="f">Points off<input id="stwPenPts" inputmode="numeric"></label><label class="f">Penalty<input id="stwPenWhat" placeholder="e.g. Unapproved setup"></label></div>'+
+    '<div class="row" style="margin-top:10px"><button class="btn sm" data-act="stwpen">Add penalty</button></div></div>';
+  // standing after this race
+  const R=E.byRace[r.id]||{},rows=Object.values(R).filter(x=>x.at||x.level||x.from||x.esc.length).sort((a,b)=>b.level-a.level||b.at-a.at);
+  h+='<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Penalty standing after this race</div>'+(rows.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Driver</th><th class="n">At fault</th><th class="n">Qualifying</th><th class="n">Clean</th><th class="n">Level</th><th class="n">Streak</th><th>Purse</th></tr></thead><tbody>'+
+    rows.map(x=>"<tr><td>"+esc(x.name)+'</td><td class="n">'+x.at+(x.cl?" ("+x.cl+" claimed)":"")+'</td><td class="n">'+x.qual+'</td><td class="n">'+(x.clean?"Yes":"No")+'</td><td class="n">'+(x.from!==x.level?stwLevelChip(x.from)+" → ":"")+stwLevelChip(x.level)+'</td><td class="n">'+x.streak+"</td><td>"+(x.forfeit?'<span style="color:var(--bad)">Forfeited</span>':"–")+"</td></tr>").join("")+
+    "</tbody></table></div>":'<p class="hint" style="margin:8px">Everyone in this race is clear.</p>')+"</div>";
+  if(m.uid===STW_OWNER)h+='<div class="panel"><div class="lt">Stewards</div><p class="hint" style="margin-top:0">Add a steward by their steward ID (they see it on this page after signing in).</p>'+
+    (S.stwList?'<div class="list">'+Object.keys(S.stwList).map(u=>'<div class="adminrow"><div class="t"><code>'+esc(u)+'</code></div><button class="btn sm ghost" data-act="stwunadmin" data-arg="'+esc(u)+'">Remove</button></div>').join("")+"</div>":'<button class="btn sm ghost" data-act="stwlist">Show stewards</button>')+
+    '<div class="fgrid" style="margin-top:10px"><label class="f">Steward ID<input id="stwNewAdmin" placeholder="discord:123456789"></label></div><div class="row" style="margin-top:10px"><button class="btn sm" data-act="stwadmin">Add steward</button></div></div>';
+  return h+"</section>";};
+const STW_ACT={
+  steward(){S.view="steward";setHash();draw();window.scrollTo(0,0);},
+  stwretry(){stwLoad(true);},
+  async stwsave(a){const f=S.forms.inc||{},r=S.races.find(x=>x.id===S.stwRace);if(!r)return;if(!f.driverId)return toast("Choose the driver.",true);
+    const field=stwField(r,stwStore().races[r.id]),id=f.id||stwId();
+    const v={lap:int(f.lap)||0,driverId:f.driverId,name:field.get(f.driverId)||(drv(f.driverId)||{}).name||f.driverId,kind:f.kind||"claimed",offense:f.offense||STW_OFF[0],sanction:String(f.sanction||"").trim(),pts:Math.max(0,int(f.pts)||0),reason:String(f.reason||"").trim(),appeal:f.appeal||"",at:f.at||Date.now(),by:me().uid};
+    if(await stwPut(r.id+"/inc/"+id,v,f.id?"Incident updated.":"Incident saved."))S.forms.inc=a==="more"?{lap:f.lap,offense:f.offense,kind:"claimed"}:{kind:"claimed",offense:STW_OFF[0]};draw();},
+  stwedit(id){const i=(stwStore().races[S.stwRace]||{inc:[]}).inc.find(x=>x.id===id);if(!i)return;S.forms.inc=Object.assign({},i,{pts:i.pts||""});draw();window.scrollTo(0,0);},
+  stwclear(){S.forms.inc={kind:"claimed",offense:STW_OFF[0]};draw();},
+  async stwdelinc(id){if(!confirm("Delete this incident?"))return;await stwPut(S.stwRace+"/inc/"+id,null,"Incident deleted.");},
+  async stwdelpen(id){if(!confirm("Remove this penalty?"))return;await stwPut(S.stwRace+"/pen/"+id,null,"Penalty removed.");},
+  async stwapply(a){const[drvId,src,pts,...w]=String(a).split("|");await stwPut(S.stwRace+"/pen/"+stwId(),{driverId:drvId,pts:int(pts)||0,sanction:w.join("|"),reason:"",src,at:Date.now(),by:me().uid},"Penalty applied.");},
+  async stwpen(){const d=document.getElementById("stwPenDrv").value,p=int(document.getElementById("stwPenPts").value)||0,w=document.getElementById("stwPenWhat").value.trim();if(!d||!w)return toast("Choose the driver and describe the penalty.",true);
+    await stwPut(S.stwRace+"/pen/"+stwId(),{driverId:d,pts:Math.max(0,p),sanction:w,reason:"",src:"manual",at:Date.now(),by:me().uid},"Penalty added.");},
+  async stwstage(){const v=document.getElementById("stwStageLap").value.trim(),n=document.getElementById("stwStageNote").value.trim();
+    await stwPut(S.stwRace+"/stageLap",v?Math.max(1,int(v)||0):null,null);await stwPut(S.stwRace+"/stageNote",n||null,v?"Stage set to lap "+int(v)+".":"Stage follows the rule.");},
+  async stwpub(a){const on=a==="1";await stwPut(S.stwRace+"/published",on?true:null,null);await stwPut(S.stwRace+"/publishedAt",on?Date.now():null,on?"Report published.":"Report unpublished.");},
+  async stwcopy(){const r=S.races.find(x=>x.id===S.stwRace),t=stwReportText(r,stwStore().races[r.id]);try{await navigator.clipboard.writeText(t);toast("Report copied. Paste it in Discord.");}catch(e){toast("Couldn't copy here.",true);}},
+  async stwlist(){const t=await idToken();try{const r=await fetch(liveDb()+"/stewards/admins.json?auth="+encodeURIComponent(t),{cache:"no-store"});S.stwList=r.ok?(await r.json()||{}):{};}catch(e){S.stwList={};}draw();},
+  async stwadmin(){const u=document.getElementById("stwNewAdmin").value.trim();if(!/^discord:\d{5,30}$/.test(u))return toast("A steward ID looks like discord:123456789.",true);
+    if(await authPut("stewards/admins/"+u,true)===null)return toast("Couldn't add that steward.",true);toast("Steward added.");STW_ACT.stwlist();},
+  async stwunadmin(u){if(!confirm("Remove this steward?"))return;await authPut("stewards/admins/"+u,null);toast("Steward removed.");STW_ACT.stwlist();}};
+
 const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false;setHash();draw();window.scrollTo(0,0);},legacyall:()=>{S.legacyAll=!S.legacyAll;draw();},rivser:a=>{S.rivSer=a||"";render();},rivyr:a=>{S.rivYr=+a||0;render();},
   ...RW_ACT,
   ...DOTR_ACT,
@@ -1886,6 +2046,7 @@ const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false
   booktab(t){S.bookTab=t;draw();},
   ...BOOK_ACT,
   ...AUTH_ACT,
+  ...STW_ACT,
   oddsmkt(k){S.oddsMkt=k;draw();},
   career(id){S.view="career";S.careerId=id;setHash();draw();window.scrollTo(0,0);},
   recser(k){S.recSeries=k;draw();},
@@ -1955,6 +2116,7 @@ const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false
     await write(()=>root().set(data),"Settings saved");}
 };
 const CHANGE={
+  stwrace(el){S.stwRace=el.value;S.forms.inc=null;draw();},
   wifin(el){const W=S.whatIf;if(!W)return;const x=W.p[el.dataset.id]=W.p[el.dataset.id]||{fin:0,bonus:0};x.fin=int(el.value)||0;keepWhatIf();},
   wibon(el){const W=S.whatIf;if(!W)return;const x=W.p[el.dataset.id]=W.p[el.dataset.id]||{fin:0,bonus:0};x.bonus=int(el.value)||0;keepWhatIf();},
   h2ha(el){S.h2hA=el.value;draw();},
@@ -2020,12 +2182,12 @@ document.addEventListener("focusout",()=>setTimeout(()=>{if(S.pending&&!isTyping
 let gcLast=null;
 function gcTrack(){try{const g=window.goatcounter;if(!S.static||!g||typeof g.count!=="function")return;
   const key="/"+S.view+(isMain()?"":"/"+S.sel);if(key===gcLast)return;gcLast=key;
-  const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="legacy"?"Series legacy":S.view==="awards"?"Awards":S.view==="provisional"?"Provisional results":S.view==="compare"?"Head to head":S.view])[1];
+  const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="legacy"?"Series legacy":S.view==="awards"?"Awards":S.view==="provisional"?"Provisional results":S.view==="steward"?"Steward tools":S.view==="compare"?"Head to head":S.view])[1];
   g.count({path:key,title:tab+(isMain()?"":" · "+S.sel)});}catch(e){}}
 window.__gcReady=()=>{gcLast=null;gcTrack();};
 function draw(){S.calc=compute();if(S.mode!=="loading")setHash();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
   document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
-  S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy"||S.view==="awards")&&t[0]==="records")||(S.view==="provisional"&&t[0]==="home")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
+  S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy"||S.view==="awards")&&t[0]==="records")||(S.view==="provisional"&&t[0]==="home")||(S.view==="steward"&&t[0]==="penalties")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
   if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
   const sw=document.getElementById("switch");if(sw){const h=switcher();sw.hidden=!h;if(!isTyping()||!sw.contains(document.activeElement))sw.innerHTML=h;}
   const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"||S.selLoading?loading():(V[S.view]||V.home)();

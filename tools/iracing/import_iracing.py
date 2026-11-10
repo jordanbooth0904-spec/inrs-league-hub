@@ -5,8 +5,12 @@
 
 - Matches each iRacing race to the schedule by date (+/- 1 day) and track; stores its subsession id on the race.
 - Maps drivers by iRacing customer id (learned and saved on the driver as custId), else by name; new names become new drivers.
-- Stage top 10: race['stageOverride'] (list of driver ids, set by a steward) wins over the lap-chart stage.
-- Penalties: entries in data['penalties'] with raceId and points come off that race; scoring then rebuilds the standings.
+- Stage top 10: a steward's stage lap (--stewards export) wins, scored from the export's top 10 on that lap; else
+  race['stageOverride'] (list of driver ids); else the lap-chart stage from the rule.
+- Penalties: entries in data['penalties'] with raceId and points come off that race. With --stewards, the published
+  steward decisions for each race replace that race's 'stw-' penalties first (incident points + applied penalties).
+
+  --stewards FILE   the published steward reports, saved by tools/iracing/extract_stewards.js on the league site
 Results are marked source 'iracing'. The Chase reset is not applied yet (see tools/scoring/README.md).
 """
 import json, os, re, sys, datetime, argparse
@@ -25,8 +29,21 @@ slug = lambda s: re.sub(r'[^a-z0-9]+', '-', s.lower()).strip('-')
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('export'); ap.add_argument('--series', required=True)
     ap.add_argument('--data', default='data.json'); ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--stewards')
     a = ap.parse_args()
     X = json.load(open(a.export)); D = json.load(open(a.data))
+    STW = json.load(open(a.stewards))['races'] if a.stewards else {}
+    if STW:  # published steward decisions become this race's penalties (replacing earlier copies)
+        today = datetime.date.today().isoformat()
+        D['penalties'] = [p for p in D.get('penalties', []) if not (str(p.get('id', '')).startswith('stw-') and p.get('raceId') in STW)]
+        for rid, sd in STW.items():
+            for k, i in (sd.get('inc') or {}).items():
+                if (i.get('pts') or 0) > 0 and i.get('appeal') != 'overturned':
+                    D['penalties'].append({'id': 'stw-%s-%s' % (rid, k), 'raceId': rid, 'driverId': i['driverId'], 'points': int(i['pts']), 'included': True,
+                                           'infraction': i.get('offense', ''), 'decision': (i.get('sanction') or '') or '-%d pts' % i['pts'], 'created': today})
+            for k, q in (sd.get('pen') or {}).items():
+                D['penalties'].append({'id': 'stw-%s-%s' % (rid, k), 'raceId': rid, 'driverId': q['driverId'], 'points': int(q.get('pts') or 0), 'included': True,
+                                       'infraction': q.get('reason') or 'Steward decision', 'decision': q.get('sanction', ''), 'created': today})
     drivers = {d['id']: d for d in D['drivers']}
     by_cust = {str(d.get('custId')): d['id'] for d in D['drivers'] if d.get('custId')}
     by_name = {}
@@ -57,16 +74,25 @@ def main():
         duel = 'duel' in (r.get('name') or '').lower()
         ids = {res['cust']: who(res) for res in x['results']}
         stage_ids = r.get('stageOverride') or [ids[c] for c in x['stage'] if c in ids]
+        stage_lap = x['stageLap']
+        sl = (STW.get(r['id']) or {}).get('stageLap')
+        if sl and not duel:
+            top = (x.get('tops') or {}).get(str(int(sl)))
+            if top:
+                stage_ids, stage_lap = [ids[c] for c in top if c in ids], int(sl)
+                print('  Rd %s: steward stage lap %d' % (r['round'], stage_lap))
+            else:
+                print('  Rd %s: steward set stage lap %s but this export has no lap-by-lap order; re-export the race' % (r['round'], sl))
         spos = {did: i + 1 for i, did in enumerate(stage_ids)}
         ents = [{'driverId': ids[res['cust']], 'fin': res['fin'], 'stagePos': spos.get(ids[res['cust']]),
                  'fastest': res['cust'] == x['fastest'], 'pen': pens.get((r['id'], ids[res['cust']]), 0), 'duelPos': res['fin']} for res in x['results']]
-        P = points.score_race(a.series, ents, 'duel' if duel else 'race', non_points=bool(r.get('nonPoints')))
+        P = points.score_race(a.series, ents, 'duel' if duel else 'race', non_points=bool(r.get('nonPoints') or r.get('exhibition')))
         r['results'] = [{'driverId': ids[res['cust']], 'fin': res['fin'], 'start': res['start'], 'car': res['car'] or drivers[ids[res['cust']]].get('number', ''),
                          'pts': P[ids[res['cust']]]['total'], 'stage': P[ids[res['cust']]]['stage'], 'bonus': P[ids[res['cust']]]['bonus'],
                          'pen': P[ids[res['cust']]]['pen'], 'lapsComp': res['laps'], 'lapsLed': res['led'], 'inc': res['inc'],
                          'status': res['status'] or 'Running', 'bestLap': res['best']} for res in sorted(x['results'], key=lambda q: q['fin'])]
-        r['status'] = 'complete'; r['source'] = 'iracing'; r['stageLap'] = x['stageLap']
-        done.append((r['round'], r['track'], x['stageLap'], len(x['results'])))
+        r['status'] = 'complete'; r['source'] = 'iracing'; r['stageLap'] = stage_lap
+        done.append((r['round'], r['track'], stage_lap, len(x['results'])))
     print('imported:', done or 'nothing')
     if a.dry_run:
         print('dry run: nothing written'); return D

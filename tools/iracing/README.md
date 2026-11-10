@@ -28,3 +28,17 @@ stage top 10 for a race by setting `stageOverride: [driverId x10]` on that race,
 - Full import (New Hampshire, Talladega, Homestead): every driver's finish, start, points, stage, bonus, laps, laps led
   and incidents identical to SimRacerHub.
 - Standings built by `tools/scoring/standings.py` match SimRacerHub's 2026 table for every driver outside the Chase reset.
+
+## Steward decisions (2027)
+Stewards log incidents, penalties and stage-lap overrides on the site (Penalties tab, then Steward tools, signed in
+with Discord). They're saved in Firebase at `/stewards/<season>/<raceId>` and readable by the public once the race's
+report is published.
+
+Before importing a race, its report must be published. Then:
+1. On the league site in the built-in browser, run `extract_stewards.js` prefixed with
+   `window.__STW = {season: 'cup-2027', file: 'inrs-stewards-cup-2027-<YYYYMMDD>.json'}` and stage the download.
+2. `python3 tools/iracing/import_iracing.py <iracing export> --series cup --data data/cup-2027.json --stewards <stewards file>`
+   - A steward stage lap is scored from the export's lap-by-lap top 10 (`tops`). Exports made before Nov 2026 lack
+     `tops`; re-export the race.
+   - Incident points (not overturned) and applied penalties become `stw-<race>-<id>` penalties, replacing earlier copies.
+   - The stage uses 33% of the scheduled distance (iRacing's `race_laps`), so overtime doesn't move it.
