@@ -65,7 +65,9 @@
       2,
       1
     ],
-    "dropWorst": 0
+    "dropWorst": 0,
+    "stagePct": 0.33,
+    "stageCautionWindow": 5
   },
   "trucks": {
     "finish": [
@@ -121,6 +123,8 @@
     ],
     "fastestLap": 1,
     "duel": null,
-    "dropWorst": 0
+    "dropWorst": 0,
+    "stagePct": 0.33,
+    "stageCautionWindow": 5
   }
 }
