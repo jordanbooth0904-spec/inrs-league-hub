@@ -1,5 +1,5 @@
 {
-  "_doc": "INRS points rules. Finish points by position, stage points for the top 10 at the stage end, an optional fastest-lap bonus, Daytona Duel scale. Penalties are entered by the league and subtracted. The Chase reset is not modeled yet. Penalties come off in full, so a race total can go below 0 (SimRacerHub sometimes displays those races as 0 but still takes the full amount off the season total). A race marked nonPoints scores 0 for everyone (e.g. Cup Dover 2026). Penalties can also be season-level (off the season total, not one race).",
+  "_doc": "INRS points rules. Finish points by position, stage points for the top 10 at the stage end, an optional fastest-lap bonus, Daytona Duel scale. Penalties are entered by the league and subtracted. The Chase reset is not modeled yet. Penalties come off in full, so a race total can go below 0 (SimRacerHub sometimes displays those races as 0 but still takes the full amount off the season total). A race marked nonPoints scores 0 for everyone (e.g. Cup Dover 2026). Penalties can also be season-level (off the season total, not one race). 2027: no drop weeks (dropWorst 0); 2026 dropped each driver's 2 worst races.",
   "cup": {
     "finish": [
       55,
@@ -65,7 +65,7 @@
       2,
       1
     ],
-    "dropWorst": 2
+    "dropWorst": 0
   },
   "trucks": {
     "finish": [
@@ -121,6 +121,6 @@
     ],
     "fastestLap": 1,
     "duel": null,
-    "dropWorst": 2
+    "dropWorst": 0
   }
 }

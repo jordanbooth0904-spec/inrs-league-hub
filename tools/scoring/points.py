@@ -31,12 +31,13 @@ def score_race(series, entries, kind='race', non_points=False):
         out[e['driverId']] = {'finish': fin, 'stage': stage, 'bonus': bonus, 'pen': pen, 'total': fin + stage + bonus + pen}
     return out
 
-def standings(series, races, season_pen=None):
+def standings(series, races, season_pen=None, drop=None):
     """Season totals. races: [{'kind': 'race'|'duel', 'nonPoints': bool, 'points': score_race(...) with 'fin' added}].
     Only each driver's best N regular races count (judged before penalties; penalties always count), N = points races in the season minus RULES[series]['dropWorst']
     (Duel points always count). season_pen: {driverId: points (<= 0)} taken off the season total, not one race."""
     regular = [r for r in races if r['kind'] != 'duel' and not r.get('nonPoints')]
-    keep = max(0, len(regular) - RULES[series].get('dropWorst', 0))
+    drop = RULES[series].get('dropWorst', 0) if drop is None else drop  # pass drop=2 to re-score 2026
+    keep = max(0, len(regular) - drop)
     T, per = {}, {}
     for r in races:
         for did, p in r['points'].items():

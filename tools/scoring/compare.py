@@ -37,7 +37,7 @@ for o in d['official']['rows']:
     extra = (o.get('penPts') or 0) - raced
     if extra: spen[o['driverId']] = extra
 print('non-points races:', nonpts_rounds or 'none', '| season-level penalties:', {nm[k]: v for k, v in spen.items()} or 'none')
-S = {t['driverId']: t for t in points.standings(series, scored, spen)}
+S = {t['driverId']: t for t in points.standings(series, scored, spen, drop=2 if str(d.get('settings', {}).get('season') or d.get('year')) == '2026' else None)}
 off = d['official']; cut = off.get('chaseCutoff') or 0
 chk = [o for o in off['rows'] if o['pos'] > cut]
 miss = [(nm[o['driverId']], S.get(o['driverId'], {}).get('pts'), o['pts']) for o in chk if S.get(o['driverId'], {}).get('pts') != o['pts']]
