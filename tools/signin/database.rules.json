@@ -1,6 +1,9 @@
 {"rules":{".read":false,".write":false,
  "live":{".read":true},
  "provisional": {".read": true},
+ "site":{".read":true,".write":"auth != null && (auth.uid === 'discord:391344204871368704' || root.child('siteAdmins/' + auth.uid).val() === true)"},
+ "siteAdmins":{".read":"auth != null && auth.uid === 'discord:391344204871368704'",".write":"auth != null && auth.uid === 'discord:391344204871368704'",
+   "$uid":{".read":"auth != null && auth.uid === $uid",".validate":"newData.isBoolean() && $uid.length < 60"}},
  "stewards":{
    "admins":{".read":"auth != null && auth.uid === 'discord:391344204871368704'",".write":"auth != null && auth.uid === 'discord:391344204871368704'",
      "$uid":{".read":"auth != null && auth.uid === $uid",".validate":"newData.isBoolean() && $uid.length < 60"}},

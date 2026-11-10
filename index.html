@@ -321,7 +321,7 @@ td.fl{color:#b06cff;font-weight:700}
 <script>
 (function(){
 "use strict";
-const TABS=[["home","Home"],["live","Live"],["standings","Standings"],["schedule","Schedule"],["tracks","Tracks"],["drivers","Drivers"],["records","Records"],["odds","Sportsbook"],["recaps","Recaps"],["penalties","Penalties"],["rules","Rules"],["admin","Admin"]];
+const TABS=[["home","Home"],["live","Live"],["standings","Standings"],["schedule","Schedule"],["tracks","Tracks"],["drivers","Drivers"],["records","Records"],["odds","Sportsbook"],["recaps","Recaps"],["penalties","Penalties"],["rules","Rules"],["siteadmin","Admin"],["admin","Admin"]];
 const DEFAULT_POINTS=[40].concat(Array.from({length:35},(_,i)=>35-i));
 const DEF={name:"INRS Cup Series",season:"2026",discord:"",sponsorName:"40XLI Driver Academy",sponsorUrl:"",hubUrl:"",youtubeUrl:"",liveUrl:"",maxPerRace:66,points:{table:DEFAULT_POINTS,ledLap:1,mostLed:1},rules:[]};
 
@@ -357,12 +357,13 @@ function applySel(){const M=S.M,a=isMain()?null:S.arch[S.sel];
   const i=selInfo(),ih=((S.idx||{}).history||{})[i.series];
   /* Track history comes from seasons.json for every season (built from the season files), so the current season and the archives always agree.
      The copy in data.json / the Claude database is only a fallback for when seasons.json can't load. */
-  if(!a){S.drivers=M.drivers;S.races=M.races;S.penalties=M.penalties;S.official=M.official;S.history=ih?ih.filter(h=>+h[0]<+i.year):M.history;S.settingsRaw=M.settingsRaw;return;}
-S.drivers=a.drivers||[];S.races=a.races||[];S.penalties=a.penalties||[];S.official=a.official||null;
-  S.history=(ih||[]).filter(h=>+h[0]<+i.year);S.settingsRaw=Object.assign({},M.settingsRaw||{},a.settings||{});}
+  const lk=S.site&&S.site.settings?Object.fromEntries(["liveUrl","youtubeUrl","sponsorUrl"].filter(k=>S.site.settings[k]).map(k=>[k,S.site.settings[k]])):{};
+  if(!a){S.drivers=M.drivers;S.races=ovRaces(i.key,M.races||[]);S.penalties=M.penalties;S.official=M.official;S.history=ih?ih.filter(h=>+h[0]<+i.year):M.history;S.settingsRaw=S.static?Object.assign({},M.settingsRaw||{},lk):M.settingsRaw;return;}
+S.drivers=a.drivers||[];S.races=ovRaces(i.key,a.races||[]);S.penalties=a.penalties||[];S.official=a.official||null;
+  S.history=(ih||[]).filter(h=>+h[0]<+i.year);S.settingsRaw=Object.assign({},M.settingsRaw||{},a.settings||{},S.static?lk:{});}
 /* The address bar mirrors the page: #view, #view/season, or #view/season/item for a driver, career, Wrapped card or track.
    Every move to a new page adds a browser history entry, so Back and Forward work and pages can be shared as links. */
-const VIEWS=v=>TABS.some(t=>t[0]===v)||["compare","career","bets","board","wrapped","legacy","awards","provisional","steward"].includes(v);
+const VIEWS=v=>TABS.some(t=>t[0]===v)||["compare","career","bets","board","wrapped","legacy","awards","provisional","steward","siteadmin"].includes(v);
 function hashFor(){const sub=S.view==="drivers"?S.driverSel:S.view==="career"?S.careerId:S.view==="wrapped"?S.wrapId:S.view==="tracks"?S.trackSel:null;
   return"#"+S.view+(sub?"/"+S.sel+"/"+encodeURIComponent(sub):isMain()?"":"/"+S.sel);}
 function setHash(replace){if(S.routing)return;try{const h=hashFor();if(h===location.hash)return;if(replace||!location.hash)history.replaceState(null,"",h);else history.pushState(null,"",h);}catch(e){}}
@@ -578,7 +579,7 @@ V.schedule=()=>{const c=S.calc;if(!c.races.length)return'<div class="lt">'+esc(c
   return'<section><div class="lt">'+esc(c.st.season)+' schedule</div>'+hubBar("League page on SimRacerHub")+'<div class="list">'+c.races.map(r=>{
     const done=r.status==="complete"&&(r.results||[]).length,isNext=c.next&&c.next.id===r.id,open=S.raceOpen===r.id;
     const w=done?r.results.find(x=>int(x.fin)===1):null,rec=safeUrl(r.recapUrl);
-    return'<article class="race'+(isNext?" isnext":"")+'" id="race-'+esc(r.id)+'"><div class="racehead"><div class="rnd"><small>Rnd</small><b>'+esc(r.round??"?")+'</b></div><div style="min-width:0"><div class="racetitle">'+esc(r.track||"Track TBA")+'</div><div class="racesub">'+fmtDate(r.date)+(fmtTime(r.date,r.dateOnly)?" · "+fmtTime(r.date,r.dateOnly):"")+(r.laps?" · "+esc(r.laps)+" laps":"")+(r.stageLap&&!r.exhibition&&!r.duel?" · stage lap "+esc(r.stageLap):"")+"</div>"+(r.name?'<div class="small muted">'+esc(r.name)+"</div>":"")+(r.note?'<div class="small" style="color:var(--accent)">'+esc(r.note)+"</div>":"")+
+    return'<article class="race'+(isNext?" isnext":"")+'" id="race-'+esc(r.id)+'"><div class="racehead"><div class="rnd"><small>Rnd</small><b>'+esc(r.round??"?")+'</b></div><div style="min-width:0"><div class="racetitle">'+esc(r.track||"Track TBA")+'</div><div class="racesub">'+fmtDate(r.date)+(fmtTime(r.date,r.dateOnly)?" · "+fmtTime(r.date,r.dateOnly):"")+(r.laps?" · "+esc(r.laps)+" laps":"")+((r.stageFixed||r.stageLap)&&!r.exhibition&&!r.duel?" · stage lap "+esc(r.stageFixed||r.stageLap):"")+"</div>"+(r.name?'<div class="small muted">'+esc(r.name)+"</div>":"")+(r.note?'<div class="small" style="color:var(--accent)">'+esc(r.note)+"</div>":"")+
       (w?'<div class="small" style="margin-top:4px">Winner: '+dlink(w.driverId)+"</div>":"")+'</div><div class="raceside">'+(r.exhibition?'<span class="pill">'+(r.duel?noStatTag(r):"Exhibition")+'</span>':"")+(done?'<span class="pill final">Final</span>':isNext?'<span class="pill next">Next</span>':'<span class="pill">Upcoming</span>')+"</div></div>"+
       ('<div class="raceactions">'+(done?'<button class="btn sm" data-act="race" data-arg="'+esc(r.id)+'" aria-expanded="'+open+'">'+(open?"Hide results":"Results")+"</button>"+(open?'<button class="btn sm ghost" data-act="resultimg" data-arg="'+esc(r.id)+'">Results image</button>':""):"")+(rec?'<a class="btn sm primary" href="'+esc(rec)+'" target="_blank" rel="noopener">Watch recap</a>':"")+'<button class="btn sm ghost" data-act="track" data-arg="'+esc(trackOf(r.track).key)+'">Track history</button>'+(isNext?liveBtn(r):"")+"</div>")+
       (open&&done?'<div class="racebody">'+resultsTable(r)+raceLapsPanel(r)+"</div>":"")+"</article>";}).join("")+"</div></section>";};
@@ -1060,7 +1061,8 @@ function liveFor(r){const L=S.live;if(!L||!L.meta||!r)return null;if(trackOf(L.m
 const PROV_RULES={finish:[55].concat(Array.from({length:35},(_,i)=>35-i)),stage:[10,9,8,7,6,5,4,3,2,1],fastest:1,duel:[10,9,8,7,6,5,4,3,2,1]};
 function cleanProv(j){if(!j||typeof j!=="object")return[];const N=v=>{const n=Number(v);return v!=null&&v!==""&&isFinite(n)?n:0;},T=v=>v==null?"":String(v).slice(0,80);
   return Object.values(j).filter(x=>x&&typeof x==="object"&&Array.isArray(x.results)).slice(-20).map(x=>({subsession:N(x.subsession),track:T(x.track),config:T(x.config),at:N(x.at),updated:N(x.updated),
-    laps:N(x.laps),stageLap:N(x.stageLap),stage:(Array.isArray(x.stage)?x.stage:[]).slice(0,10).map(N),fastest:N(x.fastest),final:x.final===true,
+    laps:N(x.laps),stageLap:N(x.stageLap),stage:(Array.isArray(x.stage)?x.stage:[]).slice(0,10).map(N),
+    tops:Object.fromEntries(Object.entries(x.tops&&typeof x.tops==="object"?x.tops:{}).slice(0,1000).filter(([k,v])=>/^\d+$/.test(k)&&Array.isArray(v)).map(([k,v])=>[k,v.slice(0,10).map(N)])),fastest:N(x.fastest),final:x.final===true,
     results:x.results.filter(r=>r&&typeof r==="object").slice(0,80).map(r=>({cust:N(r.cust),name:T(r.name),car:T(r.car),fin:N(r.fin),start:N(r.start),laps:N(r.laps),led:N(r.led),inc:N(r.inc),best:N(r.best),status:T(r.status)||"Running"}))}));}
 function provWindow(r){if(!r||!r.date)return false;const t=new Date(r.date).getTime(),n=Date.now();return n>t&&n<t+36*3600e3;}
 async function pollProv(force){const u=liveDb(),c=S.calc;if(!u||document.hidden||!c||!c.next)return;if(!force&&!provWindow(c.next))return;const ser=selInfo().series;
@@ -1069,9 +1071,10 @@ async function pollProv(force){const u=liveDb(),c=S.calc;if(!u||document.hidden|
 setInterval(pollProv,60000);setTimeout(()=>pollProv(true),2500);
 /* The provisional race for the next unscored race on the schedule: same track, run on that race night. */
 function provRace(){const c=S.calc,r=c&&c.next,L=(S.prov||{})[selInfo().series];if(!r||!L||!L.length||!r.date)return null;const t=new Date(r.date).getTime();
-  const p=L.filter(x=>trackOf(x.track).key===trackOf(r.track).key&&x.at>t-4*3600e3&&x.at<t+8*3600e3&&x.results.length).sort((a,b)=>b.updated-a.updated)[0];if(!p)return null;
+  let p=L.filter(x=>trackOf(x.track).key===trackOf(r.track).key&&x.at>t-4*3600e3&&x.at<t+8*3600e3&&x.results.length).sort((a,b)=>b.updated-a.updated)[0];if(!p)return null;
   const byCust={};S.drivers.forEach(d=>{if(String(d.custId||""))byCust[String(d.custId)]=d.id;});
-  const duel=!!r.duel,stg=new Map(p.stage.map((cu,i)=>[cu,i+1]));
+  const duel=!!r.duel,sdx=((((S.stw||{})[selInfo().key])||{}).races||{})[r.id],force=(sdx&&sdx.stageLap)||r.stageFixed||0,ft=force&&p.tops[force];
+  if(ft){p=Object.assign({},p,{stage:ft,stageLap:force});}const stg=new Map(p.stage.map((cu,i)=>[cu,i+1]));
   const rows=p.results.filter(x=>x.fin).sort((a,b)=>a.fin-b.fin).map(x=>{const id=byCust[String(x.cust)]||(drv(slugId(x.name))?slugId(x.name):null),sp=duel?0:stg.get(x.cust)||0;
     const fin=duel?(PROV_RULES.duel[x.fin-1]||0):(PROV_RULES.finish[x.fin-1]||1),stage=sp?PROV_RULES.stage[sp-1]||0:0,bonus=!duel&&p.fastest&&x.cust===p.fastest?PROV_RULES.fastest:0;
     return Object.assign({},x,{driverId:id,stagePos:sp,ptsFin:fin,ptsStage:stage,ptsBonus:bonus,pts:fin+stage+bonus});});
@@ -1985,8 +1988,8 @@ V.steward=()=>{const m=me(),st=stwStore(),back='<div><button class="btn sm ghost
     '<div class="row" style="margin-top:10px;gap:8px;align-items:center">'+(sd.published?'<span class="provtag" style="background:var(--ok);color:#fff">Published</span><button class="btn sm ghost" data-act="stwpub" data-arg="0">Unpublish</button>':'<span class="provtag">Draft</span><button class="btn sm primary" data-act="stwpub" data-arg="1">Publish report</button>')+
     '<button class="btn sm" data-act="stwcopy">Copy report for Discord</button><span class="hint">'+plural(field.size,"driver")+" in this race</span></div></div>";
   // stage
-  const base=num(r.stageLap,0)||(r.laps?Math.floor(num(r.laps,0)*0.33):0);
-  h+=isDuel(r)||r.exhibition?"":'<div class="panel"><div class="lt">Stage</div><p class="hint" style="margin-top:0">By rule the stage is at lap '+(base||"?")+' (33%), or on the lap after a caution that starts within 5 laps of it. Set a lap here only to override the rule (e.g. Indy, or a stage the system got wrong). The official import uses this lap.</p><div class="fgrid">'+
+  const base=num(r.stageFixed,0)||num(r.stageLap,0)||(r.laps?Math.floor(num(r.laps,0)*0.33):0);
+  h+=isDuel(r)||r.exhibition?"":'<div class="panel"><div class="lt">Stage</div><p class="hint" style="margin-top:0">'+(r.stageFixed?"The schedule fixes this race's stage at lap "+base+" (set in Admin).":"By rule the stage is at lap "+(base||"?")+" (33%), or on the lap after a caution that starts within 5 laps of it.")+' Set a lap here only to override the rule (e.g. Indy, or a stage the system got wrong). The official import uses this lap.</p><div class="fgrid">'+
     '<label class="f">Stage lap override<input id="stwStageLap" inputmode="numeric" placeholder="Use the rule" value="'+(sd.stageLap||"")+'"></label><label class="f">Note<input id="stwStageNote" value="'+esc(sd.stageNote)+'" placeholder="Why it was changed"></label></div>'+
     '<div class="row" style="margin-top:10px"><button class="btn sm primary" data-act="stwstage">Save stage</button></div></div>';
   // incident form
@@ -2037,6 +2040,98 @@ const STW_ACT={
     if(await authPut("stewards/admins/"+u,true)===null)return toast("Couldn't add that steward.",true);toast("Steward added.");STW_ACT.stwlist();},
   async stwunadmin(u){if(!confirm("Remove this steward?"))return;await authPut("stewards/admins/"+u,null);toast("Steward removed.");STW_ACT.stwlist();}};
 
+/* ---------- league admin (website) ----------
+   Behind Discord sign-in. Jordan (STW_OWNER) is the only admin until he adds someone at /siteAdmins/<uid>.
+   Edits are stored in the database at /site (public read) and layered over the season files when the page loads:
+   /site/overrides/<season>/<raceId> changes a scheduled race (date, track, name, laps, stage lap, note, non-points,
+   removed) or adds one (added: true); /site/settings holds the watch-live/YouTube/sponsor links and an announcement
+   banner. The iRacing import reads the same overrides (tools/iracing/extract_admin.js) so the files catch up. */
+const isSiteAdminMe=()=>{const m=me();return!!m&&(m.uid===STW_OWNER||!!(S.siteAdmin&&S.siteAdmin[m.uid]));};
+function cleanSite(j){const o={settings:{},overrides:{}};if(!j||typeof j!=="object")return o;const T=(v,n)=>v==null?"":String(v).slice(0,n||200);
+  const st=j.settings&&typeof j.settings==="object"?j.settings:{};["liveUrl","youtubeUrl","sponsorUrl"].forEach(k=>{if(st[k])o.settings[k]=T(st[k],300);});
+  if(st.banner&&typeof st.banner==="object"&&st.banner.text)o.settings.banner={text:T(st.banner.text,300),link:T(st.banner.link,300),until:T(st.banner.until,10)};
+  const ov=j.overrides&&typeof j.overrides==="object"?j.overrides:{};
+  Object.entries(ov).forEach(([season,races])=>{if(!/^(cup|trucks|xfinity)-20\d\d$/.test(season)||!races||typeof races!=="object")return;o.overrides[season]={};
+    Object.entries(races).forEach(([id,v])=>{if(!v||typeof v!=="object"||!/^[\w-]{1,12}$/.test(id))return;const r={};
+      if(v.date&&!isNaN(new Date(v.date)))r.date=T(v.date,40);["track","name","note"].forEach(k=>{if(v[k]!=null)r[k]=T(v[k],120);});
+      ["laps","stageLap","round"].forEach(k=>{if(v[k]!=null&&isFinite(+v[k]))r[k]=+v[k];});["nonPoints","removed","added"].forEach(k=>{if(v[k]===true)r[k]=true;});o.overrides[season][id]=r;});});
+  return o;}
+async function loadSite(){const u=liveDb();if(!u)return;try{const r=await fetch(u+"/site.json",{cache:"no-store"});if(!r.ok)return;S.site=cleanSite(await r.json());applySel();draw();}catch(e){}}
+/* The season's races with the admin's schedule changes applied (originals are never modified). */
+function ovRaces(key,races){const O=S.site&&S.site.overrides[key];if(!O)return races;const out=[];
+  races.forEach(r=>{const v=O[r.id];if(v&&v.removed)return;if(!v){out.push(r);return;}const c=Object.assign({},r,v);if(v.stageLap!=null)c.stageFixed=v.stageLap;if(v.nonPoints)c.exhibition=true;out.push(c);});
+  Object.entries(O).forEach(([id,v])=>{if(v.added&&!v.removed&&!races.some(r=>r.id===id))out.push(Object.assign({id,round:v.round||races.length+1,status:"scheduled",results:[],recapUrl:"",dateOnly:true},v,v.nonPoints?{exhibition:true}:{},v.stageLap!=null?{stageFixed:v.stageLap}:{}));});
+  return markDuels(out);}
+function siteBanner(){const b=S.site&&S.site.settings.banner;if(!b||!b.text)return"";if(b.until&&new Date(b.until+"T23:59:59")<new Date())return"";const l=safeUrl(b.link);
+  return'<div class="notice" style="border-color:var(--accent)">'+esc(b.text)+(l?' <a href="'+esc(l)+'" target="_blank" rel="noopener">More</a>':"")+"</div>";}
+/* America/New_York wall time -> ISO with the right offset (EST or EDT). */
+function etISO(day,time){const[y,m,d]=day.split("-").map(Number),[hh,mm]=(time||"20:00").split(":").map(Number);let t=Date.UTC(y,m-1,d,hh+5,mm);
+  for(let i=0;i<2;i++){const p=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).formatToParts(new Date(t)).map(x=>[x.type,x.value]));
+    t+=(Date.UTC(y,m-1,d,hh,mm)-Date.UTC(+p.year,p.month-1,+p.day,+p.hour%24,+p.minute));}
+  const off=Math.round((Date.UTC(y,m-1,d,hh,mm)-t)/60000),sg=off<0?"-":"+",a=Math.abs(off);
+  return day+"T"+String(hh).padStart(2,"0")+":"+String(mm).padStart(2,"0")+":00"+sg+String(Math.floor(a/60)).padStart(2,"0")+":"+String(a%60).padStart(2,"0");}
+function etParts(iso){try{const p=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).formatToParts(new Date(iso)).map(x=>[x.type,x.value]));
+  return{day:p.year+"-"+p.month+"-"+p.day,time:String(+p.hour%24).padStart(2,"0")+":"+p.minute};}catch(e){return{day:"",time:"20:00"};}}
+async function siteAdminCheck(){const m=me(),u=liveDb();if(!m||m.uid===STW_OWNER||S.siteAdminChecked||!u)return;S.siteAdminChecked=true;
+  try{const t=await idToken();if(!t)return;const r=await fetch(u+"/siteAdmins/"+encodeURIComponent(m.uid)+".json?auth="+encodeURIComponent(t),{cache:"no-store"});if(r.ok&&(await r.json())===true){(S.siteAdmin=S.siteAdmin||{})[m.uid]=true;draw();}}catch(e){}}
+async function sitePut(path,val,msg){if(!isSiteAdminMe())return toast("Only league admins can do that.",true);const ok=await authPut(path,val);
+  if(ok===null&&val!==null){toast("Couldn't save. Check you're signed in as an admin.",true);return false;}if(msg)toast(msg);await loadSite();return true;}
+V.siteadmin=()=>{const m=me();
+  if(!authOn())return empty("Admin isn't available here","Open the league website to use the admin tools.");
+  if(!m)return'<section class="stack"><div class="panel"><div class="lt">League admin</div><p>Sign in with Discord to manage the league site.</p>'+authBar()+"</div></section>";
+  siteAdminCheck();
+  if(!isSiteAdminMe())return'<section class="stack"><div class="panel"><div class="lt">League admin</div><p>You\'re signed in as <b>'+esc(m.name)+"</b>, but you don't have admin access. Send Jordan your ID if you need it:</p><p><code>"+esc(m.uid)+"</code></p>"+authBar()+"</div></section>";
+  const i=selInfo(),races=S.races,st=(S.site&&S.site.settings)||{},O=(S.site&&S.site.overrides[i.key])||{},f=S.forms.adm,ban=st.banner||{};
+  const inp=(id,v,a)=>'<input id="'+id+'" value="'+esc(v==null?"":v)+'" '+(a||"")+">";
+  let h='<section class="stack"><div class="sechead"><div class="lt">League admin</div><div class="row">'+authBar()+"</div></div>";
+  // announcement + links
+  h+='<div class="panel"><div class="lt">Announcement banner</div><p class="hint" style="margin-top:0">Shows at the top of every page until the date you pick. Leave the text empty to turn it off.</p><div class="fgrid">'+
+    field("Message",inp("admBanText",ban.text,'placeholder="e.g. Rain delay: tonight\'s race moves to 8:30 PM"'))+field("Link (optional)",inp("admBanLink",ban.link))+field("Show until",inp("admBanUntil",ban.until,'type="date"'))+
+    '</div><div class="row" style="margin-top:10px"><button class="btn sm primary" data-act="admbanner">Save banner</button></div></div>';
+  const s0=Object.assign({},(S.M&&S.M.settingsRaw)||{});
+  h+='<div class="panel"><div class="lt">Site links</div><div class="fgrid">'+field("Watch live (YouTube)",inp("admLive",st.liveUrl||s0.liveUrl))+field("YouTube channel",inp("admYt",st.youtubeUrl||s0.youtubeUrl))+field("Sponsor (40XLI)",inp("admSp",st.sponsorUrl||s0.sponsorUrl))+
+    '</div><div class="row" style="margin-top:10px"><button class="btn sm primary" data-act="admlinks">Save links</button></div></div>';
+  // schedule
+  h+='<div class="panel" style="padding:6px 8px"><div class="sechead" style="margin:8px"><div class="lt">Schedule · '+esc(i.year+" "+serName(i.series,i.year))+'</div><span class="hint">Pick another season at the top of the page</span></div>';
+  if(f){const r=races.find(x=>x.id===f.id)||{},p=etParts(f.date||r.date||"");
+    h+='<div style="margin:8px"><div class="lt">'+(f.isNew?"Add a race":"Edit round "+esc(r.round??"?"))+'</div><div class="fgrid">'+field("Date",inp("admDay",f.day||p.day,'type="date"'))+field("Start (Eastern)",inp("admTime",f.time||p.time,'type="time"'))+
+      field("Track",inp("admTrack",f.track!=null?f.track:r.track))+field("Event name",inp("admName",f.name!=null?f.name:r.name))+field("Laps",inp("admLaps",f.laps!=null?f.laps:r.laps,'inputmode="numeric"'))+
+      field("Stage lap (fixed)",inp("admStage",f.stageLap!=null?f.stageLap:(O[f.id]||{}).stageLap,'inputmode="numeric" placeholder="Use the 33% rule"'))+field("Note",inp("admNote",f.note!=null?f.note:r.note))+
+      (f.isNew?field("Round",inp("admRound",races.length+1,'inputmode="numeric"')):"")+'</div><label class="row" style="gap:8px;margin-top:10px"><input type="checkbox" id="admNP" style="width:auto"'+((O[f.id]||{}).nonPoints||r.exhibition?" checked":"")+"> Non-points race</label>"+
+      '<p class="hint">A fixed stage lap is used for scoring this race instead of the 33% rule (and the caution window). Leave it empty to use the rule.</p><div class="row"><button class="btn sm primary" data-act="admsave">Save race</button><button class="btn sm ghost" data-act="admcancel">Cancel</button></div></div>';}
+  h+='<div class="scroll"><table class="tbl"><thead><tr><th>Rd</th><th>Date</th><th>Track</th><th class="n">Laps</th><th class="n">Stage</th><th>Changed</th><th></th></tr></thead><tbody>'+
+    races.map(r=>{const v=O[r.id];return"<tr><td>"+esc(r.round??"?")+"</td><td>"+fmtShort(r.date)+" "+esc(fmtTime(r.date)||"")+"</td><td>"+esc(trackOf(r.track).label)+(r.name?'<div class="small muted">'+esc(r.name)+"</div>":"")+'</td><td class="n">'+esc(r.laps||"–")+'</td><td class="n">'+(r.stageFixed?"<b>"+r.stageFixed+"</b> (fixed)":r.stageLap?esc(r.stageLap):"–")+"</td><td>"+(v?'<span class="provtag">Edited</span>':"")+'</td><td><div class="row" style="flex-wrap:nowrap">'+
+      (r.status==="complete"?'<span class="muted small">Run</span>':'<button class="btn sm" data-act="admedit" data-arg="'+esc(r.id)+'">Edit</button>')+(v?'<button class="btn sm ghost" data-act="admreset" data-arg="'+esc(r.id)+'">Undo edits</button>':"")+(r.status!=="complete"?'<button class="btn sm ghost" data-act="admremove" data-arg="'+esc(r.id)+'">Remove</button>':"")+"</div></td></tr>";}).join("")+
+    '</tbody></table></div><div class="row" style="margin:10px 8px">'+'<button class="btn sm" data-act="admadd">Add a race</button>'+(Object.values(O).some(v=>v.removed)?'<button class="btn sm ghost" data-act="admrestore">Bring back removed races</button>':"")+"</div></div>";
+  // access (owner only)
+  if(m.uid===STW_OWNER){const row=(u,kind)=>'<div class="adminrow"><div class="t"><code>'+esc(u)+'</code></div><button class="btn sm ghost" data-act="admrevoke" data-arg="'+esc(kind+"|"+u)+'">Remove</button></div>';
+    h+='<div class="panel"><div class="lt">Who has access</div><p class="hint" style="margin-top:0">You\'re the owner and always have full access. Nobody else can use Admin or Steward tools until you add them here. People see their ID on the Admin page after signing in with Discord.</p>'+
+      (S.accessList?'<div class="lt" style="margin-top:6px">Admins</div>'+(Object.keys(S.accessList.admins).map(u=>row(u,"siteAdmins")).join("")||'<p class="hint">Only you.</p>')+'<div class="lt" style="margin-top:10px">Stewards</div>'+(Object.keys(S.accessList.stewards).map(u=>row(u,"stewards/admins")).join("")||'<p class="hint">Only you.</p>'):'<button class="btn sm ghost" data-act="admaccess">Show who has access</button>')+
+      '<div class="fgrid" style="margin-top:12px">'+field("Their ID",inp("admNewId","",'placeholder="discord:123456789"'))+'</div><div class="row" style="margin-top:10px"><button class="btn sm" data-act="admgrant" data-arg="siteAdmins">Add as admin</button><button class="btn sm" data-act="admgrant" data-arg="stewards/admins">Add as steward</button></div></div>';}
+  h+='<div class="panel"><div class="lt">Steward tools</div><p class="hint" style="margin-top:0">Incidents, penalties and a race\'s stage after it\'s run.</p><button class="btn sm" data-act="steward">Open steward tools</button></div>';
+  return h+"</section>";};
+const val=id=>{const e=document.getElementById(id);return e?String(e.value||"").trim():"";};
+const ADM_ACT={
+  siteadmin(){S.view="siteadmin";setHash();draw();window.scrollTo(0,0);},
+  async admbanner(){const t=val("admBanText");await sitePut("site/settings/banner",t?{text:t,link:val("admBanLink"),until:val("admBanUntil")}:null,t?"Banner saved.":"Banner turned off.");},
+  async admlinks(){const v={liveUrl:val("admLive"),youtubeUrl:val("admYt"),sponsorUrl:val("admSp")};for(const k in v)if(v[k]&&!safeUrl(v[k]))return toast("That doesn't look like a web address.",true);
+    for(const k in v)await sitePut("site/settings/"+k,v[k]||null,null);toast("Links saved.");},
+  admedit(id){S.forms.adm={id};draw();window.scrollTo(0,document.body.scrollHeight/3);},
+  admadd(){S.forms.adm={id:"x"+Date.now().toString(36).slice(-6),isNew:true};draw();},
+  admcancel(){S.forms.adm=null;draw();},
+  async admsave(){const f=S.forms.adm;if(!f)return;const i=selInfo(),day=val("admDay"),tm=val("admTime")||"20:00";if(!/^\d{4}-\d\d-\d\d$/.test(day))return toast("Pick a date.",true);
+    const r=S.races.find(x=>x.id===f.id)||{},O=((S.site&&S.site.overrides[i.key])||{})[f.id]||{},v=Object.assign({},O,{date:etISO(day,tm),track:val("admTrack"),name:val("admName"),note:val("admNote")||null,laps:int(val("admLaps"))||null,stageLap:int(val("admStage"))||null,nonPoints:document.getElementById("admNP").checked||null});
+    if(!v.track)return toast("Enter the track.",true);if(f.isNew){v.added=true;v.round=int(val("admRound"))||S.races.length+1;}
+    if(await sitePut("site/overrides/"+i.key+"/"+f.id,v,"Race saved."))S.forms.adm=null;draw();},
+  async admreset(id){if(!confirm("Undo all edits to this race?"))return;await sitePut("site/overrides/"+selInfo().key+"/"+id,null,"Back to the original.");},
+  async admremove(id){if(!confirm("Remove this race from the schedule? You can bring it back later."))return;const O=((S.site&&S.site.overrides[selInfo().key])||{})[id]||{};await sitePut("site/overrides/"+selInfo().key+"/"+id,Object.assign({},O,{removed:true}),"Race removed.");},
+  async admrestore(){const O=(S.site&&S.site.overrides[selInfo().key])||{};for(const[id,v]of Object.entries(O))if(v.removed){const n=Object.assign({},v);delete n.removed;await sitePut("site/overrides/"+selInfo().key+"/"+id,Object.keys(n).length?n:null,null);}toast("Removed races are back.");},
+  async admaccess(){const t=await idToken(),get=async p=>{try{const r=await fetch(liveDb()+"/"+p+".json?auth="+encodeURIComponent(t),{cache:"no-store"});return r.ok?(await r.json()||{}):{};}catch(e){return{};}};
+    S.accessList={admins:await get("siteAdmins"),stewards:await get("stewards/admins")};draw();},
+  async admgrant(kind){const u=val("admNewId");if(!/^discord:\d{5,30}$/.test(u))return toast("An ID looks like discord:123456789.",true);if(u===STW_OWNER)return toast("That's you; you already have access.");
+    if(await authPut(kind+"/"+u,true)===null)return toast("Couldn't add them.",true);toast(kind==="siteAdmins"?"Admin added.":"Steward added.");ADM_ACT.admaccess();},
+  async admrevoke(a){const[kind,u]=String(a).split("|");if(!confirm("Remove their access?"))return;await authPut(kind+"/"+u,null);toast("Access removed.");ADM_ACT.admaccess();}};
+
 const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false;setHash();draw();window.scrollTo(0,0);},legacyall:()=>{S.legacyAll=!S.legacyAll;draw();},rivser:a=>{S.rivSer=a||"";render();},rivyr:a=>{S.rivYr=+a||0;render();},
   ...RW_ACT,
   ...DOTR_ACT,
@@ -2047,6 +2142,7 @@ const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false
   ...BOOK_ACT,
   ...AUTH_ACT,
   ...STW_ACT,
+  ...ADM_ACT,
   oddsmkt(k){S.oddsMkt=k;draw();},
   career(id){S.view="career";S.careerId=id;setHash();draw();window.scrollTo(0,0);},
   recser(k){S.recSeries=k;draw();},
@@ -2182,24 +2278,24 @@ document.addEventListener("focusout",()=>setTimeout(()=>{if(S.pending&&!isTyping
 let gcLast=null;
 function gcTrack(){try{const g=window.goatcounter;if(!S.static||!g||typeof g.count!=="function")return;
   const key="/"+S.view+(isMain()?"":"/"+S.sel);if(key===gcLast)return;gcLast=key;
-  const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="legacy"?"Series legacy":S.view==="awards"?"Awards":S.view==="provisional"?"Provisional results":S.view==="steward"?"Steward tools":S.view==="compare"?"Head to head":S.view])[1];
+  const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="legacy"?"Series legacy":S.view==="awards"?"Awards":S.view==="provisional"?"Provisional results":S.view==="steward"?"Steward tools":S.view==="siteadmin"?"League admin":S.view==="compare"?"Head to head":S.view])[1];
   g.count({path:key,title:tab+(isMain()?"":" · "+S.sel)});}catch(e){}}
 window.__gcReady=()=>{gcLast=null;gcTrack();};
 function draw(){S.calc=compute();if(S.mode!=="loading")setHash();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
   document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
-  S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy"||S.view==="awards")&&t[0]==="records")||(S.view==="provisional"&&t[0]==="home")||(S.view==="steward"&&t[0]==="penalties")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
+  S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="siteadmin"||(S.static&&isSiteAdminMe()))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy"||S.view==="awards")&&t[0]==="records")||(S.view==="provisional"&&t[0]==="home")||(S.view==="steward"&&t[0]==="penalties")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
   if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
   const sw=document.getElementById("switch");if(sw){const h=switcher();sw.hidden=!h;if(!isTyping()||!sw.contains(document.activeElement))sw.innerHTML=h;}
   const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"||S.selLoading?loading():(V[S.view]||V.home)();
-  document.getElementById("main").innerHTML=notice()+(S.view==="bets"||S.view==="live"?"":archBar())+body;drawSlip();if(S.loaded&&!S.selLoading)gcTrack();
+  document.getElementById("main").innerHTML=notice()+siteBanner()+(S.view==="bets"||S.view==="live"?"":archBar())+body;drawSlip();if(S.loaded&&!S.selLoading)gcTrack();
   const dc=safeUrl(st.discord),sp=safeUrl(st.sponsorUrl);
-  document.getElementById("foot").innerHTML='<span class="presented">Presented by <b>'+esc(st.sponsorName||"40XLI")+"</b></span>"+(dc?'<a class="btn sm ghost" href="'+esc(dc)+'" target="_blank" rel="noopener">Discord</a>':"")+(sp?'<a class="btn sm ghost" href="'+esc(sp)+'" target="_blank" rel="noopener">'+esc(st.sponsorName||"Sponsor")+"</a>":"");}
+  document.getElementById("foot").innerHTML='<span class="presented">Presented by <b>'+esc(st.sponsorName||"40XLI")+"</b></span>"+(dc?'<a class="btn sm ghost" href="'+esc(dc)+'" target="_blank" rel="noopener">Discord</a>':"")+(sp?'<a class="btn sm ghost" href="'+esc(sp)+'" target="_blank" rel="noopener">'+esc(st.sponsorName||"Sponsor")+"</a>":"")+(S.static&&authOn()?'<button class="btn sm ghost" data-act="siteadmin" style="margin-left:auto;opacity:.7">Admin</button>':"");}
 
 function markReady(k){S.ready[k]=true;S.loaded=S.ready.s&&S.ready.d&&S.ready.r&&S.ready.p&&S.ready.o;render();}
 function onErr(e){if(e&&e.code==="revoked"){S.mode="nodb";}render();}
 async function loadStatic(){try{const r=await fetch("data.json",{cache:"no-store"});if(!r.ok)throw 0;const d=await r.json();
   S.static=true;Object.assign(S.M,{history:d.history||[],settingsRaw:d.settings||null,drivers:d.drivers||[],races:markDuels(d.races),penalties:d.penalties||[],official:d.official||null});applySel();
-  S.mode="live";S.admin=false;S.loaded=true;S.updated=d.updated||"";}catch(e){S.mode="offline";}draw();}
+  S.mode="live";S.admin=false;S.loaded=true;S.updated=d.updated||"";}catch(e){S.mode="offline";}draw();loadSite();if(me())siteAdminCheck();}
 async function loadIndex(){try{const r=await fetch("data/seasons.json",{cache:"no-store"});if(!r.ok)return;S.idx=await r.json();applySel();draw();}catch(e){}}
 window.addEventListener("popstate",route);window.addEventListener("hashchange",route);
 async function boot(){await finishSignIn();if(S.authMsg)setTimeout(()=>toast(S.authMsg,!me()),900);const h=readHash();if(VIEWS(h.v))S.view=h.v;applySub(h.sub);const arch=h.k!==MAINKEY;if(arch)S.routing=true;draw();

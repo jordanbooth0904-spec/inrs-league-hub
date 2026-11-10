@@ -11,6 +11,8 @@
   steward decisions for each race replace that race's 'stw-' penalties first (incident points + applied penalties).
 
   --stewards FILE   the published steward reports, saved by tools/iracing/extract_stewards.js on the league site
+  --admin FILE      the admin's schedule edits, saved by tools/iracing/extract_admin.js (applied to the file first;
+                    a fixed stage lap from the schedule is used unless a steward set one for that race)
 Results are marked source 'iracing'. The Chase reset is not applied yet (see tools/scoring/README.md).
 """
 import json, os, re, sys, datetime, argparse
@@ -29,9 +31,25 @@ slug = lambda s: re.sub(r'[^a-z0-9]+', '-', s.lower()).strip('-')
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('export'); ap.add_argument('--series', required=True)
     ap.add_argument('--data', default='data.json'); ap.add_argument('--dry-run', action='store_true')
-    ap.add_argument('--stewards')
+    ap.add_argument('--stewards'); ap.add_argument('--admin')
     a = ap.parse_args()
     X = json.load(open(a.export)); D = json.load(open(a.data))
+    FIXED = {}
+    if a.admin:  # schedule edits made in the site's Admin tab
+        for rid, v in (json.load(open(a.admin)).get('overrides') or {}).items():
+            r = next((q for q in D['races'] if q['id'] == rid), None)
+            if v.get('removed'):
+                if r and r.get('status') != 'complete': D['races'].remove(r); print('  removed from schedule:', rid)
+                continue
+            if r is None:
+                if not v.get('added'): continue
+                r = {'id': rid, 'round': v.get('round') or len(D['races']) + 1, 'status': 'scheduled', 'results': [], 'recapUrl': '', 'dateOnly': True, 'srhId': None}
+                D['races'].append(r); print('  added to schedule:', rid)
+            for k in ('date', 'track', 'name', 'note', 'laps', 'round'):
+                if v.get(k) not in (None, ''): r[k] = v[k]
+            if v.get('nonPoints'): r['exhibition'] = True
+            if v.get('stageLap'): FIXED[rid] = int(v['stageLap'])
+        D['races'].sort(key=lambda q: (q.get('round') or 0))
     STW = json.load(open(a.stewards))['races'] if a.stewards else {}
     if STW:  # published steward decisions become this race's penalties (replacing earlier copies)
         today = datetime.date.today().isoformat()
@@ -75,12 +93,12 @@ def main():
         ids = {res['cust']: who(res) for res in x['results']}
         stage_ids = r.get('stageOverride') or [ids[c] for c in x['stage'] if c in ids]
         stage_lap = x['stageLap']
-        sl = (STW.get(r['id']) or {}).get('stageLap')
+        sl = (STW.get(r['id']) or {}).get('stageLap') or FIXED.get(r['id'])
         if sl and not duel:
             top = (x.get('tops') or {}).get(str(int(sl)))
             if top:
                 stage_ids, stage_lap = [ids[c] for c in top if c in ids], int(sl)
-                print('  Rd %s: steward stage lap %d' % (r['round'], stage_lap))
+                print('  Rd %s: stage lap %d (set by a steward or fixed on the schedule)' % (r['round'], stage_lap))
             else:
                 print('  Rd %s: steward set stage lap %s but this export has no lap-by-lap order; re-export the race' % (r['round'], sl))
         spos = {did: i + 1 for i, did in enumerate(stage_ids)}

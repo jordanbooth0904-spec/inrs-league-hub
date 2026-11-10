@@ -191,6 +191,10 @@ def stage_watch(ir, hist, total, lead, drivers, pos):
     """Stage points: snapshot the top 10 when the leader completes the stage lap. The stage lap is 33% of the race,
     unless a caution starts within 5 laps before (or on) it; then it is the lap after the caution starts."""
     st = hist.setdefault('stg', {'base': int(total * STAGE_PCT), 'lap': None, 'top': None})
+    tops = hist.setdefault('tops', {})
+    if lead > 0 and str(lead) not in tops:  # top 10 as each lap is completed, so a steward can re-score the stage on another lap
+        order = sorted([(int(pos[i]), i) for i in drivers if i < len(pos) and pos[i] and pos[i] > 0])
+        tops[str(lead)] = [drivers[i].get('UserID') for _, i in order[:10]]
     if st['top']:
         return
     flags = ir['SessionFlags'] or 0
@@ -220,7 +224,7 @@ def provisional(ir, wk, sess, hist, drivers, grid):
     st = hist.get('stg') or {}
     return {'subsession': wk.get('SubSessionID'), 'series': hist['series'], 'track': wk.get('TrackDisplayName', ''),
             'config': wk.get('TrackConfigName', ''), 'at': hist['start'], 'updated': int(time.time() * 1000),
-            'laps': max([o['laps'] for o in out] or [0]), 'stageLap': st.get('at'), 'stage': st.get('top') or [],
+            'laps': max([o['laps'] for o in out] or [0]), 'stageLap': st.get('at'), 'stage': st.get('top') or [], 'tops': hist.get('tops') or {},
             'fastest': min(timed, key=lambda o: o['best'])['cust'] if timed else None, 'final': (ir['SessionState'] or 0) >= 6,
             'results': sorted(out, key=lambda o: o['fin'] or 999)}
 
