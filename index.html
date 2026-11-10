@@ -290,6 +290,9 @@ textarea{min-height:110px;resize:vertical;line-height:1.45}
 .newdrv input{width:120px}
 .newdrv input.no{width:56px}
 .hint{font-size:14px;color:var(--muted)}
+.provtag{display:inline-block;font:700 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#1a1300;background:#f5c542;border-radius:4px;padding:2px 6px;vertical-align:2px}
+.provp{border:1px solid #f5c54266}
+td.fl{color:#b06cff;font-weight:700}
 .okline{font-size:14px;color:var(--ok)}
 .adminrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
 .adminrow:last-child{border-bottom:0}
@@ -358,7 +361,7 @@ S.drivers=a.drivers||[];S.races=a.races||[];S.penalties=a.penalties||[];S.offici
   S.history=(ih||[]).filter(h=>+h[0]<+i.year);S.settingsRaw=Object.assign({},M.settingsRaw||{},a.settings||{});}
 /* The address bar mirrors the page: #view, #view/season, or #view/season/item for a driver, career, Wrapped card or track.
    Every move to a new page adds a browser history entry, so Back and Forward work and pages can be shared as links. */
-const VIEWS=v=>TABS.some(t=>t[0]===v)||["compare","career","bets","board","wrapped","legacy","awards"].includes(v);
+const VIEWS=v=>TABS.some(t=>t[0]===v)||["compare","career","bets","board","wrapped","legacy","awards","provisional"].includes(v);
 function hashFor(){const sub=S.view==="drivers"?S.driverSel:S.view==="career"?S.careerId:S.view==="wrapped"?S.wrapId:S.view==="tracks"?S.trackSel:null;
   return"#"+S.view+(sub?"/"+S.sel+"/"+encodeURIComponent(sub):isMain()?"":"/"+S.sel);}
 function setHash(replace){if(S.routing)return;try{const h=hashFor();if(h===location.hash)return;if(replace||!location.hash)history.replaceState(null,"",h);else history.pushState(null,"",h);}catch(e){}}
@@ -455,7 +458,7 @@ V.home=()=>{const c=S.calc;let h="";
   else if(!c.races.length){h+='<section class="hero"><div class="eyebrow">'+esc(c.st.season)+' season</div><h1 class="track">Schedule coming soon</h1><div class="rule"></div><div class="muted">Race dates will show here as soon as they are posted.</div></section>';}
   else{const ch=c.standings[0];h+='<section class="hero"><div class="eyebrow">'+esc(c.st.season)+' season complete</div><h1 class="track">'+(ch?esc(ch.driver.name):"Season complete")+'</h1><div class="rule"></div><div class="muted">'+(ch?"Champion with "+ch.total+" points and "+plural(ch.wins,"win"):"")+"</div></section>";}
 
-  const last=c.done[c.done.length-1];let left=previewPanel();
+  const last=c.done[c.done.length-1];let left=provPanel()+previewPanel();
   if(last){const top=[...last.results].sort((a,b)=>a.fin-b.fin).slice(0,3);
     left+='<div class="panel"><div class="sechead"><div class="lt">Latest result</div><span class="muted small">'+esc(raceLabel(last))+" · "+fmtShort(last.date)+'</span></div><div class="podium">'+
       top.map(x=>{const d=drv(x.driverId);return'<div class="podrow">'+posBadge(x.fin)+'<div class="name">'+dlink(x.driverId)+'<div class="sub">'+(int(x.lapsLed)?esc(x.lapsLed)+" led · ":"")+esc(int(x.inc)||0)+"x</div></div>"+'<span class="pts">'+c.ptsFor(x,Math.max(0,...last.results.map(y=>int(y.lapsLed)||0)))+"</span></div>";}).join("")+
@@ -1048,6 +1051,51 @@ function liveFor(r){const L=S.live;if(!L||!L.meta||!r)return null;if(trackOf(L.m
   const t=new Date(r.date).getTime(),ok=x=>x&&x.updated>t-3*3600e3&&x.updated<t+6*3600e3?x:null;
   const out={practice:ok(L.practice),qualify:ok(L.qualify),race:ok(L.race),updated:L.meta.updated,active:Date.now()-L.meta.updated<180e3,session:L.meta.session};
   return out.practice||out.qualify||out.race?out:null;}
+/* ---------- provisional results ----------
+   At the checkered flag the race-night helper sends iRacing's official session results (plus the stage top 10 it
+   captured live) to /provisional/<series>. The site scores them with the league rules so results and standings show
+   within a minute, marked Provisional, until the stewards' review and the official import mark the race complete. */
+const PROV_RULES={finish:[55].concat(Array.from({length:35},(_,i)=>35-i)),stage:[10,9,8,7,6,5,4,3,2,1],fastest:1,duel:[10,9,8,7,6,5,4,3,2,1]};
+function cleanProv(j){if(!j||typeof j!=="object")return[];const N=v=>{const n=Number(v);return v!=null&&v!==""&&isFinite(n)?n:0;},T=v=>v==null?"":String(v).slice(0,80);
+  return Object.values(j).filter(x=>x&&typeof x==="object"&&Array.isArray(x.results)).slice(-20).map(x=>({subsession:N(x.subsession),track:T(x.track),config:T(x.config),at:N(x.at),updated:N(x.updated),
+    laps:N(x.laps),stageLap:N(x.stageLap),stage:(Array.isArray(x.stage)?x.stage:[]).slice(0,10).map(N),fastest:N(x.fastest),final:x.final===true,
+    results:x.results.filter(r=>r&&typeof r==="object").slice(0,80).map(r=>({cust:N(r.cust),name:T(r.name),car:T(r.car),fin:N(r.fin),start:N(r.start),laps:N(r.laps),led:N(r.led),inc:N(r.inc),best:N(r.best),status:T(r.status)||"Running"}))}));}
+function provWindow(r){if(!r||!r.date)return false;const t=new Date(r.date).getTime(),n=Date.now();return n>t&&n<t+36*3600e3;}
+async function pollProv(force){const u=liveDb(),c=S.calc;if(!u||document.hidden||!c||!c.next)return;if(!force&&!provWindow(c.next))return;const ser=selInfo().series;
+  try{const res=await fetch(u+"/provisional/"+ser+".json",{cache:"no-store"});if(!res.ok)return;const L=cleanProv(await res.json()),sig=ser+JSON.stringify(L.map(x=>[x.subsession,x.updated]));
+    if(sig!==S.provSig){S.provSig=sig;S.prov=Object.assign({},S.prov,{[ser]:L});render();}}catch(e){}}
+setInterval(pollProv,60000);setTimeout(()=>pollProv(true),2500);
+/* The provisional race for the next unscored race on the schedule: same track, run on that race night. */
+function provRace(){const c=S.calc,r=c&&c.next,L=(S.prov||{})[selInfo().series];if(!r||!L||!L.length||!r.date)return null;const t=new Date(r.date).getTime();
+  const p=L.filter(x=>trackOf(x.track).key===trackOf(r.track).key&&x.at>t-4*3600e3&&x.at<t+8*3600e3&&x.results.length).sort((a,b)=>b.updated-a.updated)[0];if(!p)return null;
+  const byCust={};S.drivers.forEach(d=>{if(String(d.custId||""))byCust[String(d.custId)]=d.id;});
+  const duel=!!r.duel,stg=new Map(p.stage.map((cu,i)=>[cu,i+1]));
+  const rows=p.results.filter(x=>x.fin).sort((a,b)=>a.fin-b.fin).map(x=>{const id=byCust[String(x.cust)]||(drv(slugId(x.name))?slugId(x.name):null),sp=duel?0:stg.get(x.cust)||0;
+    const fin=duel?(PROV_RULES.duel[x.fin-1]||0):(PROV_RULES.finish[x.fin-1]||1),stage=sp?PROV_RULES.stage[sp-1]||0:0,bonus=!duel&&p.fastest&&x.cust===p.fastest?PROV_RULES.fastest:0;
+    return Object.assign({},x,{driverId:id,stagePos:sp,ptsFin:fin,ptsStage:stage,ptsBonus:bonus,pts:fin+stage+bonus});});
+  return{race:r,p,rows,duel};}
+function provName(x){return x.driverId?dlink(x.driverId):esc(x.name||"Unknown driver");}
+function provStandings(pr){const c=S.calc,base=c.standings.filter(s=>s.starts>0||s.off),M=new Map(pr.rows.filter(x=>x.driverId).map(x=>[x.driverId,x]));
+  const rows=base.map(s=>{const x=M.get(s.driver.id);return{id:s.driver.id,name:s.driver.name,was:c.rank[s.driver.id]||null,before:s.total,add:x?x.pts:0,ran:!!x};});
+  pr.rows.filter(x=>x.driverId&&!base.some(s=>s.driver.id===x.driverId)).forEach(x=>rows.push({id:x.driverId,name:"",was:null,before:0,add:x.pts,ran:true}));
+  pr.rows.filter(x=>!x.driverId).forEach(x=>rows.push({id:null,name:x.name,was:null,before:0,add:x.pts,ran:true}));
+  rows.forEach(r=>r.total=r.before+r.add);rows.sort((a,b)=>b.total-a.total||(a.was||999)-(b.was||999));rows.forEach((r,i)=>r.pos=i+1);return rows;}
+function provPanel(){const pr=provRace();if(!pr)return"";const top=pr.rows.slice(0,5);
+  return'<div class="panel provp"><div class="sechead"><div class="lt"><span class="provtag">Provisional</span> '+esc(trackOf(pr.race.track).label)+'</div><span class="muted small">'+(pr.p.final?"Checkered flag":"Results coming in")+" · "+fmtShort(pr.race.date)+'</span></div><div class="podium">'+
+    top.map(x=>'<div class="podrow">'+posBadge(x.fin)+'<div class="name">'+provName(x)+'<div class="sub">'+(x.led?x.led+" led · ":"")+x.inc+"x"+(x.stagePos===1?" · stage win":"")+'</div></div><span class="pts">'+x.pts+"</span></div>").join("")+
+    '</div><p class="hint" style="margin-top:10px">Straight from iRacing at the checkered flag. Unofficial until the stewards review penalties.</p><div class="row" style="margin-top:10px"><button class="btn sm primary" data-act="nav" data-arg="provisional">Full results &amp; standings</button></div></div>';}
+V.provisional=()=>{const pr=provRace();if(!pr)return'<section class="stack"><div><button class="btn sm ghost" data-act="nav" data-arg="home">← Home</button></div>'+empty("No provisional results right now","Provisional results show here after the checkered flag, until the official results are posted.")+"</section>";
+  const p=pr.p,lb=pr.rows.reduce((m,x)=>x.best&&(!m||x.best<m)?x.best:m,0),fl=t=>t?(t/1000).toFixed(3):"–",st=provStandings(pr),lead=st[0]?st[0].total:0;
+  const arrow=r=>r.was==null?'<span class="muted small">new</span>':r.was===r.pos?'<span class="muted">–</span>':r.pos<r.was?'<span style="color:var(--ok)">▲'+(r.was-r.pos)+"</span>":'<span style="color:var(--bad)">▼'+(r.pos-r.was)+"</span>";
+  return'<section class="stack"><div><button class="btn sm ghost" data-act="nav" data-arg="home">← Home</button></div>'+
+    '<div class="hero"><div class="eyebrow"><span class="provtag">Provisional</span> Round '+esc(pr.race.round!=null&&pr.race.round!==""?pr.race.round:"?")+'</div><h1 class="track">'+esc(pr.race.track||p.track)+'</h1><div class="rule"></div><div class="meta"><span>'+fmtDate(pr.race.date)+"</span><span>"+p.laps+" laps</span>"+(!pr.duel&&p.stageLap?"<span>Stage on lap "+p.stageLap+"</span>":"")+'</div>'+
+    '<div class="small muted" style="margin-top:8px">These results come straight from iRacing at the checkered flag and are scored with league rules. They are unofficial: penalties and stage reviews can still change them, and the official results replace this page after the stewards\' review.</div></div>'+
+    '<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Race results</div><div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Driver</th><th class="n">#</th><th class="n">Start</th><th class="n">Laps</th><th class="n">Led</th><th class="n">Inc</th><th class="n">Best</th>'+(pr.duel?"":'<th class="n">Stage</th>')+'<th class="n">Pts</th></tr></thead><tbody>'+
+    pr.rows.map(x=>"<tr><td>"+posBadge(x.fin)+"</td><td>"+provName(x)+(isDnf(x.status)?' <span class="muted small">'+esc(x.status)+"</span>":"")+'</td><td class="n muted">'+esc(x.car||"–")+'</td><td class="n">'+(x.start||"–")+'</td><td class="n">'+x.laps+'</td><td class="n">'+(x.led||"–")+'</td><td class="n">'+x.inc+'x</td><td class="n'+(x.best&&x.best===lb?' fl':"")+'">'+fl(x.best)+"</td>"+(pr.duel?"":'<td class="n">'+(x.stagePos?"P"+x.stagePos:"–")+"</td>")+'<td class="n"><span class="pts" title="Finish '+x.ptsFin+(x.ptsStage?" + stage "+x.ptsStage:"")+(x.ptsBonus?" + fastest lap "+x.ptsBonus:"")+'">'+x.pts+"</span></td></tr>").join("")+
+    '</tbody></table></div><p class="hint" style="margin:10px 8px">'+(pr.duel?"Duel points: 10 for the winner down to 1 for 10th.":"Points: finish, plus stage points for the top 10 at the stage (10 down to 1), plus 1 for the fastest lap. Hover a total to see the split.")+"</p></div>"+
+    '<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Provisional standings</div><div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th class="n">Move</th><th>Driver</th><th class="n">Before</th><th class="n">Tonight</th><th class="n">Points</th><th class="n">Behind</th></tr></thead><tbody>'+
+    st.map(r=>"<tr><td>"+posBadge(r.pos)+'</td><td class="n">'+arrow(r)+"</td><td>"+(r.id?dlink(r.id):esc(r.name))+'</td><td class="n muted">'+r.before+'</td><td class="n">'+(r.ran?"+"+r.add:"–")+'</td><td class="n"><span class="pts">'+r.total+'</span></td><td class="n muted">'+(r.pos===1?"–":"−"+(lead-r.total))+"</td></tr>").join("")+
+    '</tbody></table></div><p class="hint" style="margin:10px 8px">Official standings before tonight, plus tonight\'s provisional points.</p></div></section>';};
 function liveMap(cars){const M={},byNum={};S.drivers.forEach(d=>{if(String(d.number||"")!=="")byNum[String(d.number)]=d.id;});
   (cars||[]).forEach(c=>{const id=slugId(c[1]);const did=drv(id)?id:byNum[String(c[0])];if(did)M[did]={num:c[0],best:c[2],pos:c[3],laps:c[4],grid:c[5]};});return M;}
 const slugId=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
@@ -1972,12 +2020,12 @@ document.addEventListener("focusout",()=>setTimeout(()=>{if(S.pending&&!isTyping
 let gcLast=null;
 function gcTrack(){try{const g=window.goatcounter;if(!S.static||!g||typeof g.count!=="function")return;
   const key="/"+S.view+(isMain()?"":"/"+S.sel);if(key===gcLast)return;gcLast=key;
-  const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="legacy"?"Series legacy":S.view==="awards"?"Awards":S.view==="compare"?"Head to head":S.view])[1];
+  const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="legacy"?"Series legacy":S.view==="awards"?"Awards":S.view==="provisional"?"Provisional results":S.view==="compare"?"Head to head":S.view])[1];
   g.count({path:key,title:tab+(isMain()?"":" · "+S.sel)});}catch(e){}}
 window.__gcReady=()=>{gcLast=null;gcTrack();};
 function draw(){S.calc=compute();if(S.mode!=="loading")setHash();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
   document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
-  S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy"||S.view==="awards")&&t[0]==="records")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
+  S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy"||S.view==="awards")&&t[0]==="records")||(S.view==="provisional"&&t[0]==="home")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
   if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
   const sw=document.getElementById("switch");if(sw){const h=switcher();sw.hidden=!h;if(!isTyping()||!sw.contains(document.activeElement))sw.innerHTML=h;}
   const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"||S.selLoading?loading():(V[S.view]||V.home)();

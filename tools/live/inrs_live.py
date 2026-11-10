@@ -3,7 +3,9 @@
 Run on race night while iRacing is open and you are in the league session (driving, spectating or
 broadcasting). Every few seconds it reads iRacing's live timing (read-only, through iRacing's official
 telemetry SDK) and sends practice, qualifying and race positions to the INRS website's live database,
-so the Sportsbook odds can move. Close the window to stop it.
+so the Sportsbook odds can move. At the checkered flag it also sends iRacing's official session results
+(with the stage snapshot it took during the race) as provisional results, so the site can score the race
+and update the standings within a minute. Close the window to stop it.
 
 Setup once: put the database URL and secret in inrs_live_config.local.json (same folder). That file is
 ignored by git, so the secret never ends up on GitHub. inrs_live_config.json is only the blank template.
@@ -84,8 +86,19 @@ SAVED = {}  # last time each session's lap history was uploaded
 SAVE_EVERY = 30  # seconds between lap-history uploads (each upload replaces that session's record)
 
 
-def series_of(drivers):
-    """Which INRS series this session is, from the car everyone is driving."""
+LEAGUES = {8467: 'cup', 11674: 'trucks', 11675: 'xfinity'}  # iRacing league id -> INRS series
+STAGE_PCT, CAUTION_WINDOW = 0.33, 5  # stage at 33% of the race; a caution within 5 laps before/on it moves the stage
+CAUTION = 0x4000 | 0x8000  # iRacing SessionFlags: caution, caution waving
+
+
+def series_of(drivers, wk=None):
+    """Which INRS series this session is: from the iRacing league id when it's a league session, else the car."""
+    try:
+        lid = int((wk or {}).get('LeagueID') or 0)
+    except Exception:
+        lid = 0
+    if lid in LEAGUES:
+        return LEAGUES[lid]
     for d in drivers.values():
         n = (d.get('CarScreenName') or d.get('CarPath') or '').lower()
         if 'truck' in n:
@@ -122,7 +135,7 @@ def snapshot(ir):
     sid = '%s-%s' % (wk.get('SubSessionID', ''), sn)
     mem = MEMO.setdefault(sid, {})
     hist = HIST.setdefault(sid, {'track': wk.get('TrackDisplayName', ''), 'config': wk.get('TrackConfigName', ''), 'session': k,
-                                 'series': series_of(drivers), 'start': int(time.time() * 1000), 'cars': {}})
+                                 'series': series_of(drivers, wk), 'start': int(time.time() * 1000), 'cars': {}})
     cars = []
     for idx, d in drivers.items():
         r = res.get(idx) or {}
@@ -164,11 +177,52 @@ def snapshot(ir):
         left = max(0, total - lead)
     elif not isinstance(left, int) or left > 10000:
         left = None
+    if k == 'race' and total and ir['SessionState'] == 4:  # 4 = racing (green or caution), not the pace laps
+        stage_watch(ir, hist, total, lead, drivers, pos)
     if k == 'race' and left is not None and left <= 10 and lead > 0 and not hist.get('closeAt'):
         hist['closeAt'] = int(time.time() * 1000)  # live betting closes at 10 to go; the Sportsbook leaderboard checks bets against this
     return k, {
         'updated': int(time.time() * 1000), 'track': wk.get('TrackDisplayName', ''), 'config': wk.get('TrackConfigName', ''),
-        'session': k, 'state': ir['SessionState'], 'lapsTotal': total, 'lapsLeft': left, 'leaderLaps': lead, 'cars': cars}, sid, hist
+        'session': k, 'state': ir['SessionState'], 'lapsTotal': total, 'lapsLeft': left, 'leaderLaps': lead, 'cars': cars}, sid, hist, \
+        (provisional(ir, wk, sess, hist, drivers, grid) if k == 'race' and (ir['SessionState'] or 0) >= 5 else None)
+
+
+def stage_watch(ir, hist, total, lead, drivers, pos):
+    """Stage points: snapshot the top 10 when the leader completes the stage lap. The stage lap is 33% of the race,
+    unless a caution starts within 5 laps before (or on) it; then it is the lap after the caution starts."""
+    st = hist.setdefault('stg', {'base': int(total * STAGE_PCT), 'lap': None, 'top': None})
+    if st['top']:
+        return
+    flags = ir['SessionFlags'] or 0
+    on_lap = lead + 1  # lap the leader is running, as iRacing's event log counts it
+    if st['lap'] is None and flags & CAUTION and st['base'] - CAUTION_WINDOW <= on_lap <= st['base']:
+        st['lap'] = on_lap + 1
+    target = st['lap'] or st['base']
+    if lead >= target:
+        order = sorted([(int(pos[i]), i) for i in drivers if i < len(pos) and pos[i] and pos[i] > 0])
+        st['top'] = [drivers[i].get('UserID') for _, i in order[:10]]
+        st['at'] = lead
+        print('\nStage scored on lap %d.' % lead)
+
+
+def provisional(ir, wk, sess, hist, drivers, grid):
+    """iRacing's official session results at the checkered flag, for the site to score as provisional results."""
+    res = [r for r in (sess.get('ResultsPositions') or []) if isinstance(r, dict) and r.get('CarIdx') in drivers]
+    if not res:
+        return None
+    out = []
+    for r in res:
+        d = drivers[r['CarIdx']]
+        out.append({'cust': d.get('UserID'), 'name': d.get('UserName'), 'car': str(d.get('CarNumber', '')), 'fin': int(r.get('Position') or 0),
+                    'start': grid.get(r['CarIdx'], 0), 'laps': int(r.get('LapsComplete') or 0), 'led': int(r.get('LapsLed') or 0),
+                    'inc': int(r.get('Incidents') or 0), 'best': ms(r.get('FastestTime')), 'status': r.get('ReasonOutStr') or 'Running'})
+    timed = [o for o in out if o['best']]
+    st = hist.get('stg') or {}
+    return {'subsession': wk.get('SubSessionID'), 'series': hist['series'], 'track': wk.get('TrackDisplayName', ''),
+            'config': wk.get('TrackConfigName', ''), 'at': hist['start'], 'updated': int(time.time() * 1000),
+            'laps': max([o['laps'] for o in out] or [0]), 'stageLap': st.get('at'), 'stage': st.get('top') or [],
+            'fastest': min(timed, key=lambda o: o['best'])['cust'] if timed else None, 'final': (ir['SessionState'] or 0) >= 6,
+            'results': sorted(out, key=lambda o: o['fin'] or 999)}
 
 
 def lap_record(hist, cars, updated):
@@ -201,7 +255,7 @@ def main():
                 print('Connected to iRacing.')
             snap = snapshot(ir)
             if snap:
-                k, data, sid, hist = snap
+                k, data, sid, hist, prov = snap
                 put(url, sec, 'live', {k: data, 'meta': {'updated': data['updated'], 'track': data['track'], 'session': k}})
                 if any(c[2] for c in data['cars']) and time.time() - SAVED.get(sid, 0) >= SAVE_EVERY:
                     rec = lap_record(hist, data['cars'], data['updated'])
@@ -209,6 +263,13 @@ def main():
                     put(url, sec, 'laps', {key: rec})  # full lap lists (read one session at a time)
                     put(url, sec, 'lapsIndex', {key: dict(rec, cars=[c[:5] for c in rec['cars']])})  # small list for track records
                     SAVED[sid] = time.time()
+                if prov and prov['series'] and prov['subsession']:
+                    sig = json.dumps([prov['results'], prov['final']])
+                    if sig != hist.get('provSig'):  # send at the flag, then again only if iRacing's results change
+                        put(url, sec, 'provisional/%s' % prov['series'], {str(prov['subsession']): prov})
+                        if not hist.get('provSig'):
+                            print('\nProvisional results sent to the site.')
+                        hist['provSig'] = sig
                 timed = sum(1 for c in data['cars'] if c[2] or c[3])
                 print('\r%s  %-9s %2d cars  %s laps left   ' % (time.strftime('%H:%M:%S'), k, timed,
                       data['lapsLeft'] if data['lapsLeft'] is not None else '-'), end='', flush=True)
