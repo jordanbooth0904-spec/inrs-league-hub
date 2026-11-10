@@ -5,7 +5,7 @@
    Secrets (Worker > Settings > Variables, type "Secret"):
      DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET   from the Discord Developer Portal app
      FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY from a Firebase service account JSON key
-     SITE_URL   e.g. https://jordanbooth0904-spec.github.io/inrs-league-hub/                                  */
+     SITE_URL   e.g. https://inrs.page/                                  */
 export default {
   async fetch(req, env) {
     const u = new URL(req.url);

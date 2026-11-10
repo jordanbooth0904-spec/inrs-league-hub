@@ -37,7 +37,7 @@ Worker > Settings > Variables and Secrets. Add these five. Use the Secret type f
 | `DISCORD_CLIENT_SECRET` (secret) | Client Secret from step 3 |
 | `FIREBASE_CLIENT_EMAIL` | `client_email` from the JSON file |
 | `FIREBASE_PRIVATE_KEY` (secret) | `private_key` from the JSON file, including the BEGIN and END lines |
-| `SITE_URL` | `https://jordanbooth0904-spec.github.io/inrs-league-hub/` |
+| `SITE_URL` | `https://inrs.page/` |
 
 ## 5. Database rules
 

@@ -1,7 +1,7 @@
 # Weekly sync: SimRacerHub + YouTube → INRS League Hub
 
 Runs after each Thursday race. Updates `data.json` (the public website at
-https://jordanbooth0904-spec.github.io/inrs-league-hub/) and the Claude app database
+https://inrs.page/) and the Claude app database
 (artifact https://claude.ai/artifact/8Qg6cyP9iKMDxYcSyXmL29).
 
 Needs: this repo cloned with push access, and the Claude built-in browser on Jordan's PC

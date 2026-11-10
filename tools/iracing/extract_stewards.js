@@ -1,4 +1,4 @@
-// Run in the Claude built-in browser on the league site (https://jordanbooth0904-spec.github.io/inrs-league-hub/).
+// Run in the Claude built-in browser on the league site (https://inrs.page/).
 // Saves the PUBLISHED steward reports for one season (stage-lap overrides, incidents, penalties) as a download for
 // import_iracing.py --stewards. Unpublished drafts are not included, so publish a race's report before importing it.
 // Prefix with:  window.__STW = {season: 'cup-2027', file: 'inrs-stewards-cup-2027-<YYYYMMDD>.json'}
