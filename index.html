@@ -1738,7 +1738,24 @@ V.bets=()=>{needSeasons();const B=book(),br=bankroll();
 
 
 /* ---------- teams ---------- */
-function teamsView(){const o=S.calc.off,T=(o&&o.teams)||[];if(!T.length)return empty("No team standings yet","");
+/* 2027 team scoring: each race, a team scores the race points of its two best finishers added together.
+   A team with fewer than two drivers in the race scores 0 that week. Teams come from the entry list
+   (driver.team). Duels count; other non-points races don't. */
+function teamCalc(){if(+selInfo().year<2027)return null;const races=sortedRaces().filter(r=>r.status==="complete"&&(r.results||[]).length&&(!r.exhibition||r.duel)),T={};
+  const tm=id=>{const d=drv(id);return d&&d.team?String(d.team).trim():"";};
+  S.drivers.forEach(d=>{const t=tm(d.id);if(t&&d.active!==false)T[t]=T[t]||{team:t,pts:0,weeks:0,wins:0,last:null,log:[]};});
+  races.forEach(r=>{const by={};r.results.forEach(x=>{const t=tm(x.driverId);if(t&&int(x.fin))(by[t]=by[t]||[]).push(x);});
+    Object.keys(T).forEach(t=>{const L=(by[t]||[]).sort((a,b)=>int(a.fin)-int(b.fin)),two=L.length>=2?L.slice(0,2):[],p=two.reduce((a,x)=>a+num(x.pts,0),0);
+      T[t].pts+=p;if(two.length)T[t].weeks++;if(L.some(x=>int(x.fin)===1))T[t].wins++;T[t].last={r,pts:p,two,ran:L.length};T[t].log.push({r,pts:p,two,ran:L.length});});});
+  const out=Object.values(T).sort((a,b)=>b.pts-a.pts||b.wins-a.wins||a.team.localeCompare(b.team));out.forEach((t,i)=>t.pos=i+1);return out.length?{list:out,races}:null;}
+function teamsCalcView(tc){const L=tc.list,lead=L[0].pts,roster=t=>S.drivers.filter(d=>d.active!==false&&String(d.team||"").trim()===t).sort((a,b)=>(parseInt(a.number)||999)-(parseInt(b.number)||999));
+  const lastR=tc.races[tc.races.length-1];
+  return'<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Team</th><th class="n">Pts</th><th class="n">Gap</th>'+(lastR?'<th class="n">Last race</th>':"")+'<th class="n">Weeks scored</th><th class="n">Wins</th></tr></thead><tbody>'+
+    L.map(t=>"<tr><td>"+posBadge(t.pos)+'</td><td class="wrapcell"><b>'+esc(t.team)+'</b><div class="small teamroster">'+roster(t.team).map(d=>dlink(d.id)).join(", ")+'</div></td><td class="n"><span class="pts">'+fmtN(t.pts)+'</span></td><td class="n muted">'+(t.pos>1?"−"+fmtN(lead-t.pts):"Leader")+"</td>"+
+      (lastR?'<td class="n"'+(t.last&&t.last.two.length?' title="'+esc(t.last.two.map(x=>(drv(x.driverId)||{}).name+" P"+x.fin+" ("+num(x.pts,0)+")").join(" + "))+'"':"")+">"+(t.last?(t.last.two.length?fmtN(t.last.pts):'<span class="muted small">'+(t.last.ran?"1 driver":"none")+" · 0</span>"):"–")+"</td>":"")+
+      '<td class="n">'+t.weeks+(tc.races.length?" / "+tc.races.length:"")+'</td><td class="n">'+t.wins+"</td></tr>").join("")+
+    '</tbody></table></div></div><p class="hint">Each race, a team scores the points of its two best finishers added together. A team needs two drivers in the race to score; with fewer it gets 0 that week. Hover "Last race" to see who counted.</p>';}
+function teamsView(){const o=S.calc.off,T=(o&&o.teams)||[];if(!T.length){const tc=teamCalc();return tc?teamsCalcView(tc):empty("No team standings yet","");}
   if(o.teamsManual){const lead=num(T[0].pts,0),roster=team=>S.calc.standings.filter(s=>s.off&&String(s.off.team||"").toLowerCase()===String(team).toLowerCase()).sort((a,b)=>a.off.pos-b.off.pos);let line=false;
     return'<div class="panel" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th>Pos</th><th>Team</th><th class="n">Pts</th><th class="n">Gap</th></tr></thead><tbody>'+
       T.map(t=>{let pre="";if(t.out&&!line){line=true;pre='<tr class="elimrow"><td colspan="4">Mathematically eliminated</td></tr>';}
@@ -1783,7 +1800,7 @@ V.compare=()=>{const c=S.calc,all=c.standings.filter(s=>s.starts>0||s.off);if(al
     (common.length?'<div class="panel" style="padding:6px 8px"><div class="lt" style="margin:8px">Races together</div><div class="scroll"><table class="tbl"><thead><tr><th>Race</th><th class="n">'+esc(A.driver.name)+'</th><th class="n">'+esc(B.driver.name)+"</th></tr></thead><tbody>"+
       common.slice().reverse().map(z=>'<tr><td><button class="dl" data-act="openrace" data-arg="'+esc(z.r.id)+'">'+esc(raceLabel(z.r))+'</button></td><td class="n'+(z.fa<z.fb?" win":"")+'">P'+z.fa+'</td><td class="n'+(z.fb<z.fa?" win":"")+'">P'+z.fb+"</td></tr>").join("")+"</tbody></table></div></div>":"")+"</section>";};
 
-V.standings=()=>{const hasChase=!!chaseData(),hasTeams=!!(S.calc.off&&(S.calc.off.teams||[]).length),hasPower=!!powerData();
+V.standings=()=>{const hasChase=!!chaseData(),hasTeams=!!(S.calc.off&&(S.calc.off.teams||[]).length)||!!teamCalc(),hasPower=!!powerData();
   if(S.stdView==="clean"){}else if((S.stdView==="chase"&&!hasChase)||(S.stdView==="teams"&&!hasTeams)||(S.stdView==="power"&&!hasPower))S.stdView="drivers";
   const b=(k,l)=>'<button class="btn sm" data-act="stdview" data-arg="'+k+'"'+(S.stdView===k?' aria-current="page"':"")+">"+l+"</button>";
   const seg='<div class="subtabs" style="margin-bottom:14px" role="group" aria-label="Standings view">'+b("drivers","Drivers")+(hasChase?b("chase","The Chase"):"")+(hasPower?b("power","Power rankings"):"")+(hasTeams?b("teams","Teams"):"")+b("clean","Clean racing")+"</div>";

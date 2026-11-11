@@ -21,3 +21,9 @@ Replaces SimRacerHub's scoring. `points.py` scores races and builds standings fr
 Cup: 1,063 results, every season total outside the Chase reset and every "races counted" value match.
 Trucks: 461 results and every season total match. The only differences are two Cup Talladega races that
 SimRacerHub displays as 0 while taking the full penalty off the season total, as the engine does.
+
+## Team points (2027)
+Each race, a team scores the race points (finish + stage + fastest lap, after penalties) of its two best finishers
+added together. A team with fewer than two drivers in the race scores 0 that week. Teams come from the entry list
+in the site's Admin tab. Duels count; other non-points races (All-Star) don't. The site computes team standings
+live from the results (`teamCalc()` in index.html); 2026 and earlier keep the posted team tables.
