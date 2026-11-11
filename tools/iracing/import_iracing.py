@@ -11,7 +11,7 @@
   steward decisions for each race replace that race's 'stw-' penalties first (incident points + applied penalties).
 
   --stewards FILE   the published steward reports, saved by tools/iracing/extract_stewards.js on the league site
-  --admin FILE      the admin's schedule edits, saved by tools/iracing/extract_admin.js (applied to the file first;
+  --admin FILE      the admin's schedule edits and entry list, saved by tools/iracing/extract_admin.js (applied first;
                     a fixed stage lap from the schedule is used unless a steward set one for that race)
 Results are marked source 'iracing'. The Chase reset is not applied yet (see tools/scoring/README.md).
 """
@@ -50,6 +50,18 @@ def main():
             if v.get('nonPoints'): r['exhibition'] = True
             if v.get('stageLap'): FIXED[rid] = int(v['stageLap'])
         D['races'].sort(key=lambda q: (q.get('round') or 0))
+        ent = json.load(open(a.admin)).get('entries') or {}
+        if ent:  # the entry list: entered drivers get number/team/tier (and iRacing ID); everyone else is inactive
+            byid = {d['id']: d for d in D['drivers']}
+            for d in D['drivers']: d['active'] = d['id'] in ent
+            for did, e in ent.items():
+                d = byid.get(did)
+                if d is None:
+                    d = {'id': did, 'name': e.get('name') or did, 'custId': ''}; D['drivers'].append(d); print('  new driver from entry list:', d['name'])
+                d.update({'number': str(e.get('number') or ''), 'team': e.get('team') or '', 'tier': int(e.get('tier') or 3), 'active': True})
+                if e.get('name'): d['name'] = e['name']
+                if e.get('custId'): d['custId'] = str(e['custId'])
+                if e.get('free'): d['freeEntry'] = True
     STW = json.load(open(a.stewards))['races'] if a.stewards else {}
     if STW:  # published steward decisions become this race's penalties (replacing earlier copies)
         today = datetime.date.today().isoformat()
