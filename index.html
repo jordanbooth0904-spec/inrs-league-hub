@@ -292,6 +292,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.45}
 .hint{font-size:14px;color:var(--muted)}
 .provtag{display:inline-block;font:700 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#1a1300;background:#f5c542;border-radius:4px;padding:2px 6px;vertical-align:2px}
 .provp{border:1px solid #f5c54266}
+.appst{display:inline-block;font:700 11px var(--mono);text-transform:uppercase;letter-spacing:.04em;border-radius:4px;padding:2px 6px;margin-left:6px;vertical-align:1px;background:#f5c54233;color:#f5c542}.appst-reviewing{background:#4aa3ff33;color:#7cbcff}.appst-accepted{background:#3ecf8e26;color:#5fd9a2}.appst-waitlist{background:var(--panel-2);color:var(--muted)}.appst-declined{background:#ff6b6b26;color:#ff8a8a}
 .tier{display:inline-block;font:700 11px var(--mono);letter-spacing:.03em;border-radius:4px;padding:2px 6px;white-space:nowrap;background:var(--panel-2);color:var(--muted)}.tier1{background:#b06cff33;color:#c99bff}.tier2{background:#4aa3ff33;color:#7cbcff}.tier3{background:#3ecf8e26;color:#5fd9a2}.tier4{background:#f5c54226;color:#f5c542}
 .lvl{display:inline-block;min-width:26px;text-align:center;font:700 12px var(--mono);border-radius:4px;padding:2px 5px;background:var(--panel-2);color:var(--muted)}.lvl1{background:#f5c54233;color:#f5c542}.lvl2{background:#ff9f4333;color:#ff9f43}.lvl3{background:#ff6b6b33;color:#ff6b6b}.lvl4,.lvl5{background:#e0313b;color:#fff}
 td.fl{color:#b06cff;font-weight:700}
@@ -364,7 +365,7 @@ S.drivers=ovDrivers(i.key,a.drivers||[]);S.races=ovRaces(i.key,a.races||[]);S.pe
   S.history=(ih||[]).filter(h=>+h[0]<+i.year);S.settingsRaw=Object.assign({},M.settingsRaw||{},a.settings||{},S.static?lk:{});}
 /* The address bar mirrors the page: #view, #view/season, or #view/season/item for a driver, career, Wrapped card or track.
    Every move to a new page adds a browser history entry, so Back and Forward work and pages can be shared as links. */
-const VIEWS=v=>TABS.some(t=>t[0]===v)||["compare","career","bets","board","wrapped","legacy","awards","provisional","steward","siteadmin"].includes(v);
+const VIEWS=v=>TABS.some(t=>t[0]===v)||["compare","career","bets","board","wrapped","legacy","awards","provisional","steward","siteadmin","apply","applications"].includes(v);
 function hashFor(){const sub=S.view==="drivers"?S.driverSel:S.view==="career"?S.careerId:S.view==="wrapped"?S.wrapId:S.view==="tracks"?S.trackSel:null;
   return"#"+S.view+(sub?"/"+S.sel+"/"+encodeURIComponent(sub):isMain()?"":"/"+S.sel);}
 function setHash(replace){if(S.routing)return;try{const h=hashFor();if(h===location.hash)return;if(replace||!location.hash)history.replaceState(null,"",h);else history.pushState(null,"",h);}catch(e){}}
@@ -461,7 +462,7 @@ V.home=()=>{const c=S.calc;let h="";
   else if(!c.races.length){h+='<section class="hero"><div class="eyebrow">'+esc(c.st.season)+' season</div><h1 class="track">Schedule coming soon</h1><div class="rule"></div><div class="muted">Race dates will show here as soon as they are posted.</div></section>';}
   else{const ch=c.standings[0];h+='<section class="hero"><div class="eyebrow">'+esc(c.st.season)+' season complete</div><h1 class="track">'+(ch?esc(ch.driver.name):"Season complete")+'</h1><div class="rule"></div><div class="muted">'+(ch?"Champion with "+ch.total+" points and "+plural(ch.wins,"win"):"")+"</div></section>";}
 
-  const last=c.done[c.done.length-1];let left=provPanel()+previewPanel();
+  const last=c.done[c.done.length-1];let left=(S.static&&authOn()&&appIsOpen(appForm())&&!(S.app&&S.app.mine)?'<div class="panel provp"><div class="sechead"><div class="lt">'+esc(appForm().title)+'</div></div><p style="margin:0 0 10px">Applications are open'+(appForm().closes?" until "+fmtShort(etISO(appForm().closes,"23:59")):"")+'. Sign in with Discord and apply in a few minutes.</p><button class="btn sm primary" data-act="apply">Apply now</button></div>':"")+provPanel()+previewPanel();
   if(last){const top=[...last.results].sort((a,b)=>a.fin-b.fin).slice(0,3);
     left+='<div class="panel"><div class="sechead"><div class="lt">Latest result</div><span class="muted small">'+esc(raceLabel(last))+" · "+fmtShort(last.date)+'</span></div><div class="podium">'+
       top.map(x=>{const d=drv(x.driverId);return'<div class="podrow">'+posBadge(x.fin)+'<div class="name">'+dlink(x.driverId)+'<div class="sub">'+(int(x.lapsLed)?esc(x.lapsLed)+" led · ":"")+esc(int(x.inc)||0)+"x</div></div>"+'<span class="pts">'+c.ptsFor(x,Math.max(0,...last.results.map(y=>int(y.lapsLed)||0)))+"</span></div>";}).join("")+
@@ -2080,6 +2081,7 @@ function cleanSite(j){const o={settings:{},overrides:{}};if(!j||typeof j!=="obje
     Object.entries(races).forEach(([id,v])=>{if(!v||typeof v!=="object"||!/^[\w-]{1,12}$/.test(id))return;const r={};
       if(v.date&&!isNaN(new Date(v.date)))r.date=T(v.date,40);["track","name","note"].forEach(k=>{if(v[k]!=null)r[k]=T(v[k],120);});
       ["laps","stageLap","round"].forEach(k=>{if(v[k]!=null&&isFinite(+v[k]))r[k]=+v[k];});["nonPoints","removed","added"].forEach(k=>{if(v[k]===true)r[k]=true;});o.overrides[season][id]=r;});});
+  o.appForm=cleanAppForm(j.appForm);
   o.entries={};const en=j.entries&&typeof j.entries==="object"?j.entries:{};
   Object.entries(en).forEach(([season,list])=>{if(!/^(cup|trucks|xfinity)-20\d\d$/.test(season)||!list||typeof list!=="object")return;o.entries[season]={};
     Object.entries(list).forEach(([id,v])=>{if(!v||typeof v!=="object"||!/^[a-z0-9-]{1,60}$/.test(id))return;const t=+v.tier;
@@ -2126,6 +2128,7 @@ V.siteadmin=()=>{const m=me();
   const i=selInfo(),races=S.races,st=(S.site&&S.site.settings)||{},O=(S.site&&S.site.overrides[i.key])||{},f=S.forms.adm,ban=st.banner||{};
   const inp=(id,v,a)=>'<input id="'+id+'" value="'+esc(v==null?"":v)+'" '+(a||"")+">";
   let h='<section class="stack"><div class="sechead"><div class="lt">League admin</div><div class="row">'+authBar()+"</div></div>";
+  h+=appAdminPanel();
   // announcement + links
   h+='<div class="panel"><div class="lt">Announcement banner</div><p class="hint" style="margin-top:0">Shows at the top of every page until the date you pick. Leave the text empty to turn it off.</p><div class="fgrid">'+
     field("Message",inp("admBanText",ban.text,'placeholder="e.g. Rain delay: tonight\'s race moves to 8:30 PM"'))+field("Link (optional)",inp("admBanLink",ban.link))+field("Show until",inp("admBanUntil",ban.until,'type="date"'))+
@@ -2212,6 +2215,133 @@ const ADM_ACT={
     if(await authPut(kind+"/"+u,true)===null)return toast("Couldn't add them.",true);toast(kind==="siteAdmins"?"Admin added.":"Steward added.");ADM_ACT.admaccess();},
   async admrevoke(a){const[kind,u]=String(a).split("|");if(!confirm("Remove their access?"))return;await authPut(kind+"/"+u,null);toast("Access removed.");ADM_ACT.admaccess();}};
 
+/* ---------- league applications ----------
+   Anyone signs in with Discord and fills out the application at #apply. Answers are saved to
+   /applications/<form>/<their uid>; only league admins (and the applicant, for their own) can read them.
+   Admins review at #applications: a status and private note per applicant in /appReviews/<form>/<uid>
+   (admins only), and "Add to entry list" copies the driver into the season's entry list.
+   The form (title, intro, open/closed, closing date, questions) is edited by admins and stored at /site/appForm. */
+const APP_TYPES=[["text","Short answer"],["long","Paragraph"],["choice","Pick one"],["number","Number"],["check","Checkbox (agree)"]];
+const APP_STATUS=[["","New"],["reviewing","Reviewing"],["accepted","Accepted"],["waitlist","Waitlist"],["declined","Declined"]];
+const APP_DEFAULT={form:"2027",open:false,closes:"",title:"INRS 2027 Driver Application",
+  intro:"Apply for a seat in the 2027 INRS season. Sign in with Discord so we can reach you. League admins review every application and will contact you on Discord.",
+  questions:[
+    {id:"name",label:"Full name (as it appears on iRacing)",type:"text",required:true},
+    {id:"cust",label:"iRacing customer ID",type:"number",required:true,help:"On iRacing: Account, then the number under your name."},
+    {id:"series",label:"Which series?",type:"choice",options:["Cup","Trucks","Both"],required:true},
+    {id:"tier",label:"Entry tier",type:"choice",options:["Tier 1 · Hendrick (charter)","Tier 2 · Roush (charter)","Tier 3 · Open","Tier 4 · Crown Jewel Ringer"],required:true},
+    {id:"numbers",label:"Car number choices (1st, 2nd, 3rd)",type:"text",required:true},
+    {id:"team",label:"Team (if you're joining one)",type:"text"},
+    {id:"license",label:"iRacing oval license and iRating",type:"text"},
+    {id:"exp",label:"Racing experience and previous leagues",type:"long"},
+    {id:"avail",label:"Can you race Thursdays (Cup) / Tuesdays (Trucks) at 8 PM Eastern?",type:"choice",options:["Every week","Most weeks","Some weeks"],required:true},
+    {id:"heard",label:"How did you hear about INRS?",type:"text"},
+    {id:"agree",label:"I have read the INRS rules and the 2027 penalty system and agree to follow them",type:"check",required:true}]};
+function cleanAppForm(f){if(!f||typeof f!=="object")return null;const T=(v,n)=>v==null?"":String(v).slice(0,n||200);
+  const qs=(Array.isArray(f.questions)?f.questions:Object.values(f.questions||{})).filter(q=>q&&typeof q==="object"&&q.label).slice(0,40).map((q,i)=>({id:/^[\w-]{1,24}$/.test(q.id||"")?q.id:"q"+i,label:T(q.label,200),
+    type:APP_TYPES.some(t=>t[0]===q.type)?q.type:"text",options:(Array.isArray(q.options)?q.options:[]).map(o=>T(o,80)).filter(Boolean).slice(0,20),required:q.required===true,help:T(q.help,200)}));
+  return{form:/^[\w-]{1,20}$/.test(f.form||"")?f.form:"2027",open:f.open===true,closes:/^\d{4}-\d\d-\d\d$/.test(f.closes||"")?f.closes:"",title:T(f.title,120)||APP_DEFAULT.title,intro:T(f.intro,1500),questions:qs.length?qs:APP_DEFAULT.questions};}
+const appForm=()=>(S.site&&S.site.appForm)||APP_DEFAULT;
+const appIsOpen=f=>f.open&&!(f.closes&&new Date(f.closes+"T23:59:59")<new Date());
+const isAdminMe=()=>isSiteAdminMe();
+async function appGet(path){const t=await idToken();if(!t)return undefined;try{const r=await fetch(liveDb()+"/"+path+".json?auth="+encodeURIComponent(t),{cache:"no-store"});return r.ok?await r.json():undefined;}catch(e){return undefined;}}
+/* ---- public form ---- */
+V.apply=()=>{const f=appForm(),m=me(),A=S.app||{};
+  let h='<section class="stack"><div class="hero"><div class="eyebrow">League application</div><h1 class="track">'+esc(f.title)+'</h1><div class="rule"></div>'+(f.intro?'<p style="margin:10px 0 0;white-space:pre-line">'+esc(f.intro)+"</p>":"")+
+    (f.closes?'<div class="meta"><span>'+(appIsOpen(f)?"Applications close ":"Closed ")+fmtDate(etISO(f.closes,"23:59"))+"</span></div>":"")+"</div>";
+  if(!authOn())return h+empty("Applications aren't available here","Open the league website at inrs.page to apply.")+"</section>";
+  if(!appIsOpen(f))return h+'<div class="panel"><p>Applications are closed right now. Watch the league Discord for the next window.</p></div></section>';
+  if(!m)return h+'<div class="panel"><p>Sign in with Discord to start your application. We use it to contact you; nothing is posted publicly.</p>'+authBar()+"</div></section>";
+  if(A.loadedFor!==m.uid+f.form){if(!A.loading){S.app={loading:true};appGet("applications/"+f.form+"/"+m.uid).then(v=>{S.app={loadedFor:m.uid+f.form,mine:v||null,draft:v&&v.answers?Object.assign({},v.answers):{}};S.forms.app=S.app.draft;draw();});}return h+loading()+"</section>";}
+  const mine=A.mine,ans=S.forms.app||(S.forms.app={});
+  if(mine&&!A.editing)return h+'<div class="panel"><div class="lt">Application received</div><p>Thanks, <b>'+esc(m.name)+"</b>. We got your application on "+fmtDate(new Date(mine.at).toISOString())+(mine.updated&&mine.updated!==mine.at?" (last changed "+fmtDate(new Date(mine.updated).toISOString())+")":"")+
+    ". League admins will contact you on Discord.</p>"+(mine.locked?'<p class="hint">Your application is being reviewed, so it can\'t be changed now. Message an admin on Discord if something needs fixing.</p>':'<div class="row"><button class="btn sm" data-act="appeditmine">Change my answers</button></div>')+authBar()+"</div></section>";
+  const q=x=>{const v=ans[x.id],lab='<span>'+esc(x.label)+(x.required?' <span style="color:var(--bad)">*</span>':"")+"</span>"+(x.help?'<span class="hint" style="display:block;font-weight:400;text-transform:none;letter-spacing:0">'+esc(x.help)+"</span>":"");
+    if(x.type==="long")return'<label class="f">'+lab+'<textarea data-f="app.'+x.id+'" rows="4" maxlength="2000">'+esc(v||"")+"</textarea></label>";
+    if(x.type==="choice")return'<div class="f">'+lab+'<div class="row" style="gap:8px;margin-top:6px">'+x.options.map(o=>'<label class="pill" style="cursor:pointer;gap:6px;display:inline-flex;align-items:center"><input type="radio" name="app_'+esc(x.id)+'" data-f="app.'+x.id+'" value="'+esc(o)+'" style="width:auto"'+(v===o?" checked":"")+"> "+esc(o)+"</label>").join("")+"</div></div>";
+    if(x.type==="check")return'<label class="row" style="gap:10px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-f="app.'+x.id+'" style="width:auto;margin-top:4px;flex:none"'+(v===true||v==="true"?" checked":"")+'><span style="flex:1">'+lab+"</span></label>";
+    return'<label class="f">'+lab+'<input data-f="app.'+x.id+'" value="'+esc(v==null?"":v)+'" maxlength="300"'+(x.type==="number"?' inputmode="numeric"':"")+"></label>";};
+  return h+'<div class="panel"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px"><div class="lt">Your application</div>'+authBar()+'</div><div class="stack" style="gap:14px">'+f.questions.map(q).join("")+
+    '</div><p class="hint" style="margin-top:14px">Only league admins can see your answers. Your Discord name ('+esc(m.name)+") is attached so we can contact you.</p>"+
+    '<div class="row"><button class="btn primary" data-act="appsubmit">'+(mine?"Save changes":"Submit application")+"</button>"+(mine?'<button class="btn ghost" data-act="appcancelmine">Cancel</button>':"")+"</div></div></section>";};
+/* ---- admin review ---- */
+function appRows(){const L=S.apps||{},R=S.appRev||{};return Object.entries(L).filter(([,v])=>v&&typeof v==="object"&&v.answers).map(([uid,v])=>({uid,a:v.answers||{},who:String(v.name||"").slice(0,60),at:+v.at||0,updated:+v.updated||0,rev:R[uid]||{}})).sort((a,b)=>b.at-a.at);}
+async function appLoad(){const f=appForm();S.appsLoading=true;const[a,r]=await Promise.all([appGet("applications/"+f.form),appGet("appReviews/"+f.form)]);S.apps=a||{};S.appRev=r||{};S.appsLoading=false;S.appsLoaded=f.form;draw();}
+V.applications=()=>{const m=me(),f=appForm(),back='<div><button class="btn sm ghost" data-act="siteadmin">← Admin</button></div>';
+  if(!m||!isAdminMe())return'<section class="stack">'+back+empty("Admins only","Sign in with an admin account to see applications.")+"</section>";
+  if(S.appsLoaded!==f.form){if(!S.appsLoading)appLoad();return'<section class="stack">'+back+loading()+"</section>";}
+  const rows=appRows(),flt=S.appFilter||"all",shown=rows.filter(r=>flt==="all"||(r.rev.status||"")===(flt==="new"?"":flt)),cnt=k=>rows.filter(r=>(r.rev.status||"")===k).length;
+  const qv=(r,id)=>{const v=r.a[id];return v===true?"Yes":v==null?"":String(v);},Q=f.questions;
+  const chip=s=>{const l=(APP_STATUS.find(x=>x[0]===(s||""))||APP_STATUS[0])[1];return'<span class="appst appst-'+(s||"new")+'">'+esc(l)+"</span>";};
+  let h='<section class="stack">'+back+'<div class="sechead"><div class="lt">Applications · '+esc(f.title)+'</div><div class="row"><button class="btn sm" data-act="appreload">Refresh</button><button class="btn sm" data-act="appcsv">Download spreadsheet</button></div></div>'+
+    '<div class="subtabs" role="group">'+[["all","All ("+rows.length+")"],["new","New ("+cnt("")+")"]].concat(APP_STATUS.slice(1).map(([k,l])=>[k,l+" ("+cnt(k)+")"])).map(([k,l])=>'<button class="'+(flt===k?"on":"")+'" data-act="appfilter" data-arg="'+k+'">'+esc(l)+"</button>").join("")+"</div>";
+  if(!shown.length)return h+empty(rows.length?"None in this group":"No applications yet",rows.length?"":appIsOpen(f)?"Share inrs.page/#apply with drivers.":"The application form is closed. Open it from Admin.")+"</section>";
+  h+='<div class="list">'+shown.map(r=>{const open=S.appOpen===r.uid;
+    return'<div class="panel" style="padding:12px 14px"><div class="row" style="justify-content:space-between;align-items:center;gap:8px;cursor:pointer" data-act="appopen" data-arg="'+esc(r.uid)+'"><div><b>'+esc(qv(r,"name")||r.who)+"</b> "+chip(r.rev.status)+
+      '<div class="small muted">'+esc([r.who&&"Discord: "+r.who,qv(r,"series"),qv(r,"tier"),qv(r,"numbers")&&"#"+qv(r,"numbers")].filter(Boolean).join(" · "))+'</div></div><span class="small muted">'+fmtShort(new Date(r.at).toISOString())+(open?" ▲":" ▼")+"</span></div>"+
+      (open?'<div class="scroll" style="margin-top:10px"><table class="tbl"><tbody>'+Q.map(q=>'<tr><td class="small muted" style="width:38%">'+esc(q.label)+'</td><td class="wrapcell" style="white-space:pre-line">'+esc(qv(r,q.id)||"–")+"</td></tr>").join("")+
+        Object.keys(r.a).filter(k=>!Q.some(q=>q.id===k)).map(k=>'<tr><td class="small muted">'+esc(k)+'</td><td class="wrapcell">'+esc(String(r.a[k]))+"</td></tr>").join("")+
+        '<tr><td class="small muted">Discord ID</td><td><code>'+esc(r.uid)+"</code></td></tr></tbody></table></div>"+
+        '<div class="fgrid" style="margin-top:10px">'+field("Status",'<select id="appSt">'+APP_STATUS.map(([k,l])=>'<option value="'+k+'"'+((r.rev.status||"")===k?" selected":"")+">"+esc(l)+"</option>").join("")+"</select>")+field("Private note (admins only)",'<input id="appNote" value="'+esc(r.rev.note||"")+'">')+"</div>"+
+        '<div class="row" style="margin-top:10px"><button class="btn sm primary" data-act="appreview" data-arg="'+esc(r.uid)+'">Save review</button><button class="btn sm" data-act="appentry" data-arg="'+esc(r.uid)+'">Add to entry list</button><button class="btn sm ghost" data-act="appdel" data-arg="'+esc(r.uid)+'">Delete</button></div>'+
+        (r.rev.by?'<p class="hint" style="margin:8px 0 0">Last reviewed '+fmtShort(new Date(r.rev.at).toISOString())+"</p>":""):"")+"</div>";}).join("")+"</div>";
+  return h+"</section>";};
+/* ---- admin: form editor (inside the Admin page) ---- */
+function appAdminPanel(){const f=appForm(),E=S.forms.appf,qs=E?E.questions:f.questions,n=S.appsLoaded===f.form?appRows():null,nNew=n?n.filter(r=>!r.rev.status).length:null;
+  if(S.appsLoaded!==f.form&&!S.appsLoading)appLoad();
+  let h='<div class="panel"><div class="sechead"><div class="lt">Applications</div><button class="btn sm primary" data-act="nav" data-arg="applications">Review applications'+(n?" ("+n.length+(nNew?", "+nNew+" new":"")+")":"")+"</button></div>"+
+    '<p class="hint" style="margin-top:0">The form is at <b>inrs.page/#apply</b> and is '+(appIsOpen(f)?'<b style="color:var(--ok)">open</b>':"<b>closed</b>")+". Only admins can read the answers.</p>";
+  if(!E)return h+'<div class="row"><button class="btn sm" data-act="appfedit">Edit the form</button><button class="btn sm ghost" data-act="appftoggle">'+(f.open?"Close applications":"Open applications")+"</button></div></div>";
+  const inp=(id,v,a)=>'<input id="'+id+'" value="'+esc(v==null?"":v)+'" '+(a||"")+">";
+  h+='<div class="fgrid">'+field("Title",inp("apfTitle",E.title))+field("Closes (optional)",inp("apfCloses",E.closes,'type="date"'))+"</div>"+
+    '<label class="f" style="margin-top:10px">Intro<textarea id="apfIntro" rows="3">'+esc(E.intro)+"</textarea></label>"+
+    '<label class="row" style="gap:8px;margin-top:8px"><input type="checkbox" id="apfOpen" style="width:auto"'+(E.open?" checked":"")+"> Accepting applications</label>"+
+    '<div class="lt" style="margin-top:14px">Questions</div><div class="list">'+qs.map((q,i)=>'<div class="adminrow" style="flex-wrap:wrap;gap:8px"><div class="fgrid" style="flex:1;min-width:240px">'+
+      field("Question",'<input data-qi="'+i+'" data-qk="label" value="'+esc(q.label)+'">')+field("Type",'<select data-qi="'+i+'" data-qk="type">'+APP_TYPES.map(([k,l])=>'<option value="'+k+'"'+(q.type===k?" selected":"")+">"+l+"</option>").join("")+"</select>")+
+      (q.type==="choice"?field("Choices (comma-separated)",'<input data-qi="'+i+'" data-qk="options" value="'+esc(q.options.join(", "))+'">'):"")+'</div><div class="row" style="gap:6px"><label class="row small" style="gap:4px"><input type="checkbox" data-qi="'+i+'" data-qk="required" style="width:auto"'+(q.required?" checked":"")+"> Required</label>"+
+      '<button class="btn sm ghost" data-act="appfmove" data-arg="'+i+'|-1" aria-label="Move up">↑</button><button class="btn sm ghost" data-act="appfmove" data-arg="'+i+'|1" aria-label="Move down">↓</button><button class="btn sm ghost" data-act="appfdel" data-arg="'+i+'">Remove</button></div></div>').join("")+"</div>"+
+    '<div class="row" style="margin-top:10px"><button class="btn sm" data-act="appfadd">Add a question</button><button class="btn sm primary" data-act="appfsave">Save form</button><button class="btn sm ghost" data-act="appfcancel">Cancel</button><button class="btn sm ghost" data-act="appfdefault">Reset to the default questions</button></div>'+
+    '<p class="hint">Changing a question\'s wording keeps earlier answers; removing a question hides it from the form, but answers already given stay on each application.</p></div>';
+  return h;}
+function appfSync(){const E=S.forms.appf;if(!E)return;document.querySelectorAll("[data-qi]").forEach(el=>{const q=E.questions[+el.dataset.qi];if(!q)return;const k=el.dataset.qk;
+  if(k==="required")q.required=el.checked;else if(k==="options")q.options=el.value.split(",").map(s=>s.trim()).filter(Boolean);else q[k]=el.value;});
+  const g=id=>document.getElementById(id);if(g("apfTitle")){E.title=g("apfTitle").value;E.closes=g("apfCloses").value;E.intro=g("apfIntro").value;E.open=g("apfOpen").checked;}}
+function csvCell(v){v=v==null?"":String(v);return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+const APP_ACT={
+  apply(){S.view="apply";setHash();draw();window.scrollTo(0,0);},
+  appeditmine(){S.app.editing=true;S.forms.app=Object.assign({},S.app.mine.answers||{});draw();},
+  appcancelmine(){S.app.editing=false;draw();},
+  async appsubmit(){const f=appForm(),m=me(),a=S.forms.app||{};if(!m)return;const miss=f.questions.filter(q=>q.required&&(q.type==="check"?!(a[q.id]===true||a[q.id]==="true"):!String(a[q.id]==null?"":a[q.id]).trim()));
+    if(miss.length)return toast("Please answer: "+miss.map(q=>q.label).slice(0,3).join("; ")+(miss.length>3?"…":""),true);
+    const ans={};f.questions.forEach(q=>{let v=a[q.id];if(q.type==="check")v=v===true||v==="true";else v=String(v==null?"":v).trim().slice(0,q.type==="long"?2000:300);if(v!==""&&v!==false)ans[q.id]=v;});
+    const now=Date.now(),prev=S.app.mine,body={answers:ans,name:String(m.name||"").slice(0,60),at:prev?prev.at:now,updated:now};
+    const ok=await authPut("applications/"+f.form+"/"+m.uid,body);if(ok===null){toast("Couldn't send it. Applications may have just closed, or an admin has started reviewing yours.",true);return;}
+    S.app={loadedFor:m.uid+f.form,mine:body,draft:ans};toast(prev?"Changes saved.":"Application sent. Thanks!");draw();window.scrollTo(0,0);},
+  applications(){S.view="applications";setHash();draw();},
+  appreload(){S.appsLoaded=null;draw();},
+  appfilter(k){S.appFilter=k;draw();},
+  appopen(uid){S.appOpen=S.appOpen===uid?null:uid;draw();},
+  async appreview(uid){const f=appForm(),st=document.getElementById("appSt").value,note=document.getElementById("appNote").value.trim();
+    const v=st||note?{status:st||null,note:note||null,by:me().uid,at:Date.now()}:null;if(await authPut("appReviews/"+f.form+"/"+uid,v)===null&&v!==null)return toast("Couldn't save the review.",true);
+    (S.appRev=S.appRev||{})[uid]=v||{};if(!v)delete S.appRev[uid];toast("Review saved.");draw();},
+  async appdel(uid){if(!confirm("Delete this application for good? The applicant could then apply again."))return;const f=appForm();await authPut("appReviews/"+f.form+"/"+uid,null);await authPut("applications/"+f.form+"/"+uid,null);delete S.apps[uid];delete (S.appRev||{})[uid];S.appOpen=null;toast("Application deleted.");draw();},
+  appentry(uid){const r=appRows().find(x=>x.uid===uid);if(!r)return;const a=r.a,tm=String(a.tier||"").match(/Tier\s*(\d)/i),num=(String(a.numbers||"").match(/\d{1,3}/)||[""])[0];
+    S.forms.ent={number:num,tier:tm?+tm[1]:3,team:a.team||"",custId:/^\d{1,9}$/.test(String(a.cust||"").trim())?String(a.cust).trim():"",_newName:a.name||r.who};
+    S.view="siteadmin";setHash();draw();setTimeout(()=>{const s=document.getElementById("entDrv"),n=document.getElementById("entName");if(s&&n){const want=slugId(a.name||"");const opt=[...s.options].find(o=>o.value===want);if(opt)s.value=want;else{s.value="__new";n.value=a.name||r.who;}}
+      const el=document.getElementById("entNum");if(el)el.scrollIntoView({block:"center"});toast("Check the entry details, then press Add entry.");},50);},
+  appcsv(){const f=appForm(),rows=appRows(),ids=f.questions.map(q=>q.id),head=["Submitted","Discord name","Discord ID","Status","Note"].concat(f.questions.map(q=>q.label));
+    const lines=[head.map(csvCell).join(",")].concat(rows.map(r=>[new Date(r.at).toISOString().slice(0,16).replace("T"," "),r.who,r.uid,(APP_STATUS.find(x=>x[0]===(r.rev.status||""))||APP_STATUS[0])[1],r.rev.note||""].concat(ids.map(id=>r.a[id]===true?"Yes":r.a[id]==null?"":r.a[id])).map(csvCell).join(",")));
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv"}));a.download="inrs-applications-"+f.form+".csv";document.body.appendChild(a);a.click();a.remove();},
+  appfedit(){S.forms.appf=JSON.parse(JSON.stringify(appForm()));draw();},
+  appfcancel(){S.forms.appf=null;draw();},
+  appfadd(){appfSync();S.forms.appf.questions.push({id:"q"+Date.now().toString(36).slice(-5),label:"New question",type:"text",options:[],required:false,help:""});draw();},
+  appfdel(i){appfSync();S.forms.appf.questions.splice(+i,1);draw();},
+  appfmove(a){appfSync();const[i,d]=String(a).split("|").map(Number),Q=S.forms.appf.questions,j=i+d;if(j<0||j>=Q.length)return;[Q[i],Q[j]]=[Q[j],Q[i]];draw();},
+  appfdefault(){if(!confirm("Replace the questions with the default 2027 questions?"))return;appfSync();S.forms.appf.questions=JSON.parse(JSON.stringify(APP_DEFAULT.questions));draw();},
+  async appfsave(){appfSync();const E=S.forms.appf;if(E.questions.some(q=>!String(q.label).trim()))return toast("Every question needs wording.",true);if(E.questions.some(q=>q.type==="choice"&&!q.options.length))return toast("Pick-one questions need choices.",true);
+    if(await sitePut("site/appForm",{form:E.form||"2027",open:!!E.open,closes:E.closes||"",title:E.title.trim()||APP_DEFAULT.title,intro:E.intro.trim(),questions:E.questions.map(q=>({id:q.id,label:q.label.trim(),type:q.type,options:q.type==="choice"?q.options:[],required:!!q.required,help:q.help||""}))},"Form saved."))S.forms.appf=null;draw();},
+  async appftoggle(){const f=appForm();await sitePut("site/appForm",Object.assign({},f,{open:!f.open}),f.open?"Applications closed.":"Applications open.");}};
+
 const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false;setHash();draw();window.scrollTo(0,0);},legacyall:()=>{S.legacyAll=!S.legacyAll;draw();},rivser:a=>{S.rivSer=a||"";render();},rivyr:a=>{S.rivYr=+a||0;render();},
   ...RW_ACT,
   ...DOTR_ACT,
@@ -2223,6 +2353,7 @@ const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false
   ...AUTH_ACT,
   ...STW_ACT,
   ...ADM_ACT,
+  ...APP_ACT,
   oddsmkt(k){S.oddsMkt=k;draw();},
   career(id){S.view="career";S.careerId=id;setHash();draw();window.scrollTo(0,0);},
   recser(k){S.recSeries=k;draw();},
@@ -2309,7 +2440,7 @@ const CHANGE={
 function setPath(obj,path,val){const k=path.split(".");let o=obj;for(let i=0;i<k.length-1;i++){o=o[k[i]];if(o==null)return;}o[k[k.length-1]]=val;}
 document.addEventListener("click",e=>{const el=e.target.closest("[data-act]");if(!el||el.disabled)return;const fn=ACT[el.dataset.act];if(!fn)return;e.preventDefault();
   if(el.dataset.act!=="askdel"&&S.confirm&&!/^del/.test(el.dataset.act))S.confirm=null;fn(el.dataset.arg,el);});
-document.addEventListener("input",e=>{const p=e.target.dataset&&e.target.dataset.f;if(p)setPath(S.forms,p,e.target.value);});
+document.addEventListener("input",e=>{const p=e.target.dataset&&e.target.dataset.f;if(p)setPath(S.forms,p,e.target.type==="checkbox"?e.target.checked:e.target.value);});
 function findDriver(q){const v=String(q||"").trim().toLowerCase();if(!v)return null;const L=S.cmpAll||S.drivers;
   const ex=L.find(d=>dlabel(d).toLowerCase()===v);if(ex)return ex;
   const n=v.replace(/^#/,"");if(/^\d+$/.test(n)){const m=L.filter(d=>String(d.number)===n);if(m.length===1)return m[0];}
@@ -2343,7 +2474,7 @@ document.addEventListener("keydown",e=>{const el=e.target;if(!(el.dataset&&el.da
   else if(e.key==="Enter"){e.preventDefault();if(a>=0&&opts[a])cmpChoose(el.dataset.cmp,opts[a].dataset.pick);else if(opts.length===1)cmpChoose(el.dataset.cmp,opts[0].dataset.pick);else pickCmp(el,true);}
   else if(e.key==="Escape"){cmpClose(el);el.blur();}});
 document.addEventListener("input",e=>{if(e.target.id!=="dsearch")return;SORT.q=e.target.value;const pos=e.target.selectionStart;draw();const el=document.getElementById("dsearch");if(el){el.focus();try{el.setSelectionRange(pos,pos);}catch(_){}}});
-document.addEventListener("change",e=>{const el=e.target,p=el.dataset&&el.dataset.f;if(p)setPath(S.forms,p,el.value);const c=el.dataset&&el.dataset.change;if(c&&CHANGE[c])CHANGE[c](el);});
+document.addEventListener("change",e=>{const el=e.target,p=el.dataset&&el.dataset.f;if(p)setPath(S.forms,p,el.type==="checkbox"?el.checked:el.value);const c=el.dataset&&el.dataset.change;if(c&&CHANGE[c])CHANGE[c](el);});
 
 /* ---------- render ---------- */
 {const _cmp=V.compare;V.compare=()=>{let h=_cmp();const c=S.calc,all=c.standings.filter(s=>s.starts>0||s.off);if(all.length<2)return h;
@@ -2358,18 +2489,18 @@ document.addEventListener("focusout",()=>setTimeout(()=>{if(S.pending&&!isTyping
 let gcLast=null;
 function gcTrack(){try{const g=window.goatcounter;if(!S.static||!g||typeof g.count!=="function")return;
   const key="/"+S.view+(isMain()?"":"/"+S.sel);if(key===gcLast)return;gcLast=key;
-  const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="legacy"?"Series legacy":S.view==="awards"?"Awards":S.view==="provisional"?"Provisional results":S.view==="steward"?"Steward tools":S.view==="siteadmin"?"League admin":S.view==="compare"?"Head to head":S.view])[1];
+  const tab=(TABS.find(t=>t[0]===S.view)||[0,S.view==="career"?"Career":S.view==="legacy"?"Series legacy":S.view==="awards"?"Awards":S.view==="provisional"?"Provisional results":S.view==="steward"?"Steward tools":S.view==="siteadmin"?"League admin":S.view==="apply"?"Apply":S.view==="applications"?"Applications":S.view==="compare"?"Head to head":S.view])[1];
   g.count({path:key,title:tab+(isMain()?"":" · "+S.sel)});}catch(e){}}
 window.__gcReady=()=>{gcLast=null;gcTrack();};
 function draw(){S.calc=compute();if(S.mode!=="loading")setHash();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
   document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
-  S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="siteadmin"||(S.static&&isSiteAdminMe()))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy"||S.view==="awards")&&t[0]==="records")||(S.view==="provisional"&&t[0]==="home")||(S.view==="steward"&&t[0]==="penalties")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
+  S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="siteadmin"||(S.static&&isSiteAdminMe()))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy"||S.view==="awards")&&t[0]==="records")||(S.view==="provisional"&&t[0]==="home")||(S.view==="steward"&&t[0]==="penalties")||(S.view==="applications"&&t[0]==="siteadmin")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
   if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
   const sw=document.getElementById("switch");if(sw){const h=switcher();sw.hidden=!h;if(!isTyping()||!sw.contains(document.activeElement))sw.innerHTML=h;}
   const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"||S.selLoading?loading():(V[S.view]||V.home)();
   document.getElementById("main").innerHTML=notice()+siteBanner()+(S.view==="bets"||S.view==="live"?"":archBar())+body;drawSlip();if(S.loaded&&!S.selLoading)gcTrack();
   const dc=safeUrl(st.discord),sp=safeUrl(st.sponsorUrl);
-  document.getElementById("foot").innerHTML='<span class="presented">Presented by <b>'+esc(st.sponsorName||"40XLI")+"</b></span>"+(dc?'<a class="btn sm ghost" href="'+esc(dc)+'" target="_blank" rel="noopener">Discord</a>':"")+(sp?'<a class="btn sm ghost" href="'+esc(sp)+'" target="_blank" rel="noopener">'+esc(st.sponsorName||"Sponsor")+"</a>":"")+(S.static&&authOn()?'<button class="btn sm ghost" data-act="siteadmin" style="margin-left:auto;opacity:.7">Admin</button>':"");}
+  document.getElementById("foot").innerHTML='<span class="presented">Presented by <b>'+esc(st.sponsorName||"40XLI")+"</b></span>"+(dc?'<a class="btn sm ghost" href="'+esc(dc)+'" target="_blank" rel="noopener">Discord</a>':"")+(sp?'<a class="btn sm ghost" href="'+esc(sp)+'" target="_blank" rel="noopener">'+esc(st.sponsorName||"Sponsor")+"</a>":"")+(S.static&&authOn()?'<span style="margin-left:auto;display:inline-flex;gap:6px">'+(appIsOpen(appForm())?'<button class="btn sm ghost" data-act="apply">Apply</button>':"")+'<button class="btn sm ghost" data-act="siteadmin" style="opacity:.7">Admin</button></span>':"");}
 
 function markReady(k){S.ready[k]=true;S.loaded=S.ready.s&&S.ready.d&&S.ready.r&&S.ready.p&&S.ready.o;render();}
 function onErr(e){if(e&&e.code==="revoked"){S.mode="nodb";}render();}
