@@ -292,6 +292,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.45}
 .hint{font-size:14px;color:var(--muted)}
 .provtag{display:inline-block;font:700 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#1a1300;background:#f5c542;border-radius:4px;padding:2px 6px;vertical-align:2px}
 .provp{border:1px solid #f5c54266}
+.applytab{color:var(--accent);font-weight:800}
 .appst{display:inline-block;font:700 11px var(--mono);text-transform:uppercase;letter-spacing:.04em;border-radius:4px;padding:2px 6px;margin-left:6px;vertical-align:1px;background:#f5c54233;color:#f5c542}.appst-reviewing{background:#4aa3ff33;color:#7cbcff}.appst-accepted{background:#3ecf8e26;color:#5fd9a2}.appst-waitlist{background:var(--panel-2);color:var(--muted)}.appst-declined{background:#ff6b6b26;color:#ff8a8a}
 .tier{display:inline-block;font:700 11px var(--mono);letter-spacing:.03em;border-radius:4px;padding:2px 6px;white-space:nowrap;background:var(--panel-2);color:var(--muted)}.tier1{background:#b06cff33;color:#c99bff}.tier2{background:#4aa3ff33;color:#7cbcff}.tier3{background:#3ecf8e26;color:#5fd9a2}.tier4{background:#f5c54226;color:#f5c542}
 .lvl{display:inline-block;min-width:26px;text-align:center;font:700 12px var(--mono);border-radius:4px;padding:2px 5px;background:var(--panel-2);color:var(--muted)}.lvl1{background:#f5c54233;color:#f5c542}.lvl2{background:#ff9f4333;color:#ff9f43}.lvl3{background:#ff6b6b33;color:#ff6b6b}.lvl4,.lvl5{background:#e0313b;color:#fff}
@@ -323,7 +324,7 @@ td.fl{color:#b06cff;font-weight:700}
 <script>
 (function(){
 "use strict";
-const TABS=[["home","Home"],["live","Live"],["standings","Standings"],["schedule","Schedule"],["tracks","Tracks"],["drivers","Drivers"],["records","Records"],["odds","Sportsbook"],["recaps","Recaps"],["penalties","Penalties"],["rules","Rules"],["siteadmin","Admin"],["admin","Admin"]];
+const TABS=[["home","Home"],["apply","Apply"],["live","Live"],["standings","Standings"],["schedule","Schedule"],["tracks","Tracks"],["drivers","Drivers"],["records","Records"],["odds","Sportsbook"],["recaps","Recaps"],["penalties","Penalties"],["rules","Rules"],["siteadmin","Admin"],["admin","Admin"]];
 const DEFAULT_POINTS=[40].concat(Array.from({length:35},(_,i)=>35-i));
 const DEF={name:"INRS Cup Series",season:"2026",discord:"",sponsorName:"40XLI Driver Academy",sponsorUrl:"",hubUrl:"",youtubeUrl:"",liveUrl:"",maxPerRace:66,points:{table:DEFAULT_POINTS,ledLap:1,mostLed:1},rules:[]};
 
@@ -2494,7 +2495,7 @@ function gcTrack(){try{const g=window.goatcounter;if(!S.static||!g||typeof g.cou
 window.__gcReady=()=>{gcLast=null;gcTrack();};
 function draw(){S.calc=compute();if(S.mode!=="loading")setHash();const st=S.calc.st,parts=String(st.name||DEF.name).trim().split(/\s+/);
   document.getElementById("mark").textContent=parts[0];document.getElementById("series").textContent=parts.slice(1).join(" ");document.getElementById("season").textContent=st.season||"";
-  S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="siteadmin"||(S.static&&isSiteAdminMe()))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy"||S.view==="awards")&&t[0]==="records")||(S.view==="provisional"&&t[0]==="home")||(S.view==="steward"&&t[0]==="penalties")||(S.view==="applications"&&t[0]==="siteadmin")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+t[1]+"</button>").join("");
+  S.liveTabShown=liveActive();document.getElementById("tabs").innerHTML=TABS.filter(t=>(t[0]!=="admin"||(S.admin&&isMain()))&&(t[0]!=="siteadmin"||(S.static&&isSiteAdminMe()))&&(t[0]!=="apply"||S.view==="apply"||(S.static&&authOn()&&appIsOpen(appForm())))&&(t[0]!=="live"||S.liveTabShown||S.view==="live")).map(t=>'<button class="tab" data-act="nav" data-arg="'+t[0]+'"'+(S.view===t[0]||((S.view==="career"||S.view==="legacy"||S.view==="awards")&&t[0]==="records")||(S.view==="provisional"&&t[0]==="home")||(S.view==="steward"&&t[0]==="penalties")||(S.view==="applications"&&t[0]==="siteadmin")||(S.view==="compare"&&t[0]==="drivers")||(S.view==="bets"&&t[0]==="odds")?' aria-current="page"':"")+">"+(t[0]==="live"&&liveActive()?'<span class="ldot"></span> ':"")+(t[0]==="apply"?'<span class="applytab">'+t[1]+"</span>":t[1])+"</button>").join("");
   if(S.view==="admin"&&!S.admin&&S.mode!=="loading")S.view="home";
   const sw=document.getElementById("switch");if(sw){const h=switcher();sw.hidden=!h;if(!isTyping()||!sw.contains(document.activeElement))sw.innerHTML=h;}
   const body=(S.mode==="live"&&!S.loaded)||S.mode==="loading"||S.selLoading?loading():(V[S.view]||V.home)();
