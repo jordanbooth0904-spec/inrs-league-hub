@@ -2224,7 +2224,7 @@ const ADM_ACT={
    The form (title, intro, open/closed, closing date, questions) is edited by admins and stored at /site/appForm. */
 const APP_TYPES=[["text","Short answer"],["long","Paragraph"],["choice","Pick one"],["number","Number"],["check","Checkbox (agree)"]];
 const APP_STATUS=[["","New"],["reviewing","Reviewing"],["accepted","Accepted"],["waitlist","Waitlist"],["declined","Declined"]];
-const APP_DEFAULT={form:"2027",open:false,closes:"",title:"INRS 2027 Driver Application",
+const APP_DEFAULT={form:"2027",open:false,closes:"",discord:"https://discord.gg/gkVhR2w58",title:"INRS 2027 Driver Application",
   intro:"Apply for a seat in the 2027 INRS season. Sign in with Discord so we can reach you. League admins review every application and will contact you on Discord.",
   questions:[
     {id:"name",label:"Full name (as it appears on iRacing)",type:"text",required:true},
@@ -2241,22 +2241,25 @@ const APP_DEFAULT={form:"2027",open:false,closes:"",title:"INRS 2027 Driver Appl
 function cleanAppForm(f){if(!f||typeof f!=="object")return null;const T=(v,n)=>v==null?"":String(v).slice(0,n||200);
   const qs=(Array.isArray(f.questions)?f.questions:Object.values(f.questions||{})).filter(q=>q&&typeof q==="object"&&q.label).slice(0,40).map((q,i)=>({id:/^[\w-]{1,24}$/.test(q.id||"")?q.id:"q"+i,label:T(q.label,200),
     type:APP_TYPES.some(t=>t[0]===q.type)?q.type:"text",options:(Array.isArray(q.options)?q.options:[]).map(o=>T(o,80)).filter(Boolean).slice(0,20),required:q.required===true,help:T(q.help,200)}));
-  return{form:/^[\w-]{1,20}$/.test(f.form||"")?f.form:"2027",open:f.open===true,closes:/^\d{4}-\d\d-\d\d$/.test(f.closes||"")?f.closes:"",title:T(f.title,120)||APP_DEFAULT.title,intro:T(f.intro,1500),questions:qs.length?qs:APP_DEFAULT.questions};}
+  const dc=String(f.discord==null?APP_DEFAULT.discord:f.discord).trim();
+  return{discord:/^https:\/\/(discord\.gg|discord\.com\/invite)\/[\w-]{2,40}$/.test(dc)?dc:"",form:/^[\w-]{1,20}$/.test(f.form||"")?f.form:"2027",open:f.open===true,closes:/^\d{4}-\d\d-\d\d$/.test(f.closes||"")?f.closes:"",title:T(f.title,120)||APP_DEFAULT.title,intro:T(f.intro,1500),questions:qs.length?qs:APP_DEFAULT.questions};}
 const appForm=()=>(S.site&&S.site.appForm)||APP_DEFAULT;
 const appIsOpen=f=>f.open&&!(f.closes&&new Date(f.closes+"T23:59:59")<new Date());
 const isAdminMe=()=>isSiteAdminMe();
 async function appGet(path){const t=await idToken();if(!t)return undefined;try{const r=await fetch(liveDb()+"/"+path+".json?auth="+encodeURIComponent(t),{cache:"no-store"});return r.ok?await r.json():undefined;}catch(e){return undefined;}}
 /* ---- public form ---- */
+const appDiscord=(f,big)=>f.discord?'<a class="btn '+(big?"primary":"sm")+'" href="'+esc(f.discord)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px"><svg width="18" height="14" viewBox="0 0 71 55" fill="currentColor" aria-hidden="true"><path d="M60.1 4.9A58.5 58.5 0 0 0 45.6.4a40 40 0 0 0-1.8 3.7 54 54 0 0 0-16.2 0A40 40 0 0 0 25.8.4 58.4 58.4 0 0 0 11.3 4.9C2.1 18.6-.4 32 .9 45.2a58.8 58.8 0 0 0 17.9 9 43 43 0 0 0 3.8-6.2 38 38 0 0 1-6-2.9l1.5-1.1a42 42 0 0 0 35.9 0l1.5 1.1a38 38 0 0 1-6 2.9 43 43 0 0 0 3.8 6.2 58.7 58.7 0 0 0 17.9-9c1.5-15.3-2.6-28.6-10.9-40.3ZM23.7 37.1c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2Zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2Z"/></svg>Join the INRS Discord</a>':"";
 V.apply=()=>{const f=appForm(),m=me(),A=S.app||{};
   let h='<section class="stack"><div class="hero"><div class="eyebrow">League application</div><h1 class="track">'+esc(f.title)+'</h1><div class="rule"></div>'+(f.intro?'<p style="margin:10px 0 0;white-space:pre-line">'+esc(f.intro)+"</p>":"")+
-    (f.closes?'<div class="meta"><span>'+(appIsOpen(f)?"Applications close ":"Closed ")+fmtDate(etISO(f.closes,"23:59"))+"</span></div>":"")+"</div>";
+    (f.closes?'<div class="meta"><span>'+(appIsOpen(f)?"Applications close ":"Closed ")+fmtDate(etISO(f.closes,"23:59"))+"</span></div>":"")+
+    (f.discord?'<div class="row" style="margin-top:14px;align-items:center;gap:10px">'+appDiscord(f)+'<span class="small muted">Everything league-related happens there: race info, results and contact with admins.</span></div>':"")+"</div>";
   if(!authOn())return h+empty("Applications aren't available here","Open the league website at inrs.page to apply.")+"</section>";
   if(!appIsOpen(f))return h+'<div class="panel"><p>Applications are closed right now. Watch the league Discord for the next window.</p></div></section>';
   if(!m)return h+'<div class="panel"><p>Sign in with Discord to start your application. We use it to contact you; nothing is posted publicly.</p>'+authBar()+"</div></section>";
   if(A.loadedFor!==m.uid+f.form){if(!A.loading){S.app={loading:true};appGet("applications/"+f.form+"/"+m.uid).then(v=>{S.app={loadedFor:m.uid+f.form,mine:v||null,draft:v&&v.answers?Object.assign({},v.answers):{}};S.forms.app=S.app.draft;draw();});}return h+loading()+"</section>";}
   const mine=A.mine,ans=S.forms.app||(S.forms.app={});
   if(mine&&!A.editing)return h+'<div class="panel"><div class="lt">Application received</div><p>Thanks, <b>'+esc(m.name)+"</b>. We got your application on "+fmtDate(new Date(mine.at).toISOString())+(mine.updated&&mine.updated!==mine.at?" (last changed "+fmtDate(new Date(mine.updated).toISOString())+")":"")+
-    ". League admins will contact you on Discord.</p>"+(mine.locked?'<p class="hint">Your application is being reviewed, so it can\'t be changed now. Message an admin on Discord if something needs fixing.</p>':'<div class="row"><button class="btn sm" data-act="appeditmine">Change my answers</button></div>')+authBar()+"</div></section>";
+    ". League admins will contact you on Discord.</p>"+(f.discord?'<div class="panel provp" style="margin:12px 0"><b>Next step: join the INRS Discord</b><p class="small" style="margin:4px 0 10px">If you aren\'t in it yet, join now so admins can reach you about your application.</p>'+appDiscord(f,true)+"</div>":"")+(mine.locked?'<p class="hint">Your application is being reviewed, so it can\'t be changed now. Message an admin on Discord if something needs fixing.</p>':'<div class="row"><button class="btn sm" data-act="appeditmine">Change my answers</button></div>')+authBar()+"</div></section>";
   const q=x=>{const v=ans[x.id],lab='<span>'+esc(x.label)+(x.required?' <span style="color:var(--bad)">*</span>':"")+"</span>"+(x.help?'<span class="hint" style="display:block;font-weight:400;text-transform:none;letter-spacing:0">'+esc(x.help)+"</span>":"");
     if(x.type==="long")return'<label class="f">'+lab+'<textarea data-f="app.'+x.id+'" rows="4" maxlength="2000">'+esc(v||"")+"</textarea></label>";
     if(x.type==="choice")return'<div class="f">'+lab+'<div class="row" style="gap:8px;margin-top:6px">'+x.options.map(o=>'<label class="pill" style="cursor:pointer;gap:6px;display:inline-flex;align-items:center"><input type="radio" name="app_'+esc(x.id)+'" data-f="app.'+x.id+'" value="'+esc(o)+'" style="width:auto"'+(v===o?" checked":"")+"> "+esc(o)+"</label>").join("")+"</div></div>";
@@ -2294,7 +2297,7 @@ function appAdminPanel(){const f=appForm(),E=S.forms.appf,qs=E?E.questions:f.que
     '<p class="hint" style="margin-top:0">The form is at <b>inrs.page/#apply</b> and is '+(appIsOpen(f)?'<b style="color:var(--ok)">open</b>':"<b>closed</b>")+". Only admins can read the answers.</p>";
   if(!E)return h+'<div class="row"><button class="btn sm" data-act="appfedit">Edit the form</button><button class="btn sm ghost" data-act="appftoggle">'+(f.open?"Close applications":"Open applications")+"</button></div></div>";
   const inp=(id,v,a)=>'<input id="'+id+'" value="'+esc(v==null?"":v)+'" '+(a||"")+">";
-  h+='<div class="fgrid">'+field("Title",inp("apfTitle",E.title))+field("Closes (optional)",inp("apfCloses",E.closes,'type="date"'))+"</div>"+
+  h+='<div class="fgrid">'+field("Title",inp("apfTitle",E.title))+field("Closes (optional)",inp("apfCloses",E.closes,'type="date"'))+field("Discord invite link",inp("apfDiscord",E.discord,'placeholder="https://discord.gg/..."'))+"</div>"+
     '<label class="f" style="margin-top:10px">Intro<textarea id="apfIntro" rows="3">'+esc(E.intro)+"</textarea></label>"+
     '<label class="row" style="gap:8px;margin-top:8px"><input type="checkbox" id="apfOpen" style="width:auto"'+(E.open?" checked":"")+"> Accepting applications</label>"+
     '<div class="lt" style="margin-top:14px">Questions</div><div class="list">'+qs.map((q,i)=>'<div class="adminrow" style="flex-wrap:wrap;gap:8px"><div class="fgrid" style="flex:1;min-width:240px">'+
@@ -2306,7 +2309,7 @@ function appAdminPanel(){const f=appForm(),E=S.forms.appf,qs=E?E.questions:f.que
   return h;}
 function appfSync(){const E=S.forms.appf;if(!E)return;document.querySelectorAll("[data-qi]").forEach(el=>{const q=E.questions[+el.dataset.qi];if(!q)return;const k=el.dataset.qk;
   if(k==="required")q.required=el.checked;else if(k==="options")q.options=el.value.split(",").map(s=>s.trim()).filter(Boolean);else q[k]=el.value;});
-  const g=id=>document.getElementById(id);if(g("apfTitle")){E.title=g("apfTitle").value;E.closes=g("apfCloses").value;E.intro=g("apfIntro").value;E.open=g("apfOpen").checked;}}
+  const g=id=>document.getElementById(id);if(g("apfTitle")){E.title=g("apfTitle").value;E.closes=g("apfCloses").value;E.intro=g("apfIntro").value;E.open=g("apfOpen").checked;E.discord=g("apfDiscord").value.trim();}}
 function csvCell(v){v=v==null?"":String(v);return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
 const APP_ACT={
   apply(){S.view="apply";setHash();draw();window.scrollTo(0,0);},
@@ -2340,7 +2343,8 @@ const APP_ACT={
   appfmove(a){appfSync();const[i,d]=String(a).split("|").map(Number),Q=S.forms.appf.questions,j=i+d;if(j<0||j>=Q.length)return;[Q[i],Q[j]]=[Q[j],Q[i]];draw();},
   appfdefault(){if(!confirm("Replace the questions with the default 2027 questions?"))return;appfSync();S.forms.appf.questions=JSON.parse(JSON.stringify(APP_DEFAULT.questions));draw();},
   async appfsave(){appfSync();const E=S.forms.appf;if(E.questions.some(q=>!String(q.label).trim()))return toast("Every question needs wording.",true);if(E.questions.some(q=>q.type==="choice"&&!q.options.length))return toast("Pick-one questions need choices.",true);
-    if(await sitePut("site/appForm",{form:E.form||"2027",open:!!E.open,closes:E.closes||"",title:E.title.trim()||APP_DEFAULT.title,intro:E.intro.trim(),questions:E.questions.map(q=>({id:q.id,label:q.label.trim(),type:q.type,options:q.type==="choice"?q.options:[],required:!!q.required,help:q.help||""}))},"Form saved."))S.forms.appf=null;draw();},
+    if(E.discord&&!/^https:\/\/(discord\.gg|discord\.com\/invite)\/[\w-]{2,40}$/.test(E.discord))return toast("The Discord link should look like https://discord.gg/abc123.",true);
+    if(await sitePut("site/appForm",{discord:E.discord||"",form:E.form||"2027",open:!!E.open,closes:E.closes||"",title:E.title.trim()||APP_DEFAULT.title,intro:E.intro.trim(),questions:E.questions.map(q=>({id:q.id,label:q.label.trim(),type:q.type,options:q.type==="choice"?q.options:[],required:!!q.required,help:q.help||""}))},"Form saved."))S.forms.appf=null;draw();},
   async appftoggle(){const f=appForm();await sitePut("site/appForm",Object.assign({},f,{open:!f.open}),f.open?"Applications closed.":"Applications open.");}};
 
 const ACT={legacy:a=>{S.view="legacy";S.legacySer=a||"xfinity";S.legacyAll=false;setHash();draw();window.scrollTo(0,0);},legacyall:()=>{S.legacyAll=!S.legacyAll;draw();},rivser:a=>{S.rivSer=a||"";render();},rivyr:a=>{S.rivYr=+a||0;render();},
