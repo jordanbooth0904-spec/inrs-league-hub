@@ -13,6 +13,8 @@
      "at":{".validate":"newData.isNumber()"},"updated":{".validate":"newData.isNumber()"},
      "$other":{".validate":false}}}},
  "appReviews":{"$form":{".read":"auth != null && (auth.uid === 'discord:391344204871368704' || root.child('siteAdmins/' + auth.uid).val() === true)",".write":"auth != null && (auth.uid === 'discord:391344204871368704' || root.child('siteAdmins/' + auth.uid).val() === true)"}},
+ "appStatus":{"$form":{".read":"auth != null && (auth.uid === 'discord:391344204871368704' || root.child('siteAdmins/' + auth.uid).val() === true)",".write":"auth != null && (auth.uid === 'discord:391344204871368704' || root.child('siteAdmins/' + auth.uid).val() === true)",
+   "$uid":{".read":"auth != null && auth.uid === $uid"}}},
  "stewards":{
    "admins":{".read":"auth != null && auth.uid === 'discord:391344204871368704'",".write":"auth != null && auth.uid === 'discord:391344204871368704'",
      "$uid":{".read":"auth != null && auth.uid === $uid",".validate":"newData.isBoolean() && $uid.length < 60"}},
