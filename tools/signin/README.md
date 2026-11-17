@@ -59,3 +59,20 @@ Every visitor's browser replays each player's bets the same way: start at 1,000,
 placed (by server time) before betting closed and the player had the balance for it, and a reload only counts
 if the balance was under 10 at the time. Live bets count up to the moment the live helper saw 10 laps to go.
 The score is the balance minus 1,000 for each reload.
+
+## Applications to Discord (optional)
+
+Each league application gets its own post (thread) in a Discord **forum** channel. Edited answers and every
+admin review (status, message to the applicant, admin note) are added to that thread.
+
+1. In Discord, create a forum channel (e.g. `#applications`) that only staff can see, because admin notes are
+   posted there. In the forum's settings, leave "Require tags" off.
+2. Forum channel > Edit Channel > Integrations > Webhooks > New Webhook. Name it `INRS Applications` and
+   click Copy Webhook URL. Treat this link like a password.
+3. Cloudflare > Workers & Pages > `inrs-signin` > Edit code: replace everything with `worker.js`, then Deploy.
+4. Settings > Variables and Secrets > Add: name `APPS_WEBHOOK`, type **Secret**, value = the webhook URL. Deploy.
+
+The site calls `/app-notify` after someone applies and after an admin saves a review. The worker reads the
+application from the database with the service account (so callers can't post made-up content), and records
+the thread in `/appDiscord/<form>/<uid>` (not readable by anyone through the site). It only posts when
+something changed. In Admin > Applications, "Post all to Discord" posts applications sent before this was set up.

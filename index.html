@@ -2290,7 +2290,7 @@ V.applications=()=>{const m=me(),f=appForm(),back='<div><button class="btn sm gh
   const rows=appRows(),flt=S.appFilter||"all",shown=rows.filter(r=>flt==="all"||(r.rev.status||"")===(flt==="new"?"":flt)),cnt=k=>rows.filter(r=>(r.rev.status||"")===k).length;
   const qv=(r,id)=>{const v=r.a[id];return v===true?"Yes":v==null?"":String(v);},Q=f.questions;
   const chip=s=>{const l=(APP_STATUS.find(x=>x[0]===(s||""))||APP_STATUS[0])[1];return'<span class="appst appst-'+(s||"new")+'">'+esc(l)+"</span>";};
-  let h='<section class="stack">'+back+'<div class="sechead"><div class="lt">Applications · '+esc(f.title)+'</div><div class="row"><button class="btn sm" data-act="appreload">Refresh</button><button class="btn sm" data-act="appcsv">Download spreadsheet</button></div></div>'+
+  let h='<section class="stack">'+back+'<div class="sechead"><div class="lt">Applications · '+esc(f.title)+'</div><div class="row"><button class="btn sm" data-act="appreload">Refresh</button><button class="btn sm" data-act="appcsv">Download spreadsheet</button><button class="btn sm" data-act="appdiscordall">Post all to Discord</button></div></div>'+
     '<div class="subtabs" role="group">'+[["all","All ("+rows.length+")"],["new","New ("+cnt("")+")"]].concat(APP_STATUS.slice(1).map(([k,l])=>[k,l+" ("+cnt(k)+")"])).map(([k,l])=>'<button class="btn sm" data-act="appfilter" data-arg="'+k+'"'+(flt===k?' aria-current="page"':"")+">"+esc(l)+"</button>").join("")+"</div>";
   if(!shown.length)return h+empty(rows.length?"None in this group":"No applications yet",rows.length?"":appIsOpen(f)?"Share inrs.page/#apply with drivers.":"The application form is closed. Open it from Admin.")+"</section>";
   h+='<div class="list">'+shown.map(r=>{const open=S.appOpen===r.uid;
@@ -2302,7 +2302,7 @@ V.applications=()=>{const m=me(),f=appForm(),back='<div><button class="btn sm gh
         '<div class="fgrid" style="margin-top:10px">'+field("Status",'<select id="appSt">'+APP_STATUS.map(([k,l])=>'<option value="'+k+'"'+((r.rev.status||"")===k?" selected":"")+">"+esc(l)+"</option>").join("")+"</select>")+field("Private note (admins only)",'<input id="appNote" value="'+esc(r.rev.note||"")+'">')+"</div>"+
         '<label class="f" style="margin-top:10px">Message to the applicant (optional; they see this with their status)<textarea id="appMsg" rows="2" maxlength="600" placeholder="e.g. #47 is taken. Message us with another number.">'+esc(((S.appPub||{})[r.uid]||{}).msg||"")+"</textarea></label>"+
         '<p class="hint" style="margin:6px 0 0">They\'ll see: <b>'+esc(APP_PUBLIC[r.rev.status||""]&&r.rev.status?APP_PUBLIC[r.rev.status][0]:"Under review")+"</b> once you save. Saving any review locks their answers.</p>"+
-        '<div class="row" style="margin-top:10px"><button class="btn sm primary" data-act="appreview" data-arg="'+esc(r.uid)+'">Save review</button><button class="btn sm" data-act="appentry" data-arg="'+esc(r.uid)+'">Add to entry list</button><button class="btn sm ghost" data-act="appdel" data-arg="'+esc(r.uid)+'">Delete</button></div>'+
+        '<div class="row" style="margin-top:10px"><button class="btn sm primary" data-act="appreview" data-arg="'+esc(r.uid)+'">Save review</button><button class="btn sm" data-act="appentry" data-arg="'+esc(r.uid)+'">Add to entry list</button><button class="btn sm" data-act="appdiscord" data-arg="'+esc(r.uid)+'">Post to Discord</button><button class="btn sm ghost" data-act="appdel" data-arg="'+esc(r.uid)+'">Delete</button></div>'+
         (r.rev.by?'<p class="hint" style="margin:8px 0 0">Last reviewed '+fmtShort(new Date(r.rev.at).toISOString())+"</p>":""):"")+"</div>";}).join("")+"</div>";
   return h+"</section>";};
 /* ---- admin: form editor (inside the Admin page) ---- */
@@ -2325,6 +2325,8 @@ function appAdminPanel(){const f=appForm(),E=S.forms.appf,qs=E?E.questions:f.que
 function appfSync(){const E=S.forms.appf;if(!E)return;document.querySelectorAll("[data-qi]").forEach(el=>{const q=E.questions[+el.dataset.qi];if(!q)return;const k=el.dataset.qk;
   if(k==="required")q.required=el.checked;else if(k==="options")q.options=el.value.split(",").map(s=>s.trim()).filter(Boolean);else q[k]=el.value;});
   const g=id=>document.getElementById(id);if(g("apfTitle")){E.title=g("apfTitle").value;E.closes=g("apfCloses").value;E.intro=g("apfIntro").value;E.open=g("apfOpen").checked;E.discord=g("apfDiscord").value.trim();}}
+/* Ask the sign-in worker to post this application (or its latest change) to the league's Discord forum. */
+async function appNotify(uid){const f=appForm();try{const r=await fetch(AUTH_URL+"/app-notify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({form:f.form,uid})});return r.ok?await r.json():{ok:false,error:"HTTP "+r.status};}catch(e){return{ok:false,error:"offline"};}}
 function csvCell(v){v=v==null?"":String(v);return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
 const APP_ACT={
   apply(){S.view="apply";setHash();draw();window.scrollTo(0,0);},
@@ -2335,7 +2337,7 @@ const APP_ACT={
     const ans={};f.questions.forEach(q=>{let v=a[q.id];if(q.type==="check")v=v===true||v==="true";else v=String(v==null?"":v).trim().slice(0,q.type==="long"?2000:300);if(v!==""&&v!==false)ans[q.id]=v;});
     const now=Date.now(),prev=S.app.mine,body={answers:ans,name:String(m.name||"").slice(0,60),at:prev?prev.at:now,updated:now};
     const ok=await authPut("applications/"+f.form+"/"+m.uid,body);if(ok===null){toast("Couldn't send it. Applications may have just closed, or an admin has started reviewing yours.",true);return;}
-    S.app={loadedFor:m.uid+f.form,mine:body,draft:ans};toast(prev?"Changes saved.":"Application sent. Thanks!");draw();window.scrollTo(0,0);},
+    S.app={loadedFor:m.uid+f.form,mine:body,draft:ans,status:S.app&&S.app.status};appNotify(m.uid);toast(prev?"Changes saved.":"Application sent. Thanks!");draw();window.scrollTo(0,0);},
   applications(){S.view="applications";setHash();draw();},
   appreload(){S.appsLoaded=null;draw();},
   appfilter(k){S.appFilter=k;draw();},
@@ -2344,7 +2346,11 @@ const APP_ACT={
     const v=st||note||msg?{status:st||null,note:note||null,by:me().uid,at:Date.now()}:null;if(await authPut("appReviews/"+f.form+"/"+uid,v)===null&&v!==null)return toast("Couldn't save the review.",true);
     const pub=v?{status:st||"reviewing",msg:msg||null,at:Date.now()}:null;await authPut("appStatus/"+f.form+"/"+uid,pub);
     (S.appRev=S.appRev||{})[uid]=v||{};if(!v)delete S.appRev[uid];(S.appPub=S.appPub||{})[uid]=pub||{};if(!pub)delete S.appPub[uid];
-    toast(v?"Review saved. They'll see "+APP_PUBLIC[pub.status][0]+".":"Review cleared; they can edit their answers again.");draw();},
+    toast(v?"Review saved. They'll see "+APP_PUBLIC[pub.status][0]+".":"Review cleared; they can edit their answers again.");draw();if(v)appNotify(uid);},
+  async appdiscord(uid){toast("Posting to Discord…");const r=await appNotify(uid);toast(r.ok?(r.posted?"Posted to the Discord thread.":r.skipped?"Nothing to post.":"Already up to date in Discord."):r.error==="APPS_WEBHOOK not set"?"Discord posting isn't set up yet (add APPS_WEBHOOK to the sign-in worker).":"Couldn't post to Discord: "+r.error,!r.ok);},
+  async appdiscordall(){const rows=appRows();if(!rows.length)return;if(!confirm("Post all "+rows.length+" applications to Discord? Ones already posted are only updated if something changed."))return;
+    let n=0,bad=0,err="";for(const r of rows){const x=await appNotify(r.uid);if(x.ok){if(x.posted)n++;}else{bad++;err=x.error;if(err==="APPS_WEBHOOK not set")break;}await new Promise(res=>setTimeout(res,1200));}
+    toast(bad?(err==="APPS_WEBHOOK not set"?"Discord posting isn't set up yet (add APPS_WEBHOOK to the sign-in worker).":bad+" couldn't be posted: "+err):n?"Posted "+n+" to Discord.":"Discord is already up to date.",!!bad);},
   async appdel(uid){if(!confirm("Delete this application for good? The applicant could then apply again."))return;const f=appForm();await authPut("appReviews/"+f.form+"/"+uid,null);await authPut("appStatus/"+f.form+"/"+uid,null);await authPut("applications/"+f.form+"/"+uid,null);delete S.apps[uid];delete (S.appRev||{})[uid];S.appOpen=null;toast("Application deleted.");draw();},
   appentry(uid){const r=appRows().find(x=>x.uid===uid);if(!r)return;const a=r.a,tm=String(a.tier||"").match(/Tier\s*(\d)/i),num=(String(a.numbers||"").match(/\d{1,3}/)||[""])[0];
     S.forms.ent={number:num,tier:tm?+tm[1]:3,team:a.team||"",custId:/^\d{1,9}$/.test(String(a.cust||"").trim())?String(a.cust).trim():"",_newName:a.name||r.who};
